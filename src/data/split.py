@@ -6,7 +6,9 @@ from sklearn.model_selection import train_test_split
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Split cleaned sentence data into train/val/test (80/10/10).")
+    parser = argparse.ArgumentParser(
+        description="Split cleaned sentence data into train/val/test (80/10/10)."
+    )
     parser.add_argument("--input_file", type=str, default="data/processed/sentences_cleaned.jsonl")
     parser.add_argument("--output_dir", type=str, default="data/splits")
     parser.add_argument("--seed", type=int, default=42)

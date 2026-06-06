@@ -16,10 +16,16 @@ def load_model(model_name: str = "intfloat/multilingual-e5-large-instruct") -> S
     return SentenceTransformer(model_name)
 
 
-def embed_passages(model: SentenceTransformer, texts: list[str], batch_size: int = 32) -> np.ndarray:
-    return model.encode(texts, batch_size=batch_size, normalize_embeddings=True, show_progress_bar=True)
+def embed_passages(
+    model: SentenceTransformer, texts: list[str], batch_size: int = 32
+) -> np.ndarray:
+    return model.encode(
+        texts, batch_size=batch_size, normalize_embeddings=True, show_progress_bar=True
+    )
 
 
 def embed_queries(model: SentenceTransformer, texts: list[str], batch_size: int = 32) -> np.ndarray:
     prefixed = [_QUERY_INSTRUCTION + t for t in texts]
-    return model.encode(prefixed, batch_size=batch_size, normalize_embeddings=True, show_progress_bar=False)
+    return model.encode(
+        prefixed, batch_size=batch_size, normalize_embeddings=True, show_progress_bar=False
+    )
