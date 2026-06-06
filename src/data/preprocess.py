@@ -168,10 +168,6 @@ def write_outputs(output_dir: Path, filename_stem: str, cleaned: List[Dict], dro
     drop_path = output_dir / f"{filename_stem}_dropped.tsv"
     with drop_path.open("w", encoding="utf-8", newline="") as f:
         if dropped:
-            # Dropped records come in two shapes (ColumnMismatch vs. validation
-            # rejects), so build the column set from the union of all keys rather
-            # than just the first record's — otherwise DictWriter raises on the
-            # first record whose keys differ from dropped[0].
             drop_fields: List[str] = []
             for rec in dropped:
                 for k in rec:
