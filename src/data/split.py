@@ -1,29 +1,27 @@
 import argparse
 import hashlib
 import json
-import re
+import re #regular expressions.
 import unicodedata
 from pathlib import Path
 
 import pandas as pd
 
-ARABIC_DIACRITICS_RE = re.compile(r"[ً-ٰٟۖ-ۭ]")
-PUNCT_RE = re.compile(r"[^\w\s]", flags=re.UNICODE)
+ARABIC_DIACRITICS = "ً-ٰٟۖ-ۭ"
+PUNCT_RE = re.compile(r"[^\w\s" + ARABIC_DIACRITICS + r"]", flags=re.UNICODE)
 WS_RE = re.compile(r"\s+")
 
 UNKNOWN_SOURCE_KEYS = {"", None}
 
 
-def norm_key(text: str, is_source: bool) -> str:
+def normalize_key(text: str) -> str:
     """
-    Aggressive normalization used ONLY for cross-boundary duplicate matching.
+    Normalization used ONLY for cross-boundary duplicate matching.
     """
     if not text:
         return ""
     text = unicodedata.normalize("NFKC", str(text))
-    if is_source:
-        text = ARABIC_DIACRITICS_RE.sub("", text)
-    text = text.casefold()
+    text = text.casefold() # lowercasing
     text = PUNCT_RE.sub(" ", text)
     text = WS_RE.sub(" ", text).strip()
     return text
@@ -31,7 +29,7 @@ def norm_key(text: str, is_source: bool) -> str:
 
 def assign_works(work_sizes: dict, fracs: dict, forced_train: set) -> dict:
     """
-    Greedy multiway partition: keep whole works intact, hit `fracs` closely.
+    Greedy multiway partition: keep whole works intact, hit fracs closely.
     """
     total = sum(work_sizes.values())
     targets = {k: total * f for k, f in fracs.items()}
@@ -56,14 +54,14 @@ def assign_works(work_sizes: dict, fracs: dict, forced_train: set) -> dict:
     return assigned
 
 
-def dedup_against_seen(records: list, seen_inputs: set, seen_outputs: set) -> tuple:
+def drop_seen(records: list, seen_inputs: set, seen_outputs: set) -> tuple:
     """
     Drop records whose normalized input OR output is already in `seen`.
     """
     kept, dropped = [], []
     for rec in records:
-        ik = norm_key(rec["input"], is_source=True)
-        ok = norm_key(rec["output"], is_source=False)
+        ik = normalize_key(rec["input"])
+        ok = normalize_key(rec["output"])
         if ik in seen_inputs or ok in seen_outputs:
             dropped.append(rec)
             continue
@@ -147,13 +145,13 @@ def main():
     seen_inputs, seen_outputs = set(), set()
     # Seed the seen sets with the ENTIRE train partition; train is never trimmed.
     for rec in split_records["train"]:
-        seen_inputs.add(norm_key(rec["input"], is_source=True))
-        seen_outputs.add(norm_key(rec["output"], is_source=False))
+        seen_inputs.add(normalize_key(rec["input"]))
+        seen_outputs.add(normalize_key(rec["output"]))
 
-    split_records["val"], dropped_val = dedup_against_seen(
+    split_records["val"], dropped_val = drop_seen(
         split_records["val"], seen_inputs, seen_outputs
     )
-    split_records["test"], dropped_test = dedup_against_seen(
+    split_records["test"], dropped_test = drop_seen(
         split_records["test"], seen_inputs, seen_outputs
     )
 
@@ -168,7 +166,7 @@ def main():
     # --- 4. Leakage audit: assert zero cross-boundary key overlap remains ---
     def keyset(recs, is_source):
         field = "input" if is_source else "output"
-        return {norm_key(r[field], is_source) for r in recs}
+        return {normalize_key(r[field]) for r in recs}
 
     train_in = keyset(split_records["train"], True)
     train_out = keyset(split_records["train"], False)

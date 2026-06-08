@@ -16,9 +16,7 @@ ARABIC_SCRIPT_RE = re.compile(
 )
 LATIN_SCRIPT_RE = re.compile(r"[A-Za-z]")
 
-PERSIAN_STANDARDIZATION_MAP = str.maketrans(
-    {"ي": "ی", "ك": "ک", "ۀ": "ه", "ة": "ه", "ؤ": "و", "أ": "ا", "إ": "ا", "ٱ": "ا", "ـ": ""}
-)
+PERSIAN_STANDARDIZATION_MAP = str.maketrans({"ي": "ی", "ك": "ک", "ـ": ""})
 
 ENGLISH_PUNCTUATION_MAP = str.maketrans({"“": '"', "”": '"', "‘": "'", "’": "'", "…": "..."})
 

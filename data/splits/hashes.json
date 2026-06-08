@@ -12,25 +12,25 @@
     "dedup_rule": "drop val/test record if normalized input OR output appears in train"
   },
   "counts": {
-    "loaded": 13563,
+    "loaded": 13567,
     "pre_dedup": {
-      "train": 10850,
-      "val": 1363,
-      "test": 1350
+      "train": 10860,
+      "val": 1350,
+      "test": 1357
     },
     "final": {
-      "train": 10850,
-      "val": 1242,
-      "test": 1318
+      "train": 10860,
+      "val": 1323,
+      "test": 1322
     },
     "dropped_dedup": {
-      "val": 121,
-      "test": 32
+      "val": 27,
+      "test": 35
     },
     "final_ratios": {
-      "train": 0.8091,
-      "val": 0.0926,
-      "test": 0.0983
+      "train": 0.8041,
+      "val": 0.098,
+      "test": 0.0979
     }
   },
   "work_to_split": {
@@ -41,31 +41,31 @@
     "Kitab-i-Aqdas": "train",
     "Traveler-Narrative": "train",
     "The-Secret-Divine-Civilization": "train",
-    "The-Tablets-Divine-Plan": "train",
-    "Lawh-i-Maqsud": "train",
-    "Tablet-August-Forel": "train",
-    "Tarazat": "train",
-    "Tajalliyat": "train",
-    "Asl-i-Kullul-Khayr": "train",
-    "Lawh-i-Karmil": "train",
-    "Lawh-i-Ard-i-Ba": "train",
-    "Ishraqat": "val",
-    "Kalimat-i-Firdawsiyyih": "val",
-    "Lawh-i-Hikmat": "val",
-    "Lawh-i-Dunya": "val",
-    "Suriy-i-Vafa": "val",
-    "Lawh-i-Burhan": "val",
-    "Lawh-i-Siyyid-i-Mihdiy-i-Dahaji": "val",
-    "Gems-of-Divine-Mysteries": "test",
-    "Will-and-Testament-Abdul-baha": "test",
-    "Four-Valleys": "test",
-    "Lawh-i-Aqdas": "test",
-    "Bisharat": "test",
-    "Kitab-i-Ahd": "test"
+    "Ishraqat": "train",
+    "Kalimat-i-Firdawsiyyih": "train",
+    "Lawh-i-Hikmat": "train",
+    "Lawh-i-Dunya": "train",
+    "Suriy-i-Vafa": "train",
+    "Lawh-i-Burhan": "train",
+    "Lawh-i-Siyyid-i-Mihdiy-i-Dahaji": "train",
+    "Gems-of-Divine-Mysteries": "val",
+    "Will-and-Testament-Abdul-baha": "val",
+    "Four-Valleys": "val",
+    "Lawh-i-Aqdas": "val",
+    "Bisharat": "val",
+    "Kitab-i-Ahd": "val",
+    "The-Tablets-Divine-Plan": "test",
+    "Lawh-i-Maqsud": "test",
+    "Tablet-August-Forel": "test",
+    "Tarazat": "test",
+    "Tajalliyat": "test",
+    "Asl-i-Kullul-Khayr": "test",
+    "Lawh-i-Karmil": "test",
+    "Lawh-i-Ard-i-Ba": "test"
   },
   "hashes": {
-    "train.jsonl": "939be18892224f23922200bf23762609ae01c143ab96e6ebcd79b2f5f07b1974",
-    "val.jsonl": "efea71fd5315245e8e5dc9eaf1f99d2eddeffbd0a84909dc84b1e6c853b65e69",
-    "test.jsonl": "2eea9013edca0f4ffc1b28cf303505bae35c4cb6b4ed734747d869db93de3373"
+    "train.jsonl": "a70014b880eaa736824a7a510f18232cbfda5edcc61d8f871284c60fc9b27f99",
+    "val.jsonl": "578687841a6c9b90da31e9cfae585d8c35d5fabcf87a8cc0cdb3b2629a940e22",
+    "test.jsonl": "3e24e90f55e5e53006497e2cd8d61dc28c426f7908d99ca88f8f411a9e2e2913"
   }
 }

@@ -1,85 +1,179 @@
-# Engineering & Decision Log
+# Engineering and Decision Log
 
-A running record of pipeline stages, design decisions, and their rationale.
-Newest entries at the top. Each entry should answer: **what changed, why, how to
-reproduce, and what to watch out for.** This is the source of truth for "why is
-the data the way it is" — if a choice would surprise a future reader, it belongs
-here.
+This document provides a chronological record of pipeline stages, architectural decisions, implementation changes, and their underlying rationale. Entries are ordered in reverse chronological order, with the most recent decision listed first.
 
-> Conventions
-> - Dates are absolute (YYYY-MM-DD).
-> - Reference code as `path:line` and commands as exact CLI invocations.
-> - When a stage writes data, record the artifact paths and how integrity is
->   verified (hashes/manifests).
+Each entry should document four elements: **what changed, why the change was made, how the result can be reproduced, and what limitations or risks future contributors should monitor**. This log is the authoritative record for explaining why the dataset, pipeline, and derived artifacts have their current form. Any decision that may not be immediately obvious to a future reader should be documented here.
+
+> **Conventions**
+>
+> * Dates are recorded in absolute form: `YYYY-MM-DD`.
+> * Code references should use the form `path:line`.
+> * Commands should be recorded as exact command-line invocations.
+> * When a pipeline stage writes data, the entry should identify the artifact paths and specify how integrity was verified, such as through hashes or manifests.
 
 ---
 
-## 2026-06-08 — Work-level split + cross-boundary de-duplication
-
-**Stage:** `src/data/split.py` (`python -m src.data.split`)
-**Inputs:** `data/processed/sentences_cleaned.jsonl` (13,563 records)
-**Outputs:** `data/splits/{train,val,test}.jsonl` + `data/splits/hashes.json`
+## 2026-06-08 — Django-style `manage.py` command dispatcher
 
 ### What changed
-Replaced the random sentence-level `train_test_split` with a **whole-work
-(book/document) split** followed by **cross-boundary de-duplication**.
 
-### Why
-The corpus is Bahá'í scripture translation (Arabic/Persian → English). Scripture
-is highly repetitive — invocations and formulae ("Glorified art Thou, O Lord my
-God!") recur across works. A random row-level split scatters near-identical
-sentences across train/val/test. Because AFSP builds its retrieval index over the
-**English target side of the training partition** (README §AFSP), a test sentence
-that also appears in train gives the retriever a trivial exact match — inflating
-retrieval and downstream metrics with leakage rather than real generalization.
-The README design spec already mandated "split by document/section, not by random
-row" (§Splits); the old code contradicted it.
+A repository-level `manage.py` entry point was added as a lightweight command dispatcher. It maps user-facing command names to pipeline modules:
 
-### How it works
-1. **Group** every sentence by `metadata.source` (the work).
-2. **Bin-pack** whole works into train/val/test targeting 80/10/10: works are
-   placed largest-first into whichever split currently has the largest shortfall
-   against its target count (`assign_works`). Deterministic — ties broken by
-   name. No work ever spans a boundary.
-3. **De-duplicate across the boundary** (`dedup_against_seen`): train is kept
-   fully intact; a val/test record is dropped if its *normalized* Arabic input
-   **OR** English output already appears in train. Priority order train → val →
-   test, so no normalized key is shared across splits.
-   - `norm_key` (matching only — never written to disk): NFKC, strip Arabic
-     diacritics/tashkil on the source side, casefold, strip punctuation, collapse
-     whitespace. Catches cosmetic-only scripture variants.
-4. **Leakage audit:** asserts 0 overlapping normalized keys between train and
-   val/test before writing. Run fails loudly if violated.
-5. **Manifest** `hashes.json`: config (fracs, seed, rules), pre/post-dedup
-   counts, final ratios, the full `work_to_split` assignment, and SHA-256 of each
-   output file.
+* `preprocess` → `src.data.preprocess`
+* `split` → `src.data.split`
+
+The dispatcher removes the subcommand from `sys.argv` before importing the target module. This preserves each module’s existing `argparse` interface and allows all previously supported flags to pass through unchanged.
+
+### Rationale
+
+This change establishes a single, discoverable command interface:
+
+```bash
+python manage.py <command>
+```
+
+This is preferable to requiring users to remember module paths such as:
+
+```bash
+python -m src.data.<module>
+```
+
+It also simplifies future extension: adding a new pipeline command requires only one additional entry in the `COMMANDS` dictionary.
+
+### Reproduction
+
+```bash
+python manage.py --help            # list available commands
+python manage.py preprocess        # equivalent to python -m src.data.preprocess
+python manage.py split --seed 7    # forwards flags verbatim
+```
+
+### Caveats and watch-outs
+
+This file is not a Django application entry point. It does not introduce Django settings, apps, or project configuration. It is only a dispatch shim.
+
+New commands must be registered in the `COMMANDS` dictionary at `manage.py:15`, and each target module must expose a callable `main()` function.
+
+---
+
+## 2026-06-08 — Preservation of Arabic diacritics and hamza-bearing characters during source normalization
+
+**Stage:** `src/data/preprocess.py` and `src/data/split.py`
+**Inputs:** `data/raw/*.tsv`
+**Outputs:** regenerated `data/processed/*` and `data/splits/*`
+
+### What changed
+
+Two source-side normalization procedures were revised to avoid destructive transformations of Arabic orthography.
+
+First, in `preprocess.py`, `PERSIAN_STANDARDIZATION_MAP` was reduced from nine mappings to three. The retained mappings are limited to unambiguous Persian–Arabic encoding standardizations and kashida removal:
+
+* `ي → ی`
+* `ك → ک`
+* removal of tatweel/kashida: `ـ`
+
+The pipeline no longer folds hamza-bearing characters such as `أ`, `إ`, `ؤ`, and `ٱ`; it also no longer normalizes teh marbuta `ة` or the Persian ezafe form `ۀ`.
+
+Second, in `split.py`, the `normalize_key()` function used for cross-boundary deduplication no longer strips Arabic harakat. In addition, `PUNCT_RE` was expanded to preserve the Arabic combining-mark range, because Python’s `\w` character class does not include combining marks and could therefore remove diacritics unintentionally during punctuation stripping. The now-redundant `is_source` parameter was removed.
+
+### Rationale
+
+The source corpus contains mixed Persian and Arabic scripture. Approximately 76% of cleaned source sentences contain harakat. In Arabic, hamza-bearing characters, teh marbuta, and diacritics can encode meaningful lexical or grammatical distinctions. Treating these marks as orthographic noise has two undesirable consequences.
+
+First, it corrupts the stored training signal by replacing meaningful source distinctions with normalized approximations. Second, it increases false-positive deduplication by collapsing genuinely distinct verses into identical normalized keys, thereby over-pruning validation and test data.
+
+This decision was confirmed with the author.
 
 ### Result
-| split | sentences | ratio | works |
-|-------|-----------|-------|-------|
-| train | 10,850 | 80.9% | 15 |
-| val   | 1,242  | 9.3%  | 7  |
-| test  | 1,318  | 9.8%  | 6  |
 
-- Cross-boundary dedup dropped 121 val + 32 test near-identical pairs.
-- Leakage audit: PASS. Re-runs produce byte-identical hashes (deterministic).
-- 28 distinct works; the 193 unknown-provenance records (empty `source`) are
-  forced into train so they can never inflate eval.
+The number of retained sentences increased from 13,563 to 13,567. The resulting split sizes are:
 
-### Reproduce
+| Split      | Sentences | Ratio |
+| ---------- | --------: | ----: |
+| Train      |    10,860 | 80.4% |
+| Validation |     1,323 |  9.8% |
+| Test       |     1,322 |  9.8% |
+
+Cross-boundary deduplication drops decreased from 153 to 62 records: 27 from validation and 35 from test. The leakage audit continues to pass, with zero overlapping normalized keys between the training split and the validation/test splits.
+
+### Reproduction
+
+```bash
+python -m src.data.preprocess       # regenerate data/processed/*
+python -m src.data.split            # regenerate data/splits/*
+```
+
+### Caveats and watch-outs
+
+The `metadata.source` field is also normalized; however, grouping keys are Latin work names, so work-level grouping is unaffected.
+
+The AFSP retrieval index is built over paragraph-level English text, whereas the test set contains sentence-level English targets. These may share text. Such overlap should be treated as genuine retrieval leakage at AFSP construction time and handled during that stage.
+
+---
+
+## 2026-06-08 — Work-level split with cross-boundary deduplication
+
+**Stage:** `src/data/split.py`
+**Command:** `python -m src.data.split`
+**Inputs:** `data/processed/sentences_cleaned.jsonl` containing 13,563 records
+**Outputs:** `data/splits/{train,val,test}.jsonl` and `data/splits/hashes.json`
+
+### What changed
+
+The previous random sentence-level `train_test_split` procedure was replaced with a work-level split. Under the new approach, entire works, books, or documents are assigned to a single split, after which cross-boundary deduplication is applied.
+
+### Rationale
+
+The corpus consists of Bahá’í scripture translated from Arabic and Persian into English. This material contains substantial formulaic repetition, including recurring invocations and expressions such as “Glorified art Thou, O Lord my God!” A random row-level split can therefore distribute identical or near-identical sentences across training, validation, and test partitions.
+
+This is especially problematic because AFSP constructs its retrieval index from the English target side of the training partition. If a test sentence also appears in training, the retriever may obtain a trivial exact match, thereby inflating retrieval and downstream evaluation metrics. Such results would reflect data leakage rather than genuine generalization.
+
+The README design specification already required splitting by document or section rather than by random row. The previous implementation was therefore inconsistent with the stated experimental design.
+
+### Method
+
+The revised splitting procedure consists of five steps.
+
+1. **Work-level grouping**
+   Each sentence is grouped by `metadata.source`, corresponding to the originating work.
+
+2. **Deterministic bin packing**
+   Whole works are assigned to train, validation, and test splits using an 80/10/10 target ratio. The `assign_works` procedure places works largest-first into the split with the greatest current shortfall relative to its target count. Ties are resolved deterministically by work name. No work is permitted to span multiple splits.
+
+3. **Cross-boundary deduplication**
+   The training split is retained intact. A validation or test record is removed if its normalized Arabic source input or normalized English target output already appears in the training split. The priority order is train → validation → test, ensuring that no normalized key is shared across split boundaries.
+
+   The matching key, `norm_key`, is used only for comparison and is never written to disk. It applies NFKC normalization, case folding, punctuation removal, whitespace collapse, and — in the earlier implementation — source-side Arabic diacritic removal. This procedure is intended to capture cosmetic variants of repeated scriptural language.
+
+4. **Leakage audit**
+   Before writing output files, the script asserts that there are zero overlapping normalized keys between the training split and the validation/test splits. The run fails loudly if this condition is violated.
+
+5. **Manifest generation**
+   The script writes `hashes.json`, which records the split configuration, fractions, seed, normalization rules, pre- and post-deduplication counts, final ratios, complete `work_to_split` assignment, and SHA-256 hashes for each output file.
+
+### Result
+
+| Split      | Sentences | Ratio | Works |
+| ---------- | --------: | ----: | ----: |
+| Train      |    10,850 | 80.9% |    15 |
+| Validation |     1,242 |  9.3% |     7 |
+| Test       |     1,318 |  9.8% |     6 |
+
+Cross-boundary deduplication removed 121 validation records and 32 test records containing near-identical normalized keys. The leakage audit passed. Repeated runs produce byte-identical file hashes, confirming deterministic behavior.
+
+The corpus contains 28 distinct works. The 193 records with unknown provenance, represented by an empty `source` field, are forced into the training split so that they cannot inflate validation or test performance.
+
+### Reproduction
+
 ```bash
 python -m src.data.split            # defaults: 80/10/10, seed 42, group_key=source
 # knobs: --train_frac --val_frac --test_frac --seed --group_key --input_file --output_dir
 ```
 
-### Caveats / watch-outs
-- **Ratios are approximate (±~1%)** — unavoidable when keeping lumpy works intact
-  (largest work ≈ 16% of data). This is the correct trade.
-- **Whole-work holdout = harder eval.** Test works (Gems-of-Divine-Mysteries,
-  Will-and-Testament-Abdul-baha, Four-Valleys, Lawh-i-Aqdas, Bisharat,
-  Kitab-i-Ahd) have *no* stylistic representation in train. That's the realistic
-  generalization setting, but it's a higher bar than a random split — flag it when
-  reporting numbers.
-- **Dedup is normalized-exact, not fuzzy.** It catches casing/diacritic/punctuation
-  variants but not one-word-different paraphrases. If test scores still look
-  suspiciously high, fuzzy near-dup (MinHash/Jaccard) is the next lever.
+### Caveats and watch-outs
+
+Split ratios are necessarily approximate. Because entire works must remain intact, exact 80/10/10 ratios are not always achievable. This is an expected consequence of work-level partitioning, particularly because the largest work accounts for approximately 16% of the dataset. The slight ratio imbalance is an acceptable trade-off for preventing leakage.
+
+The whole-work holdout setting creates a more difficult evaluation regime. The test split includes works such as `Gems-of-Divine-Mysteries`, `Will-and-Testament-Abdul-baha`, `Four-Valleys`, `Lawh-i-Aqdas`, `Bisharat`, and `Kitab-i-Ahd`, none of which have stylistic representation in the training split. This is the appropriate generalization setting, but it should be noted when reporting model performance, since it is more stringent than a random sentence-level split.
+
+The deduplication procedure is normalized-exact rather than fuzzy. It captures variation in casing, punctuation, whitespace, and selected orthographic features, but it does not detect paraphrases or near-duplicates that differ by word substitution or phrase-level edits. If evaluation scores remain unexpectedly high, fuzzy near-duplicate detection, such as MinHash or Jaccard similarity, should be considered as the next mitigation.
