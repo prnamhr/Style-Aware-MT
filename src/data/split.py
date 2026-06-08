@@ -7,25 +7,16 @@ from pathlib import Path
 
 import pandas as pd
 
-# Arabic short vowels / tashkil to strip when building the dedup key for the
-# source side. Repetitive scripture differs only by vocalization far more often
-# than by content, so the key ignores it.
 ARABIC_DIACRITICS_RE = re.compile(r"[ً-ٰٟۖ-ۭ]")
 PUNCT_RE = re.compile(r"[^\w\s]", flags=re.UNICODE)
 WS_RE = re.compile(r"\s+")
 
-# Provenance we cannot attribute to a specific work. These are forced into the
-# train partition so they can never inflate eval numbers, and cross-boundary
-# dedup still protects val/test against any of their sentences leaking through.
 UNKNOWN_SOURCE_KEYS = {"", None}
 
 
 def norm_key(text: str, is_source: bool) -> str:
-    """Aggressive normalization used ONLY for cross-boundary duplicate matching.
-
-    Not written to disk — the stored records keep their original text. Casefold,
-    strip diacritics/punctuation, and collapse whitespace so that scripture
-    formulae that differ only cosmetically collide.
+    """
+    Aggressive normalization used ONLY for cross-boundary duplicate matching.
     """
     if not text:
         return ""
@@ -39,11 +30,8 @@ def norm_key(text: str, is_source: bool) -> str:
 
 
 def assign_works(work_sizes: dict, fracs: dict, forced_train: set) -> dict:
-    """Greedy multiway partition: keep whole works intact, hit `fracs` closely.
-
-    Works are placed largest-first into whichever split currently has the
-    biggest shortfall against its target count. Deterministic: ties broken by
-    split name, works ordered by (-size, name).
+    """
+    Greedy multiway partition: keep whole works intact, hit `fracs` closely.
     """
     total = sum(work_sizes.values())
     targets = {k: total * f for k, f in fracs.items()}
@@ -69,10 +57,9 @@ def assign_works(work_sizes: dict, fracs: dict, forced_train: set) -> dict:
 
 
 def dedup_against_seen(records: list, seen_inputs: set, seen_outputs: set) -> tuple:
-    """Drop records whose normalized input OR output is already in `seen`.
-
-    Mutates the seen sets so callers can chain partitions in priority order
-    (train first, then val, then test). Returns (kept, dropped)."""
+    """
+    Drop records whose normalized input OR output is already in `seen`.
+    """
     kept, dropped = [], []
     for rec in records:
         ik = norm_key(rec["input"], is_source=True)
@@ -110,7 +97,9 @@ def main():
     )
     parser.add_argument("--input_file", type=str, default="data/processed/sentences_cleaned.jsonl")
     parser.add_argument("--output_dir", type=str, default="data/splits")
-    parser.add_argument("--group_key", type=str, default="source", help="metadata field to group on")
+    parser.add_argument(
+        "--group_key", type=str, default="source", help="metadata field to group on"
+    )
     parser.add_argument("--train_frac", type=float, default=0.80)
     parser.add_argument("--val_frac", type=float, default=0.10)
     parser.add_argument("--test_frac", type=float, default=0.10)
@@ -181,7 +170,8 @@ def main():
         field = "input" if is_source else "output"
         return {norm_key(r[field], is_source) for r in recs}
 
-    train_in, train_out = keyset(split_records["train"], True), keyset(split_records["train"], False)
+    train_in = keyset(split_records["train"], True)
+    train_out = keyset(split_records["train"], False)
     leaks = 0
     for split in ("val", "test"):
         leaks += len(keyset(split_records[split], True) & train_in)
@@ -220,7 +210,7 @@ def main():
         print(f"  {split:5s}: {final_counts[split]:6d}  ({r:.1%})  "
               f"[{len(assignment[split])} works]")
     print(f"  dropped by cross-boundary dedup: val={len(dropped_val)} test={len(dropped_test)}")
-    print(f"  leakage audit: PASS (0 overlapping normalized keys with train)")
+    print("  leakage audit: PASS (0 overlapping normalized keys with train)")
 
 
 if __name__ == "__main__":
