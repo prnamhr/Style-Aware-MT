@@ -21,7 +21,7 @@ def normalize_key(text: str) -> str:
     if not text:
         return ""
     text = unicodedata.normalize("NFKC", str(text))
-    text = text.casefold() # lowercasing
+    text = text.casefold()  # lowercasing
     text = PUNCT_RE.sub(" ", text)
     text = WS_RE.sub(" ", text).strip()
     return text
@@ -148,9 +148,7 @@ def main():
         seen_inputs.add(normalize_key(rec["input"]))
         seen_outputs.add(normalize_key(rec["output"]))
 
-    split_records["val"], dropped_val = drop_seen(
-        split_records["val"], seen_inputs, seen_outputs
-    )
+    split_records["val"], dropped_val = drop_seen(split_records["val"], seen_inputs, seen_outputs)
     split_records["test"], dropped_test = drop_seen(
         split_records["test"], seen_inputs, seen_outputs
     )
