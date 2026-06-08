@@ -207,8 +207,9 @@ def main():
     print("Done!")
     for split in ("train", "val", "test"):
         r = final_counts[split] / total_final
-        print(f"  {split:5s}: {final_counts[split]:6d}  ({r:.1%})  "
-              f"[{len(assignment[split])} works]")
+        print(
+            f"  {split:5s}: {final_counts[split]:6d}  ({r:.1%})  [{len(assignment[split])} works]"
+        )
     print(f"  dropped by cross-boundary dedup: val={len(dropped_val)} test={len(dropped_test)}")
     print("  leakage audit: PASS (0 overlapping normalized keys with train)")
 
