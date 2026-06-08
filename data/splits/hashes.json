@@ -1,5 +1,71 @@
 {
-  "test.jsonl": "5869f61c443dfc27b0fb0087f03e4b4464b3c9b0ccfd8fd5910cb942dc0ebd52",
-  "train.jsonl": "f96ef8be9ac20e7958d7ab3499b79ac6e2481f14f5cf4969d836c144cd05f2b5",
-  "val.jsonl": "fd1b9615771f6d3c8c8aa46a34667b709288a194ea51070a9b613aa93a888b67"
+  "config": {
+    "input_file": "data/processed/sentences_cleaned.jsonl",
+    "group_key": "source",
+    "fracs": {
+      "train": 0.8,
+      "val": 0.1,
+      "test": 0.1
+    },
+    "seed": 42,
+    "split_method": "whole-work bin-pack + cross-boundary normalized-exact dedup",
+    "dedup_rule": "drop val/test record if normalized input OR output appears in train"
+  },
+  "counts": {
+    "loaded": 13563,
+    "pre_dedup": {
+      "train": 10850,
+      "val": 1363,
+      "test": 1350
+    },
+    "final": {
+      "train": 10850,
+      "val": 1242,
+      "test": 1318
+    },
+    "dropped_dedup": {
+      "val": 121,
+      "test": 32
+    },
+    "final_ratios": {
+      "train": 0.8091,
+      "val": 0.0926,
+      "test": 0.0983
+    }
+  },
+  "work_to_split": {
+    "<unknown>": "train",
+    "Prayers-and-Meditations": "train",
+    "Epistle-to-Son-of-the-Wolf": "train",
+    "gleanings-writings-bahaullah": "train",
+    "Kitab-i-Aqdas": "train",
+    "Traveler-Narrative": "train",
+    "The-Secret-Divine-Civilization": "train",
+    "The-Tablets-Divine-Plan": "train",
+    "Lawh-i-Maqsud": "train",
+    "Tablet-August-Forel": "train",
+    "Tarazat": "train",
+    "Tajalliyat": "train",
+    "Asl-i-Kullul-Khayr": "train",
+    "Lawh-i-Karmil": "train",
+    "Lawh-i-Ard-i-Ba": "train",
+    "Ishraqat": "val",
+    "Kalimat-i-Firdawsiyyih": "val",
+    "Lawh-i-Hikmat": "val",
+    "Lawh-i-Dunya": "val",
+    "Suriy-i-Vafa": "val",
+    "Lawh-i-Burhan": "val",
+    "Lawh-i-Siyyid-i-Mihdiy-i-Dahaji": "val",
+    "Gems-of-Divine-Mysteries": "test",
+    "Will-and-Testament-Abdul-baha": "test",
+    "Four-Valleys": "test",
+    "Lawh-i-Aqdas": "test",
+    "Bisharat": "test",
+    "Kitab-i-Ahd": "test"
+  },
+  "hashes": {
+    "train.jsonl": "939be18892224f23922200bf23762609ae01c143ab96e6ebcd79b2f5f07b1974",
+    "val.jsonl": "efea71fd5315245e8e5dc9eaf1f99d2eddeffbd0a84909dc84b1e6c853b65e69",
+    "test.jsonl": "2eea9013edca0f4ffc1b28cf303505bae35c4cb6b4ed734747d869db93de3373"
+  }
 }
