@@ -1,7 +1,7 @@
 import argparse
 import hashlib
 import json
-import re #regular expressions.
+import re
 import unicodedata
 from pathlib import Path
 
