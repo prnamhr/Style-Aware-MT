@@ -20,7 +20,7 @@ Each entry should document four elements: **what changed, why the change was mad
 A complete, provider-pluggable inference and scoring loop was added so the AFSP design (retrieval → prompt assembly → generation → output → scoring) could be validated against a commercial API before the open-source 7–8B local pipeline is built. New components:
 
 * `prompts/style_instruction.txt` — shared system prompt describing Shoghi Effendi's register.
-* `configs/openai_smoke.yaml` / `configs/anthropic_smoke.yaml` — one config per provider; identical except the `generator` block. OpenAI defaults to `gpt-4o-mini`; Anthropic defaults to `claude-opus-4-8`. Both carry AFSP `k`, embed model, and a `data.limit` slice.
+* `configs/openai_smoke.yaml` / `configs/anthropic_smoke.yaml` — one config per provider; identical except the `generator` block. OpenAI targets `gpt-5.5` (per supervisor direction; `gpt-4o-mini` remains a one-line swap); Anthropic targets `claude-opus-4-8`. Both carry AFSP `k`, embed model, and a `data.limit` slice.
 * `src/afsp/build_index.py` — embeds the English target side of the training split and writes `data/afsp_index/` (`embeddings.npy`, `pairs.jsonl`, `meta.json`).
 * `src/afsp/retrieve.py` — `AfspIndex`: brute-force cosine retrieval over the L2-normalized embedding matrix.
 * `src/infer/usage.py` — shared token/cost accounting (`Usage`) parameterized by a per-model price table.
@@ -36,11 +36,11 @@ The supervisor requested validating the approach against a commercial API first.
 
 ### Method and dependencies
 
-Retrieval uses NumPy brute-force cosine rather than FAISS: at ~10.8k rows × 1024-dim the similarity is a single matmul, so the FAISS dependency was deferred. The Anthropic client deliberately omits `temperature`/`top_p`/`seed` — on Claude Opus 4.x / Fable 5 those parameters are removed and return a 400; determinism and output-only formatting are steered through the prompt instead. Dependencies added and pinned: `openai==2.41.1`, `anthropic==0.109.1`, `sacrebleu==2.6.0`, `PyYAML==6.0.3`, `python-dotenv==1.2.2`. `.gitignore` now excludes `.env`, `outputs/`, and `data/afsp_index/`.
+Retrieval uses NumPy brute-force cosine rather than FAISS: at ~10.8k rows × 1024-dim the similarity is a single matmul, so the FAISS dependency was deferred. Both API clients accommodate reasoning models: the OpenAI client uses `max_completion_tokens`, omits `temperature`/`seed` when unset, and forwards `reasoning_effort` — required because `gpt-5.5` rejects a custom temperature and bills hidden reasoning tokens as output (so `max_tokens` is raised to leave room for them). The Anthropic client likewise omits `temperature`/`top_p`/`seed` — on Claude Opus 4.x / Fable 5 those parameters are removed and return a 400; determinism and output-only formatting are steered through the prompt instead. Dependencies added and pinned: `openai==2.41.1`, `anthropic==0.109.1`, `sacrebleu==2.6.0`, `PyYAML==6.0.3`, `python-dotenv==1.2.2`. `.gitignore` now excludes `.env`, `outputs/`, and `data/afsp_index/`.
 
 ### Result (n = 25, k = 4)
 
-Both providers were run on the same test slice. AFSP injects ~4× the prompt tokens of the reference condition (the exemplars).
+Three model families were run on the same test slice. AFSP injects ~4× the prompt tokens of the reference condition (the exemplars).
 
 | Provider / model | Condition | BLEU | chrF | marker_rate | ref_marker_rate |
 | ---------------- | --------- | ---: | ---: | ----------: | --------------: |
@@ -48,8 +48,10 @@ Both providers were run on the same test slice. AFSP injects ~4× the prompt tok
 | OpenAI `gpt-4o-mini` | afsp      | 19.56 | 47.30 | 0.48 | 0.28 |
 | Anthropic `claude-opus-4-8` | reference | 22.30 | 50.00 | 0.48 | 0.28 |
 | Anthropic `claude-opus-4-8` | afsp      | 23.72 | 51.12 | 0.32 | 0.28 |
+| OpenAI `gpt-5.5` (reasoning, effort=low) | reference | 26.16 | 52.14 | 0.40 | 0.28 |
+| OpenAI `gpt-5.5` (reasoning, effort=low) | afsp      | 25.15 | 51.90 | 0.36 | 0.28 |
 
-OpenAI spend ≈ $0.0056 total (6,019 / 25,987 prompt tokens for reference / afsp). The pipeline runs end-to-end on both providers. BLEU/chrF differences at n=25 are within noise and not formally interpreted, but the direction is consistent: on `gpt-4o-mini` AFSP did not improve overlap metrics, whereas on `claude-opus-4-8` AFSP beat reference on both BLEU and chrF.
+OpenAI `gpt-4o-mini` spend ≈ $0.0056 total (6,019 / 25,987 prompt tokens for reference / afsp). The pipeline runs end-to-end on all three (the `gpt-5.5` run confirms the reasoning-model request path: `max_completion_tokens`, no `temperature`, `reasoning_effort`). BLEU/chrF differences at n=25 are within noise and not formally interpreted, but two directions are consistent: stronger base models score higher overall (gpt-5.5 > claude-opus-4-8 > gpt-4o-mini on reference BLEU/chrF), and AFSP pulls the archaic-marker rate toward the target distribution on the two stronger models (claude 0.48→0.32, gpt-5.5 0.40→0.36). AFSP improved overlap metrics only on `claude-opus-4-8`; on `gpt-4o-mini` and `gpt-5.5` the overlap effect was flat-to-slightly-negative.
 
 Register finding (model-dependent): the blanket style instruction **over-archaizes relative to the references** — reference-condition marker rate is 0.44–0.48 vs the targets' 0.28 on both models. On `gpt-4o-mini` this produced overt errors: a source addressing a list of US states was rendered "O thou provinces of the Northeast…", a singular sacred pronoun misapplied to a plural, secular address, and k=4 exemplars did not correct it (afsp marker rate rose to 0.48). On `claude-opus-4-8` that failure did not occur (both conditions render the passage plainly), and AFSP **pulled the marker rate down from 0.48 to 0.32 — toward the target distribution** — consistent with the example-driven register hypothesis (RQ2). The over-archaizing is therefore partly a weak-model artifact, and AFSP's corrective effect is visible on the stronger model.
 

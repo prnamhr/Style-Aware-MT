@@ -6,12 +6,16 @@
 # is specific to OpenAI beyond the client wrapper.
 
 # --- Generation (OpenAI chat completions) ---
+# gpt-5.5 is a reasoning model: it rejects a custom temperature and bills hidden
+# reasoning tokens as output, so temperature/seed are omitted and max_tokens is
+# raised to leave room for reasoning + the visible translation. For a cheap
+# non-reasoning run, set model: gpt-4o-mini, temperature: 0.0, max_tokens: 1024,
+# and drop reasoning_effort.
 generator:
   provider: openai
-  model: gpt-4o-mini        # swap to gpt-4o (etc.) once the loop is validated
-  temperature: 0.0          # deterministic for a reproducible smoke test
-  max_tokens: 1024
-  seed: 42
+  model: gpt-5.5
+  max_tokens: 4096          # covers reasoning tokens + output (counts toward this cap)
+  reasoning_effort: low     # translation isn't reasoning-heavy; raise for harder tasks
 
 # --- Prompting ---
 prompt:

@@ -40,9 +40,10 @@ def make_client(gen: dict):
 
         return ChatClient(
             model=gen["model"],
-            temperature=gen.get("temperature", 0.0),
+            temperature=gen.get("temperature"),  # None -> omitted (reasoning models reject it)
             max_tokens=gen.get("max_tokens", 1024),
             seed=gen.get("seed"),
+            reasoning_effort=gen.get("reasoning_effort"),
         )
     if provider == "anthropic":
         from src.infer.anthropic_client import AnthropicChatClient
