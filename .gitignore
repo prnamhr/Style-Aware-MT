@@ -19,3 +19,10 @@ env/
 
 # OS
 .DS_Store
+
+# Secrets
+.env
+
+# Generated artifacts
+outputs/
+data/afsp_index/

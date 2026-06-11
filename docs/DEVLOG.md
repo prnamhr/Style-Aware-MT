@@ -13,6 +13,60 @@ Each entry should document four elements: **what changed, why the change was mad
 
 ---
 
+## 2026-06-11 — OpenAI-backed AFSP smoke pipeline (reference + AFSP end-to-end)
+
+### What changed
+
+A complete, model-swappable inference and scoring loop was added so the AFSP design (retrieval → prompt assembly → generation → output → scoring) could be validated against a commercial API before the open-source 7–8B local pipeline is built. New components:
+
+* `prompts/style_instruction.txt` — shared system prompt describing Shoghi Effendi's register.
+* `configs/openai_smoke.yaml` — single config for the smoke run; generator is model-swappable (defaults to `gpt-4o-mini`), with AFSP `k`, embed model, and a `data.limit` slice.
+* `src/afsp/build_index.py` — embeds the English target side of the training split and writes `data/afsp_index/` (`embeddings.npy`, `pairs.jsonl`, `meta.json`).
+* `src/afsp/retrieve.py` — `AfspIndex`: brute-force cosine retrieval over the L2-normalized embedding matrix.
+* `src/infer/openai_client.py` — provider-isolated chat wrapper with retries and token/cost accounting; reads `OPENAI_API_KEY` from env or `.env`.
+* `src/infer/run.py` — `reference` (zero-shot) and `afsp` (k-shot, exemplars ordered most-similar-last) conditions; writes `outputs/<condition>_test.jsonl` + `_usage.json`.
+* `src/eval/quick.py` — BLEU, chrF, and an archaic-register marker rate per condition.
+* `manage.py` — registered `build_index`, `infer`, `eval` commands.
+* `src/afsp/embed.py` — `load_model` now selects CUDA when available and prints the device.
+
+### Rationale
+
+The supervisor requested validating the approach against the OpenAI API first. This de-risks the model-agnostic part of the pipeline cheaply and without GPU training: if retrieval + prompting do not shift register on a strong API model, they will not on a local 7B model either.
+
+### Method and dependencies
+
+Retrieval uses NumPy brute-force cosine rather than FAISS: at ~10.8k rows × 1024-dim the similarity is a single matmul, so the FAISS dependency was deferred. Dependencies added and pinned: `openai==2.41.1`, `sacrebleu==2.6.0`, `PyYAML==6.0.3`, `python-dotenv==1.2.2`. `.gitignore` now excludes `.env`, `outputs/`, and `data/afsp_index/`.
+
+### Result (n = 25, gpt-4o-mini, k = 4)
+
+| Condition | BLEU | chrF | marker_rate | ref_marker_rate |
+| --------- | ---: | ---: | ----------: | --------------: |
+| reference | 20.83 | 47.61 | 0.44 | 0.28 |
+| afsp      | 19.56 | 47.30 | 0.48 | 0.28 |
+
+Total spend ≈ $0.0056 (reference 6,019 prompt tokens; AFSP 25,987 prompt tokens — the ~4× increase is the injected exemplars). The pipeline runs end-to-end; the BLEU/chrF gap at n=25 is within noise and is not interpreted.
+
+The informative finding is qualitative: **both conditions over-archaize relative to the references** (marker rate 0.44–0.48 vs 0.28). The clearest failure is a source addressing a list of US states, which AFSP rendered "O thou provinces of the Northeast…" — a singular sacred pronoun misapplied to a plural, secular address. The blanket style instruction triggers archaic forms unconditionally, and k=4 exemplars did not correct it.
+
+### Reproduction
+
+```bash
+python manage.py build_index --config configs/openai_smoke.yaml
+python manage.py infer --condition reference --config configs/openai_smoke.yaml
+python manage.py infer --condition afsp      --config configs/openai_smoke.yaml
+python manage.py eval  --conditions reference afsp
+```
+
+Requires `OPENAI_API_KEY` in the environment or a project-root `.env`.
+
+### Caveats and watch-outs
+
+The smoke config runs on `data/splits/test.jsonl`. This is acceptable for a one-shot harness check, but **any prompt tuning or k-sweep must switch `data.test_file` to `val.jsonl`** — the test split is reserved for final evaluation only, and tuning against it would invalidate results.
+
+`src/eval/quick.py` is a smoke scorer, not the final harness: COMET, paired-bootstrap CIs, and LLM-as-Judge are still to come. The marker-rate regex is a crude register proxy. `gpt-4o-mini` is a prototyping stand-in, not the project's open-source base model.
+
+---
+
 ## 2026-06-08 — Django-style `manage.py` command dispatcher
 
 ### What changed

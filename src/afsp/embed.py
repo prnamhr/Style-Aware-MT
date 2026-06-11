@@ -12,8 +12,17 @@ _QUERY_INSTRUCTION = (
 )
 
 
-def load_model(model_name: str = "intfloat/multilingual-e5-large-instruct") -> SentenceTransformer:
-    return SentenceTransformer(model_name)
+def load_model(
+    model_name: str = "intfloat/multilingual-e5-large-instruct",
+    device: str | None = None,
+) -> SentenceTransformer:
+    # Default to CUDA when available; pass device="cpu" to force CPU.
+    import torch
+
+    if device is None:
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+    print(f"Loading {model_name} on device: {device}")
+    return SentenceTransformer(model_name, device=device)
 
 
 def embed_passages(

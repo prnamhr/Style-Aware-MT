@@ -1,0 +1,34 @@
+# Smoke-test configuration for the OpenAI-backed AFSP / reference pipeline.
+#
+# This is a prototype harness: it validates the retrieval -> prompt -> generation
+# -> output -> scoring loop against a commercial API before the open-source
+# 7-8B local pipeline is built. The generator is model-swappable; nothing here
+# is specific to OpenAI beyond the client wrapper.
+
+# --- Generation (OpenAI chat completions) ---
+generator:
+  provider: openai
+  model: gpt-4o-mini        # swap to gpt-4o (etc.) once the loop is validated
+  temperature: 0.0          # deterministic for a reproducible smoke test
+  max_tokens: 1024
+  seed: 42
+
+# --- Prompting ---
+prompt:
+  style_instruction_file: prompts/style_instruction.txt
+
+# --- AFSP retrieval ---
+afsp:
+  embed_model: intfloat/multilingual-e5-large-instruct
+  index_dir: data/afsp_index            # built by `build_index`
+  train_file: data/splits/train.jsonl   # exemplar pool (English target side)
+  k: 4                                   # shots; sweep {2,4,8} on dev later
+
+# --- Data ---
+data:
+  test_file: data/splits/test.jsonl
+  limit: 25                # smoke slice; null = full test set
+
+# --- Output ---
+output:
+  dir: outputs
