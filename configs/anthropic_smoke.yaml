@@ -1,0 +1,37 @@
+# Smoke-test configuration for the Anthropic (Claude) generator.
+#
+# Mirrors configs/openai_smoke.yaml; only the generator block differs. The same
+# AFSP index, prompts, and eval are reused, so reference/afsp can be compared
+# across providers.
+#
+# Cost note: claude-opus-4-8 is the most capable model but is far pricier than
+# gpt-4o-mini ($5/$25 vs $0.15/$0.60 per 1M tokens). For cheap prompt iteration,
+# switch `model` to claude-haiku-4-5 ($1/$5) or claude-sonnet-4-6 ($3/$15).
+
+# --- Generation (Anthropic messages API) ---
+generator:
+  provider: anthropic
+  model: claude-opus-4-8    # swap to claude-haiku-4-5 / claude-sonnet-4-6 for cheaper runs
+  max_tokens: 1024
+  thinking: false           # adaptive thinking off; output-only prompt keeps responses clean
+  # No temperature/top_p/seed: removed on Opus 4.x / Fable 5 (they return a 400).
+
+# --- Prompting ---
+prompt:
+  style_instruction_file: prompts/style_instruction.txt
+
+# --- AFSP retrieval ---
+afsp:
+  embed_model: intfloat/multilingual-e5-large-instruct
+  index_dir: data/afsp_index
+  train_file: data/splits/train.jsonl
+  k: 4
+
+# --- Data ---
+data:
+  test_file: data/splits/test.jsonl
+  limit: 25
+
+# --- Output ---
+output:
+  dir: outputs

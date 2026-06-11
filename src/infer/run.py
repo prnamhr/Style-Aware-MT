@@ -25,7 +25,34 @@ from pathlib import Path
 
 import yaml
 
-from src.infer.openai_client import ChatClient
+
+def make_client(gen: dict):
+    """Build the generator client for the configured provider.
+
+    Both clients expose ``complete(system, user) -> str`` and ``.usage``, so the
+    rest of the pipeline is provider-agnostic. Provider-specific knobs are read
+    here: OpenAI takes temperature/seed; Anthropic (Opus 4.x) rejects those, so
+    it takes only model/max_tokens (+ an optional thinking toggle).
+    """
+    provider = gen.get("provider", "openai")
+    if provider == "openai":
+        from src.infer.openai_client import ChatClient
+
+        return ChatClient(
+            model=gen["model"],
+            temperature=gen.get("temperature", 0.0),
+            max_tokens=gen.get("max_tokens", 1024),
+            seed=gen.get("seed"),
+        )
+    if provider == "anthropic":
+        from src.infer.anthropic_client import AnthropicChatClient
+
+        return AnthropicChatClient(
+            model=gen["model"],
+            max_tokens=gen.get("max_tokens", 1024),
+            thinking=gen.get("thinking", False),
+        )
+    raise ValueError(f"unknown provider '{provider}' (expected openai|anthropic)")
 
 
 def _read_jsonl(path: Path, limit: int | None) -> list[dict]:
@@ -70,12 +97,7 @@ def run(condition: str, cfg: dict) -> None:
     else:
         raise ValueError(f"unknown condition '{condition}' (expected reference|afsp)")
 
-    client = ChatClient(
-        model=gen["model"],
-        temperature=gen["temperature"],
-        max_tokens=gen["max_tokens"],
-        seed=gen.get("seed"),
-    )
+    client = make_client(gen)
 
     out_dir = Path(cfg["output"]["dir"])
     out_dir.mkdir(parents=True, exist_ok=True)

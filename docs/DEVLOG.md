@@ -13,40 +13,45 @@ Each entry should document four elements: **what changed, why the change was mad
 
 ---
 
-## 2026-06-11 — OpenAI-backed AFSP smoke pipeline (reference + AFSP end-to-end)
+## 2026-06-11 — API-backed AFSP smoke pipeline (reference + AFSP, OpenAI + Anthropic)
 
 ### What changed
 
-A complete, model-swappable inference and scoring loop was added so the AFSP design (retrieval → prompt assembly → generation → output → scoring) could be validated against a commercial API before the open-source 7–8B local pipeline is built. New components:
+A complete, provider-pluggable inference and scoring loop was added so the AFSP design (retrieval → prompt assembly → generation → output → scoring) could be validated against a commercial API before the open-source 7–8B local pipeline is built. New components:
 
 * `prompts/style_instruction.txt` — shared system prompt describing Shoghi Effendi's register.
-* `configs/openai_smoke.yaml` — single config for the smoke run; generator is model-swappable (defaults to `gpt-4o-mini`), with AFSP `k`, embed model, and a `data.limit` slice.
+* `configs/openai_smoke.yaml` / `configs/anthropic_smoke.yaml` — one config per provider; identical except the `generator` block. OpenAI defaults to `gpt-4o-mini`; Anthropic defaults to `claude-opus-4-8`. Both carry AFSP `k`, embed model, and a `data.limit` slice.
 * `src/afsp/build_index.py` — embeds the English target side of the training split and writes `data/afsp_index/` (`embeddings.npy`, `pairs.jsonl`, `meta.json`).
 * `src/afsp/retrieve.py` — `AfspIndex`: brute-force cosine retrieval over the L2-normalized embedding matrix.
-* `src/infer/openai_client.py` — provider-isolated chat wrapper with retries and token/cost accounting; reads `OPENAI_API_KEY` from env or `.env`.
-* `src/infer/run.py` — `reference` (zero-shot) and `afsp` (k-shot, exemplars ordered most-similar-last) conditions; writes `outputs/<condition>_test.jsonl` + `_usage.json`.
+* `src/infer/usage.py` — shared token/cost accounting (`Usage`) parameterized by a per-model price table.
+* `src/infer/openai_client.py` / `src/infer/anthropic_client.py` — provider-isolated chat wrappers, both exposing `complete(system, user) -> str` and `.usage`, with retries. Keys read from `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` (or `.env`).
+* `src/infer/run.py` — `make_client()` dispatches on `generator.provider`; `reference` (zero-shot) and `afsp` (k-shot, exemplars ordered most-similar-last) conditions; writes `outputs/<condition>_test.jsonl` + `_usage.json`.
 * `src/eval/quick.py` — BLEU, chrF, and an archaic-register marker rate per condition.
 * `manage.py` — registered `build_index`, `infer`, `eval` commands.
 * `src/afsp/embed.py` — `load_model` now selects CUDA when available and prints the device.
 
 ### Rationale
 
-The supervisor requested validating the approach against the OpenAI API first. This de-risks the model-agnostic part of the pipeline cheaply and without GPU training: if retrieval + prompting do not shift register on a strong API model, they will not on a local 7B model either.
+The supervisor requested validating the approach against a commercial API first. This de-risks the model-agnostic part of the pipeline cheaply and without GPU training: if retrieval + prompting do not shift register on a strong API model, they will not on a local 7B model either. Two providers are wired so register quality can be compared across model families before the local model is chosen.
 
 ### Method and dependencies
 
-Retrieval uses NumPy brute-force cosine rather than FAISS: at ~10.8k rows × 1024-dim the similarity is a single matmul, so the FAISS dependency was deferred. Dependencies added and pinned: `openai==2.41.1`, `sacrebleu==2.6.0`, `PyYAML==6.0.3`, `python-dotenv==1.2.2`. `.gitignore` now excludes `.env`, `outputs/`, and `data/afsp_index/`.
+Retrieval uses NumPy brute-force cosine rather than FAISS: at ~10.8k rows × 1024-dim the similarity is a single matmul, so the FAISS dependency was deferred. The Anthropic client deliberately omits `temperature`/`top_p`/`seed` — on Claude Opus 4.x / Fable 5 those parameters are removed and return a 400; determinism and output-only formatting are steered through the prompt instead. Dependencies added and pinned: `openai==2.41.1`, `anthropic==0.109.1`, `sacrebleu==2.6.0`, `PyYAML==6.0.3`, `python-dotenv==1.2.2`. `.gitignore` now excludes `.env`, `outputs/`, and `data/afsp_index/`.
 
-### Result (n = 25, gpt-4o-mini, k = 4)
+### Result (n = 25, k = 4)
 
-| Condition | BLEU | chrF | marker_rate | ref_marker_rate |
-| --------- | ---: | ---: | ----------: | --------------: |
-| reference | 20.83 | 47.61 | 0.44 | 0.28 |
-| afsp      | 19.56 | 47.30 | 0.48 | 0.28 |
+Both providers were run on the same test slice. AFSP injects ~4× the prompt tokens of the reference condition (the exemplars).
 
-Total spend ≈ $0.0056 (reference 6,019 prompt tokens; AFSP 25,987 prompt tokens — the ~4× increase is the injected exemplars). The pipeline runs end-to-end; the BLEU/chrF gap at n=25 is within noise and is not interpreted.
+| Provider / model | Condition | BLEU | chrF | marker_rate | ref_marker_rate |
+| ---------------- | --------- | ---: | ---: | ----------: | --------------: |
+| OpenAI `gpt-4o-mini` | reference | 20.83 | 47.61 | 0.44 | 0.28 |
+| OpenAI `gpt-4o-mini` | afsp      | 19.56 | 47.30 | 0.48 | 0.28 |
+| Anthropic `claude-opus-4-8` | reference | 22.30 | 50.00 | 0.48 | 0.28 |
+| Anthropic `claude-opus-4-8` | afsp      | 23.72 | 51.12 | 0.32 | 0.28 |
 
-The informative finding is qualitative: **both conditions over-archaize relative to the references** (marker rate 0.44–0.48 vs 0.28). The clearest failure is a source addressing a list of US states, which AFSP rendered "O thou provinces of the Northeast…" — a singular sacred pronoun misapplied to a plural, secular address. The blanket style instruction triggers archaic forms unconditionally, and k=4 exemplars did not correct it.
+OpenAI spend ≈ $0.0056 total (6,019 / 25,987 prompt tokens for reference / afsp). The pipeline runs end-to-end on both providers. BLEU/chrF differences at n=25 are within noise and not formally interpreted, but the direction is consistent: on `gpt-4o-mini` AFSP did not improve overlap metrics, whereas on `claude-opus-4-8` AFSP beat reference on both BLEU and chrF.
+
+Register finding (model-dependent): the blanket style instruction **over-archaizes relative to the references** — reference-condition marker rate is 0.44–0.48 vs the targets' 0.28 on both models. On `gpt-4o-mini` this produced overt errors: a source addressing a list of US states was rendered "O thou provinces of the Northeast…", a singular sacred pronoun misapplied to a plural, secular address, and k=4 exemplars did not correct it (afsp marker rate rose to 0.48). On `claude-opus-4-8` that failure did not occur (both conditions render the passage plainly), and AFSP **pulled the marker rate down from 0.48 to 0.32 — toward the target distribution** — consistent with the example-driven register hypothesis (RQ2). The over-archaizing is therefore partly a weak-model artifact, and AFSP's corrective effect is visible on the stronger model.
 
 ### Reproduction
 
@@ -55,15 +60,18 @@ python manage.py build_index --config configs/openai_smoke.yaml
 python manage.py infer --condition reference --config configs/openai_smoke.yaml
 python manage.py infer --condition afsp      --config configs/openai_smoke.yaml
 python manage.py eval  --conditions reference afsp
+# Anthropic: same commands with --config configs/anthropic_smoke.yaml (index is shared).
 ```
 
-Requires `OPENAI_API_KEY` in the environment or a project-root `.env`.
+Requires `OPENAI_API_KEY` (OpenAI config) or `ANTHROPIC_API_KEY` (Anthropic config) in the environment or a project-root `.env`.
 
 ### Caveats and watch-outs
 
 The smoke config runs on `data/splits/test.jsonl`. This is acceptable for a one-shot harness check, but **any prompt tuning or k-sweep must switch `data.test_file` to `val.jsonl`** — the test split is reserved for final evaluation only, and tuning against it would invalidate results.
 
-`src/eval/quick.py` is a smoke scorer, not the final harness: COMET, paired-bootstrap CIs, and LLM-as-Judge are still to come. The marker-rate regex is a crude register proxy. `gpt-4o-mini` is a prototyping stand-in, not the project's open-source base model.
+`src/eval/quick.py` is a smoke scorer, not the final harness: COMET, paired-bootstrap CIs, and LLM-as-Judge are still to come. The marker-rate regex is a crude register proxy. Both `gpt-4o-mini` and `claude-opus-4-8` are commercial API stand-ins for validating the pipeline, not the project's open-source base model.
+
+Output filenames are not provider-tagged (`outputs/<condition>_test.jsonl`), so running a second provider overwrites the first provider's predictions. The cross-provider comparison above was captured from the `_usage.json` files and the eval table before overwrite; add a provider/model tag to the output paths before any run that must be retained.
 
 ---
 

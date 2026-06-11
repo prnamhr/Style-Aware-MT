@@ -15,6 +15,8 @@ from dataclasses import dataclass, field
 from dotenv import load_dotenv
 from openai import OpenAI
 
+from src.infer.usage import Usage
+
 load_dotenv()  # populate os.environ from a .env file if one exists
 
 # USD per 1M tokens, (input, output). Used for a rough spend estimate only.
@@ -28,40 +30,18 @@ _PRICING: dict[str, tuple[float, float]] = {
 
 
 @dataclass
-class Usage:
-    prompt_tokens: int = 0
-    completion_tokens: int = 0
-    calls: int = 0
-    cost_usd: float = 0.0
-
-    def add(self, model: str, prompt_tokens: int, completion_tokens: int) -> None:
-        self.prompt_tokens += prompt_tokens
-        self.completion_tokens += completion_tokens
-        self.calls += 1
-        in_rate, out_rate = _PRICING.get(model, (0.0, 0.0))
-        self.cost_usd += (prompt_tokens * in_rate + completion_tokens * out_rate) / 1e6
-
-    def summary(self) -> dict:
-        return {
-            "calls": self.calls,
-            "prompt_tokens": self.prompt_tokens,
-            "completion_tokens": self.completion_tokens,
-            "cost_usd": round(self.cost_usd, 4),
-        }
-
-
-@dataclass
 class ChatClient:
     model: str
     temperature: float = 0.0
     max_tokens: int = 1024
     seed: int | None = 42
-    usage: Usage = field(default_factory=Usage)
+    usage: Usage = field(default=None)
     _client: OpenAI = field(default=None, repr=False)
 
     def __post_init__(self) -> None:
         # max_retries gives exponential backoff on rate-limit / transient 5xx.
         self._client = OpenAI(max_retries=5)
+        self.usage = Usage(pricing=_PRICING)
 
     def complete(self, system: str, user: str) -> str:
         resp = self._client.chat.completions.create(
