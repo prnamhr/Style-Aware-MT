@@ -17,9 +17,10 @@ import sys
 COMMANDS = {
     "preprocess": "src.data.preprocess",
     "split": "src.data.split",
-    "build_index": "src.afsp.build_index",
+    "build_index": "src.retrieval.build_index",
     "infer": "src.infer.run",
     "eval": "src.eval.quick",
+    "fertility": "src.eval.fertility",
 }
 
 

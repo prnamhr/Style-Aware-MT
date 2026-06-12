@@ -25,4 +25,4 @@ env/
 
 # Generated artifacts
 outputs/
-data/afsp_index/
+data/knn_index/

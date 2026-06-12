@@ -13,7 +13,93 @@ Each entry should document four elements: **what changed, why the change was mad
 
 ---
 
+## 2026-06-12 — Phase 1 repo hygiene: re-point to open-source base, seal test, quarantine smoke, relabel baseline
+
+### What changed
+
+Repository hygiene pass before any AFSP code is written, to stop the commercial-API prototype from leaking into the thesis as findings and to fix mislabeled artifacts. Four threads:
+
+1. **Re-pointed to the open-source base.** Added `configs/base_qwen.yaml` as the canonical config naming the locked base `Qwen/Qwen2.5-7B-Instruct` (rationale: the 2026-06-12 fertility entry). The local generator client (`provider: local`) is intentionally **not yet implemented** — this phase is hygiene, not feature work; the config records the base and run settings so the client can be wired later. The two commercial-API configs were re-labeled as **SMOKE ONLY — not a thesis condition, not findings**.
+2. **Sealed the test split.** Both smoke configs pointed `data.test_file` at `data/splits/test.jsonl`. The data key was renamed `test_file → eval_file` and re-pointed to `data/splits/val.jsonl`; `src/infer/run.py` now derives a split tag from the eval-file stem and writes `outputs/<condition>_<split>.jsonl` (e.g. `_val`), so dev outputs can never be filed under a `_test` name. `test.jsonl` is reserved for the single final run.
+3. **Quarantined the smoke results.** The four commercial-API output files were moved to `outputs/smoke_api_quarantine/` (git-ignored) with a `README.md` stating why they are not findings, and renamed to reflect reality (`afsp_test.jsonl → knn_fewshot_test.smoke.jsonl`). A ⚠️ banner was added to the 2026-06-11 DEVLOG entry over its BLEU/chrF table.
+4. **Relabeled cosine retrieval as the `knn_fewshot` baseline.** The implemented retriever is plain top-k cosine NN — a baseline row, not the adaptive AFSP contribution (margin scoring / CAP / target-distribution priority / word-level weighting, per `docs/afsp_strategies.md`). Renamed `src/afsp/ → src/retrieval/`, `data/afsp_index/ → data/knn_index/`, class `AfspIndex → RetrievalIndex`, function `build_afsp_user → build_knn_fewshot_user`, config block `afsp: → retrieval:`, and the inference/eval condition string `afsp → knn_fewshot`. README gained a `knn_fewshot (baseline)` results row and a paragraph separating it from AFSP.
+
+Also: **deleted `notebooks/SplitData.ipynb`** — a misleading random row-level `train_test_split` (Train 10849 / Val 1357 / Test 1357) that contradicts the real work-disjoint split. It implied a leaky split was used; the canonical splitter is `src/data/split.py`.
+
+### Rationale
+
+The commercial-API run was always a loop check, but its numbers and the `afsp` label were one careless copy-paste away from being read as thesis results — especially dangerous because the runs used a different model *and* touched the sealed test set. Sealing test to `val.jsonl` enforces the README's own train/dev/test discipline. Relabeling to `knn_fewshot` keeps the eventual AFSP-vs-baseline comparison honest: any register shift must be attributable to the adaptive machinery, not to naive retrieval the baseline already captures.
+
+### Verification
+
+`src/data/split.py` was re-run and confirmed to reproduce the committed splits **byte-identically** — `sha256` of `train/val/test.jsonl` matches the digests in `data/splits/hashes.json`, and `git status` on `data/splits/` is clean. Counts match the manifest exactly (10860 / 1323 / 1322; cross-boundary dedup drops val=27, test=35; leakage audit PASS). After the rename, `from src.retrieval.retrieve import RetrievalIndex` and `from src.retrieval.build_index import build_index` import cleanly, the `run.py`/`quick.py` CLIs expose `{reference, knn_fewshot}`, and `grep` finds zero residual `afsp`/`AfspIndex` references in `src/`, `configs/`, `manage.py` (outside `docs/afsp_strategies.md`).
+
+### Reproduction
+
+```bash
+python -m src.data.split                                              # byte-identical to hashes.json
+python -m src.retrieval.build_index --config configs/base_qwen.yaml   # writes data/knn_index/
+python -m src.infer.run --condition knn_fewshot --config configs/openai_smoke.yaml   # SMOKE only, runs on val.jsonl
+python -m src.eval.quick --conditions reference knn_fewshot --split val
+```
+
+### Caveats and watch-outs
+
+`configs/base_qwen.yaml` is not yet runnable end-to-end: `provider: local` has no client until the local-inference phase. The smoke configs remain the only runnable inference path and stay API-backed — keep their SMOKE banners intact and never report their numbers. `data/knn_index/` is git-ignored and must be rebuilt with `build_index`; the rename from `data/afsp_index/` was a disk move only. AFSP itself is still unbuilt — the README/DEVLOG describe it as the planned contribution, and the `AFSP` results row stays empty until it exists.
+
+---
+
+## 2026-06-12 — Tokenizer fertility vetting of Qwen2.5-7B-Instruct as the local base model
+
+### What changed
+
+Added `src/eval/fertility.py` and registered a `fertility` command in `manage.py:22`. The module loads the source side (the `input` field) of one or all splits, tokenizes each sentence with a given HF tokenizer (`add_special_tokens=False`), and reports corpus-level fertility (total subword tokens / total whitespace words) alongside per-sentence mean, median, p90, and max. A threshold verdict is printed (`<2.5` lock, `2.5–4` borderline, `4+` catastrophic).
+
+### Rationale
+
+Before committing to an open-source 7–8B base for the local pipeline, we needed to confirm its tokenizer encodes the Arabic/Persian-script source efficiently. Fertility is the standard proxy: high fertility (4–5+) means byte-fallback shredding that inflates sequence length and degrades quality. The source side is what the base model must encode, so it is what we measure. The decision rule was set in advance: under ~2.5 tok/word → lock the model; catastrophic (4–5+) → do not switch.
+
+### Result
+
+`Qwen/Qwen2.5-7B-Instruct` over the full corpus (13,505 sentences, 212,140 source words):
+
+| metric | full corpus (`--split all`) | train split |
+| ------ | --------------------------: | ----------: |
+| corpus fertility | **2.7000** | 2.6987 |
+| mean per-sentence | 2.7383 | 2.7393 |
+| median | 2.7000 | 2.6991 |
+| p90 | 3.2500 | 3.2500 |
+| max | 7.0000 | 7.0000 |
+
+**2.70 subword tokens/source-word.** Marginally above the ~2.5 target but far from the 4–5+ catastrophic zone, with a tight distribution (median = corpus mean, p90 only 3.25). **Decision: Qwen2.5-7B-Instruct is locked as the local base model.** The lone max of 7.0 is a single very short sentence where the ratio is noisy.
+
+### Reproduction
+
+```bash
+python manage.py fertility --model Qwen/Qwen2.5-7B-Instruct --split all
+python manage.py fertility --model Qwen/Qwen2.5-7B-Instruct --split train
+```
+
+Requires `transformers`; the Qwen tokenizer is fetched from the HF Hub on first run (tokenizer files only, no model weights). No `HF_TOKEN` needed for this public tokenizer.
+
+### Caveats and watch-outs
+
+The source is **largely classical Arabic, not only Persian** (e.g. `هو الله العلیّ الأعلی`); the methodology section should describe it as Arabic/Persian-script source. The 2.70 figure reflects Qwen's reasonable Arabic-script vocabulary coverage. Fertility is a tokenizer-efficiency proxy only — it says nothing about the base model's translation or register quality, which still requires the downstream evaluation harness. Word count uses whitespace splitting, which slightly undercounts Persian orthographic words joined by ZWNJ; this inflates fertility marginally and is conservative for the lock decision.
+
+---
+
 ## 2026-06-11 — API-backed AFSP smoke pipeline (reference + AFSP, OpenAI + Anthropic)
+
+> **⚠️ SMOKE / PIPELINE-VALIDATION ONLY — NOT THESIS FINDINGS (annotated 2026-06-12).**
+> The BLEU/chrF/marker-rate table below was produced by commercial APIs (`gpt-5.5`,
+> `claude-opus-4-8`) on `test.jsonl`, before the base model was locked. It is disqualified
+> as findings on two counts: (1) the thesis base is the open-source `Qwen2.5-7B-Instruct`,
+> not these APIs; (2) the runs touched the sealed test split. The condition called `afsp`
+> here is plain cosine k-NN retrieval — i.e. the `knn_fewshot` **baseline**, not the
+> adaptive AFSP contribution. As of 2026-06-12 the code is renamed accordingly
+> (`src/afsp/` → `src/retrieval/`, condition `afsp` → `knn_fewshot`) and these outputs are
+> quarantined under `outputs/smoke_api_quarantine/`. Read the numbers below only as evidence
+> that the loop runs, never as results. See the 2026-06-12 Phase-1 hygiene entry.
 
 ### What changed
 

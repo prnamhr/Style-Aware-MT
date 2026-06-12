@@ -1,4 +1,4 @@
-"""Build the AFSP retrieval index over the English target side of the training split.
+"""Build the retrieval index over the English target side of the training split.
 
 The index is a dense embedding matrix plus the aligned (source, target) exemplar
 pairs. Retrieval is cross-lingual: a Persian/Arabic source query is embedded and
@@ -6,8 +6,9 @@ matched by cosine similarity against the embedded English targets. The matched
 row maps back to its full (source -> target) pair, which becomes a few-shot
 exemplar at inference time.
 
-At this corpus size (~10.8k rows, 1024-dim) a brute-force matmul over L2-normalized
-vectors is instant, so no FAISS dependency is needed for the smoke test.
+This index backs the ``knn_fewshot`` baseline and is reused by the adaptive AFSP
+variant. At this corpus size (~10.8k rows, 1024-dim) a brute-force matmul over
+L2-normalized vectors is instant, so no FAISS dependency is needed.
 
 Artifacts written to ``index_dir``:
   * ``embeddings.npy``  -- float32 [N, D], L2-normalized passage embeddings
@@ -15,7 +16,7 @@ Artifacts written to ``index_dir``:
   * ``meta.json``       -- embed model name, counts, dim, source file
 
 Usage:
-    python -m src.afsp.build_index --config configs/openai_smoke.yaml
+    python -m src.retrieval.build_index --config configs/base_qwen.yaml
 """
 
 from __future__ import annotations
@@ -27,7 +28,7 @@ from pathlib import Path
 import numpy as np
 import yaml
 
-from src.afsp.embed import embed_passages, load_model
+from src.retrieval.embed import embed_passages, load_model
 
 
 def _read_jsonl(path: Path) -> list[dict]:
@@ -63,18 +64,18 @@ def build_index(train_file: Path, index_dir: Path, embed_model: str, batch_size:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Build the AFSP retrieval index.")
-    parser.add_argument("--config", default="configs/openai_smoke.yaml")
+    parser.add_argument("--config", default="configs/base_qwen.yaml")
     parser.add_argument("--train_file", default=None, help="override config train_file")
     parser.add_argument("--index_dir", default=None, help="override config index_dir")
     parser.add_argument("--batch_size", type=int, default=32)
     args = parser.parse_args()
 
     cfg = yaml.safe_load(Path(args.config).read_text(encoding="utf-8"))
-    afsp = cfg["afsp"]
-    train_file = Path(args.train_file or afsp["train_file"])
-    index_dir = Path(args.index_dir or afsp["index_dir"])
+    retr = cfg["retrieval"]
+    train_file = Path(args.train_file or retr["train_file"])
+    index_dir = Path(args.index_dir or retr["index_dir"])
 
-    build_index(train_file, index_dir, afsp["embed_model"], batch_size=args.batch_size)
+    build_index(train_file, index_dir, retr["embed_model"], batch_size=args.batch_size)
 
 
 if __name__ == "__main__":

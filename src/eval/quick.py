@@ -2,15 +2,15 @@
 
 This is the smoke-test scorer, not the final evaluation harness (COMET / paired
 bootstrap / LLM-as-Judge come later). Its purpose is to confirm the loop runs and
-to give an early read on whether AFSP shifts the register relative to the
-reference condition, per RQ2.
+to give an early read on whether the kNN-few-shot baseline shifts the register
+relative to the reference condition, per RQ2.
 
 The register proxy counts second-person sacred forms and vocatives ("thou",
 "thee", "thy", "art", "hast", "doth", "O ...") per segment -- a crude but
 direction-correct stand-in for the stylometric features.
 
 Usage:
-    python -m src.eval.quick --conditions reference afsp
+    python -m src.eval.quick --conditions reference knn_fewshot --split val
 """
 
 from __future__ import annotations
@@ -35,8 +35,8 @@ def _marker_rate(texts: list[str]) -> float:
     return sum(len(_MARKERS.findall(t)) for t in texts) / len(texts)
 
 
-def score(condition: str, out_dir: Path) -> dict:
-    path = out_dir / f"{condition}_test.jsonl"
+def score(condition: str, out_dir: Path, split: str) -> dict:
+    path = out_dir / f"{condition}_{split}.jsonl"
     with path.open(encoding="utf-8") as f:
         rows = [json.loads(line) for line in f if line.strip()]
     preds = [r["prediction"] for r in rows]
@@ -56,18 +56,19 @@ def score(condition: str, out_dir: Path) -> dict:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Quick BLEU/chrF/register comparison.")
-    parser.add_argument("--conditions", nargs="+", default=["reference", "afsp"])
+    parser.add_argument("--conditions", nargs="+", default=["reference", "knn_fewshot"])
     parser.add_argument("--out_dir", default="outputs")
+    parser.add_argument("--split", default="val", help="output split tag to score (default: val)")
     args = parser.parse_args()
 
     out_dir = Path(args.out_dir)
     results = []
     for cond in args.conditions:
-        path = out_dir / f"{cond}_test.jsonl"
+        path = out_dir / f"{cond}_{args.split}.jsonl"
         if not path.exists():
             print(f"skip {cond}: {path} not found")
             continue
-        results.append(score(cond, out_dir))
+        results.append(score(cond, out_dir, args.split))
 
     if not results:
         return

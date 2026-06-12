@@ -1,9 +1,14 @@
-"""Load the AFSP index and retrieve top-k exemplars for a source query.
+"""Load the retrieval index and fetch top-k exemplars for a source query.
 
 Retrieval is brute-force cosine similarity over L2-normalized embeddings, which
 is exact and instant at this corpus size. The query (Persian/Arabic source) is
 embedded with the same model used to build the index; the instruct query prefix
-is applied on the query side only (see ``src.afsp.embed``).
+is applied on the query side only (see ``src.retrieval.embed``).
+
+This is the plain nearest-neighbour retriever behind the ``knn_fewshot``
+baseline. The adaptive AFSP variant (margin-based scoring, target-distribution
+priority, word-level weighting; see ``docs/afsp_strategies.md``) builds on top of
+this and is implemented separately.
 """
 
 from __future__ import annotations
@@ -13,10 +18,10 @@ from pathlib import Path
 
 import numpy as np
 
-from src.afsp.embed import embed_queries, load_model
+from src.retrieval.embed import embed_queries, load_model
 
 
-class AfspIndex:
+class RetrievalIndex:
     def __init__(self, index_dir: str | Path, embed_model: str | None = None):
         index_dir = Path(index_dir)
         self.embeddings: np.ndarray = np.load(index_dir / "embeddings.npy")

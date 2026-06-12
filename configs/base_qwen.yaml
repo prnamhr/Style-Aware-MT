@@ -1,0 +1,45 @@
+# ============================================================================
+# Canonical base-model configuration for the thesis pipeline.
+# ----------------------------------------------------------------------------
+# Qwen2.5-7B-Instruct is the locked open-source base for all four conditions
+# (reference / PEFT / knn_fewshot+AFSP / RLSF). It was selected on a tokenizer
+# fertility check over the Arabic/Persian-script source: 2.70 subword
+# tokens/word, well clear of the catastrophic zone (see docs/DEVLOG.md,
+# 2026-06-12). Freezing the base here keeps cross-condition differences
+# attributable to adaptation, not model identity.
+#
+# NOTE: the local generator client (transformers / vLLM) is NOT implemented yet
+# -- that lands in a later phase. This config is the canonical record of the
+# base and the run settings; `provider: local` will be wired to a real client
+# then. The commercial-API smoke configs (openai_smoke.yaml / anthropic_smoke.yaml)
+# exist only to validate the loop and produce NO thesis findings.
+# ============================================================================
+
+# --- Generation (local open-source base; client pending) ---
+generator:
+  provider: local                 # TODO(next phase): implement src/infer/local_client.py
+  model: Qwen/Qwen2.5-7B-Instruct
+  max_tokens: 1024
+  # Decoding settings (temperature, top_p, max_new_tokens) are fixed and logged
+  # before any inference run, identically across all four conditions.
+
+# --- Prompting ---
+prompt:
+  style_instruction_file: prompts/style_instruction.txt
+
+# --- Retrieval (knn_fewshot baseline; shared index for the AFSP condition) ---
+retrieval:
+  embed_model: intfloat/multilingual-e5-large-instruct
+  index_dir: data/knn_index             # built by `build_index`
+  train_file: data/splits/train.jsonl   # exemplar pool (English target side)
+  k: 4                                   # shots; sweep {2,4,8} on dev later
+
+# --- Data ---
+# Tuning / dev runs use val.jsonl. test.jsonl is SEALED until the final eval.
+data:
+  eval_file: data/splits/val.jsonl
+  limit: null                            # full dev set
+
+# --- Output ---
+output:
+  dir: outputs

@@ -1,20 +1,24 @@
-"""Test-set inference for the OpenAI-backed smoke conditions.
+"""Test-set inference, provider-agnostic across the configured generator.
 
 Two conditions share one style instruction (the system message); they differ only
 in the user message:
 
-  * ``reference`` -- zero-shot: the source segment alone.
-  * ``afsp``      -- few-shot: k retrieved (source -> target) exemplars followed by
-                     the source segment. Exemplars are ordered most-similar LAST,
-                     closest to the query, per the spatial-proximity rule in
-                     docs/afsp_strategies.md.
+  * ``reference``    -- zero-shot: the source segment alone.
+  * ``knn_fewshot``  -- few-shot: k nearest-neighbour (source -> target) exemplars
+                        followed by the source segment. Exemplars are ordered
+                        most-similar LAST, closest to the query, per the
+                        spatial-proximity rule in docs/afsp_strategies.md. This is
+                        the plain-kNN retrieval BASELINE, not the adaptive AFSP
+                        condition (which adds margin scoring / target-distribution
+                        priority / word-level weighting on top of the same index).
 
-Writes ``outputs/<condition>_test.jsonl`` (one record per segment, carrying the
-reference target for downstream scoring) plus ``outputs/<condition>_usage.json``.
+Writes ``outputs/<condition>_<split>.jsonl`` (one record per segment, carrying the
+reference target for downstream scoring) plus ``outputs/<condition>_<split>_usage.json``,
+where ``<split>`` is the stem of the configured ``data.eval_file`` (e.g. ``val``).
 
 Usage:
-    python -m src.infer.run --condition reference --config configs/openai_smoke.yaml
-    python -m src.infer.run --condition afsp      --config configs/openai_smoke.yaml
+    python -m src.infer.run --condition reference   --config configs/openai_smoke.yaml
+    python -m src.infer.run --condition knn_fewshot --config configs/openai_smoke.yaml
 """
 
 from __future__ import annotations
@@ -66,7 +70,7 @@ def build_reference_user(source: str) -> str:
     return f"Translate the following text into English:\n\n{source}"
 
 
-def build_afsp_user(source: str, exemplars: list[dict]) -> str:
+def build_knn_fewshot_user(source: str, exemplars: list[dict]) -> str:
     # Most-similar last: closest to the query, where positional influence is strongest.
     ordered = list(reversed(exemplars))
     blocks = [
@@ -81,28 +85,30 @@ def build_afsp_user(source: str, exemplars: list[dict]) -> str:
 def run(condition: str, cfg: dict) -> None:
     gen = cfg["generator"]
     style_instruction = Path(cfg["prompt"]["style_instruction_file"]).read_text(encoding="utf-8")
-    test_rows = _read_jsonl(Path(cfg["data"]["test_file"]), cfg["data"].get("limit"))
+    eval_file = Path(cfg["data"]["eval_file"])
+    split = eval_file.stem  # e.g. "val" -- tags outputs so val results never look like test
+    test_rows = _read_jsonl(eval_file, cfg["data"].get("limit"))
     sources = [r["input"] for r in test_rows]
 
     # Build the per-segment user messages for the chosen condition.
     if condition == "reference":
         user_msgs = [build_reference_user(s) for s in sources]
-    elif condition == "afsp":
-        from src.afsp.retrieve import AfspIndex
+    elif condition == "knn_fewshot":
+        from src.retrieval.retrieve import RetrievalIndex
 
-        afsp = cfg["afsp"]
-        index = AfspIndex(afsp["index_dir"], embed_model=afsp["embed_model"])
-        print(f"Retrieving k={afsp['k']} exemplars for {len(sources)} sources ...")
-        retrieved = index.retrieve(sources, k=afsp["k"])
-        user_msgs = [build_afsp_user(s, ex) for s, ex in zip(sources, retrieved)]
+        retr = cfg["retrieval"]
+        index = RetrievalIndex(retr["index_dir"], embed_model=retr["embed_model"])
+        print(f"Retrieving k={retr['k']} exemplars for {len(sources)} sources ...")
+        retrieved = index.retrieve(sources, k=retr["k"])
+        user_msgs = [build_knn_fewshot_user(s, ex) for s, ex in zip(sources, retrieved)]
     else:
-        raise ValueError(f"unknown condition '{condition}' (expected reference|afsp)")
+        raise ValueError(f"unknown condition '{condition}' (expected reference|knn_fewshot)")
 
     client = make_client(gen)
 
     out_dir = Path(cfg["output"]["dir"])
     out_dir.mkdir(parents=True, exist_ok=True)
-    out_path = out_dir / f"{condition}_test.jsonl"
+    out_path = out_dir / f"{condition}_{split}.jsonl"
 
     print(f"Generating {len(test_rows)} translations with {gen['model']} ({condition}) ...")
     with out_path.open("w", encoding="utf-8") as f:
@@ -126,7 +132,7 @@ def run(condition: str, cfg: dict) -> None:
                 print(f"  {i}/{len(test_rows)}")
 
     usage = client.usage.summary()
-    (out_dir / f"{condition}_usage.json").write_text(
+    (out_dir / f"{condition}_{split}_usage.json").write_text(
         json.dumps({"condition": condition, "model": gen["model"], **usage}, indent=2),
         encoding="utf-8",
     )
@@ -135,8 +141,8 @@ def run(condition: str, cfg: dict) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="OpenAI-backed test-set inference.")
-    parser.add_argument("--condition", required=True, choices=["reference", "afsp"])
+    parser = argparse.ArgumentParser(description="Provider-agnostic eval-set inference.")
+    parser.add_argument("--condition", required=True, choices=["reference", "knn_fewshot"])
     parser.add_argument("--config", default="configs/openai_smoke.yaml")
     args = parser.parse_args()
 

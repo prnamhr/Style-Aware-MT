@@ -49,7 +49,7 @@ Full hypotheses (H1–H4) and support criteria are in [`docs/methodology.md`](do
 ├── src/
 │   ├── data/                  ← preprocessing, alignment, split logic
 │   ├── peft/                  ← LoRA training (PEFT condition)
-│   ├── afsp/                  ← retrieval index + prompt assembly
+│   ├── retrieval/             ← kNN retrieval index + prompt assembly (knn_fewshot baseline → AFSP)
 │   ├── rlsf/                  ← PPO loop, reward, best-of-N fallback
 │   ├── eval/                  ← COMET, BLEU, stylometrics, LLM-as-Judge
 │   └── infer/                 ← test-set inference for all four conditions
@@ -58,7 +58,7 @@ Full hypotheses (H1–H4) and support criteria are in [`docs/methodology.md`](do
 │   ├── style_instruction.txt
 │   ├── judge_train.txt        ← judge template used inside RLSF reward
 │   └── judge_eval.txt         ← separate judge template for final evaluation
-├── outputs/                   ← <condition>_test.jsonl per run
+├── outputs/                   ← <condition>_<split>.jsonl per run (split tag, e.g. _val)
 ├── results/                   ← metrics_<condition>.json, tables, plots
 ├── docs/
 │   ├── proposal.pdf           ← thesis proposal
@@ -92,7 +92,7 @@ Unicode NFC, diacritic handling, whitespace and punctuation normalization, remov
 ## Systems
 
 ### Base model
-Open-source multilingual decoder-only Transformer in the **7B–8B** range with documented Persian and Arabic coverage. Final choice is decided by a small dev-set bake-off before any condition is trained, then frozen across all four conditions so differences are attributable to adaptation, not model identity.
+**`Qwen2.5-7B-Instruct`** — an open-source multilingual decoder-only Transformer in the 7B–8B range with documented Persian and Arabic coverage. It is **locked** and frozen across all four conditions so differences are attributable to adaptation, not model identity. Selection was vetted by a tokenizer-fertility check over the Arabic/Persian-script source: **2.70 subword tokens/word**, well clear of the catastrophic byte-fallback zone (see `docs/DEVLOG.md`, 2026-06-12).
 
 ### Reference (unadapted)
 Base model, minimal style instruction (see `prompts/style_instruction.txt`), no exemplars, no fine-tuning. Provides the lower bound and the H1 comparison anchor.
@@ -100,12 +100,14 @@ Base model, minimal style instruction (see `prompts/style_instruction.txt`), no 
 ### PEFT (LoRA)
 LoRA adapters on the query and value projection layers of each attention block, base weights frozen. Trained with token-level MLE on the training partition. Rank, LR, and step count tuned on dev. QLoRA is the memory-pressure fallback. The resulting checkpoint also serves as the **RLSF initialization**.
 
-### AFSP (retrieval-based ICL)
+### kNN few-shot (baseline) and AFSP (retrieval-based ICL)
 No parameter updates. At inference time:
 
 1. Embed the source segment with a multilingual sentence-transformer.
-2. Retrieve top-k stylistically relevant exemplars by nearest neighbour over a FAISS index built over the **English (target-side)** training partition.
+2. Retrieve top-k stylistically relevant exemplars by nearest neighbour over an index built over the **English (target-side)** training partition.
 3. Insert them into a fixed prompt template (system role + style instruction + k exemplars + new source).
+
+**`knn_fewshot` is the baseline:** plain top-k cosine retrieval with the above template — a baseline row, not the contribution. It is what `src/retrieval/` currently implements. **AFSP** is the adaptive variant built on top of the same index — margin-based scoring (hub penalisation), target-distribution-priority selection, demonstration ordering, and multi-view word-level weighting (see [`docs/afsp_strategies.md`](docs/afsp_strategies.md)). Reporting both isolates how much of any register shift comes from naive retrieval vs. the adaptive machinery.
 
 Shot-count sensitivity on dev over **k ∈ {2, 4, 8}**, subject to base model context limits. Final k is fixed on dev before test inference. Pattern: Tang et al. [AFSP, 2025]; related precedents in Wang et al. style-activation prompting and style-matching exemplar selection.
 
@@ -149,6 +151,7 @@ All four conditions, same held-out test set, same decoding settings (temperature
 | Condition | COMET | BLEU | LLM-Judge Φ | Lex. density | TTR | Stylo. dist. | Latency (s/seg) | Trainable params |
 |---|---|---|---|---|---|---|---|---|
 | Reference | — | — | — | — | — | — | — | 0 |
+| kNN few-shot (baseline, k = —) | — | — | — | — | — | — | — | 0 |
 | PEFT (LoRA) | — | — | — | — | — | — | — | — |
 | AFSP (k = —) | — | — | — | — | — | — | — | 0 |
 | RLSF (PPO) | — | — | — | — | — | — | — | — |
@@ -202,9 +205,9 @@ python -m src.infer --condition reference --config configs/reference.yaml
 python -m src.peft.train       --config configs/peft.yaml
 python -m src.infer --condition peft --config configs/peft.yaml
 
-# AFSP
-python -m src.afsp.build_index --config configs/afsp.yaml
-python -m src.infer --condition afsp --config configs/afsp.yaml
+# kNN few-shot baseline (and AFSP, once implemented; both share the index)
+python -m src.retrieval.build_index --config configs/base_qwen.yaml
+python -m src.infer.run --condition knn_fewshot --config configs/base_qwen.yaml
 
 # RLSF
 python -m src.rlsf.train       --config configs/rlsf.yaml
@@ -214,7 +217,7 @@ python -m src.infer --condition rlsf --config configs/rlsf.yaml
 ### Evaluation
 
 ```bash
-python -m src.eval.run --condition reference peft afsp rlsf
+python -m src.eval.run --condition reference knn_fewshot peft afsp rlsf
 python -m src.eval.agreement   # RQ4 pairwise Spearman + plots
 ```
 
