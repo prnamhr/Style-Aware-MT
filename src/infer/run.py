@@ -1,20 +1,5 @@
-"""Test-set inference, provider-agnostic across the configured generator.
-
-Two conditions share one style instruction (the system message); they differ only
-in the user message:
-
-  * ``reference``    -- zero-shot: the source segment alone.
-  * ``knn_fewshot``  -- few-shot: k nearest-neighbour (source -> target) exemplars
-                        followed by the source segment. Exemplars are ordered
-                        most-similar LAST, closest to the query, per the
-                        spatial-proximity rule in docs/afsp_strategies.md. This is
-                        the plain-kNN retrieval BASELINE, not the adaptive AFSP
-                        condition (which adds margin scoring / target-distribution
-                        priority / word-level weighting on top of the same index).
-
-Writes ``outputs/<condition>_<split>.jsonl`` (one record per segment, carrying the
-reference target for downstream scoring) plus ``outputs/<condition>_<split>_usage.json``,
-where ``<split>`` is the stem of the configured ``data.eval_file`` (e.g. ``val``).
+"""
+Test-set inference, provider-agnostic across the configured generator.
 
 Usage:
     python -m src.infer.run --condition reference   --config configs/openai_smoke.yaml
@@ -31,12 +16,8 @@ import yaml
 
 
 def make_client(gen: dict):
-    """Build the generator client for the configured provider.
-
-    Both clients expose ``complete(system, user) -> str`` and ``.usage``, so the
-    rest of the pipeline is provider-agnostic. Provider-specific knobs are read
-    here: OpenAI takes temperature/seed; Anthropic (Opus 4.x) rejects those, so
-    it takes only model/max_tokens (+ an optional thinking toggle).
+    """
+    Build the generator client for the configured provider.
     """
     provider = gen.get("provider", "openai")
     if provider == "openai":

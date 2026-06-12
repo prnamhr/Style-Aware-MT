@@ -1,19 +1,11 @@
-"""Build the retrieval index over the English target side of the training split.
+"""
+Build the retrieval index over the English target side of the training split.
 
 The index is a dense embedding matrix plus the aligned (source, target) exemplar
 pairs. Retrieval is cross-lingual: a Persian/Arabic source query is embedded and
 matched by cosine similarity against the embedded English targets. The matched
 row maps back to its full (source -> target) pair, which becomes a few-shot
 exemplar at inference time.
-
-This index backs the ``knn_fewshot`` baseline and is reused by the adaptive AFSP
-variant. At this corpus size (~10.8k rows, 1024-dim) a brute-force matmul over
-L2-normalized vectors is instant, so no FAISS dependency is needed.
-
-Artifacts written to ``index_dir``:
-  * ``embeddings.npy``  -- float32 [N, D], L2-normalized passage embeddings
-  * ``pairs.jsonl``     -- N lines of {"input": ..., "output": ...}, row-aligned
-  * ``meta.json``       -- embed model name, counts, dim, source file
 
 Usage:
     python -m src.retrieval.build_index --config configs/base_qwen.yaml

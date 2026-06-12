@@ -56,7 +56,7 @@ def assign_works(work_sizes: dict, fracs: dict, forced_train: set) -> dict:
 
 def drop_seen(records: list, seen_inputs: set, seen_outputs: set) -> tuple:
     """
-    Drop records whose normalized input OR output is already in `seen`.
+    Drop records whose normalized input OR output is already in seen.
     """
     kept, dropped = [], []
     for rec in records:

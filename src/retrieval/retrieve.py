@@ -1,14 +1,10 @@
-"""Load the retrieval index and fetch top-k exemplars for a source query.
+"""
+Load the retrieval index and fetch top-k exemplars for a source query.
 
 Retrieval is brute-force cosine similarity over L2-normalized embeddings, which
 is exact and instant at this corpus size. The query (Persian/Arabic source) is
 embedded with the same model used to build the index; the instruct query prefix
-is applied on the query side only (see ``src.retrieval.embed``).
-
-This is the plain nearest-neighbour retriever behind the ``knn_fewshot``
-baseline. The adaptive AFSP variant (margin-based scoring, target-distribution
-priority, word-level weighting; see ``docs/afsp_strategies.md``) builds on top of
-this and is implemented separately.
+is applied on the query side only.
 """
 
 from __future__ import annotations

@@ -1,19 +1,13 @@
-"""Token and cost accounting shared across generator providers.
-
-A ``Usage`` is constructed with a per-model pricing table; each provider's client
-passes its own. This keeps cost estimation in one place while letting OpenAI and
-Anthropic carry different price lists.
+"""
+Token and cost accounting shared across generator providers.
 """
 
 from __future__ import annotations
-
 from dataclasses import dataclass, field
 
 
 @dataclass
 class Usage:
-    # model id -> (input_rate, output_rate) in USD per 1M tokens.
-    # Unknown models fall back to (0, 0): cost reports 0, not an error.
     pricing: dict[str, tuple[float, float]] = field(default_factory=dict)
     prompt_tokens: int = 0
     completion_tokens: int = 0

@@ -1,10 +1,10 @@
 from __future__ import annotations
-
-import numpy as np
 from sentence_transformers import SentenceTransformer
+import numpy as np
+import torch
 
-# Queries are Persian/Arabic source segments; passages are raw English texts.
-# The instruct model requires this prefix only on the query side.
+# It tells the embedding model what kind of retrieval is intended:
+# find English translations that are semantically similar and share Shoghi Effendi’s formal register.
 _QUERY_INSTRUCTION = (
     "Instruct: Retrieve English translations of Persian or Arabic Bahá'í scriptural "
     "texts that are semantically similar and share the formal register of "
@@ -17,8 +17,6 @@ def load_model(
     device: str | None = None,
 ) -> SentenceTransformer:
     # Default to CUDA when available; pass device="cpu" to force CPU.
-    import torch
-
     if device is None:
         device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"Loading {model_name} on device: {device}")

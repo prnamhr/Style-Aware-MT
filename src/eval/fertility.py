@@ -1,4 +1,5 @@
-"""Tokenizer fertility on the Persian/Arabic source side.
+"""
+Tokenizer fertility on the Persian/Arabic source side.
 
 Usage:
     python manage.py fertility --model Qwen/Qwen2.5-7B-Instruct
@@ -18,7 +19,9 @@ _SPLIT_DIR = Path("data/splits")
 
 
 def _load_sources(split: str) -> list[str]:
-    """Return the source-side (``input``) strings for the requested split."""
+    """
+    Return the source-side strings for the requested split.
+    """
     if split == "all":
         files = sorted(_SPLIT_DIR.glob("*.jsonl"))
     else:
@@ -40,7 +43,9 @@ def _load_sources(split: str) -> list[str]:
 
 
 def measure(model: str, sources: list[str]) -> dict:
-    """Compute corpus-level and per-sentence fertility for ``model``."""
+    """
+    Compute corpus-level and per-sentence fertility for model.
+    """
     tok = AutoTokenizer.from_pretrained(model)
 
     total_words = 0

@@ -1,14 +1,5 @@
-"""Thin Anthropic (Claude) chat wrapper, interface-compatible with ``ChatClient``.
-
-Exposes the same ``complete(system, user) -> str`` surface and ``.usage`` as the
-OpenAI wrapper, so the pipeline is provider-agnostic. The API key is read from
-``ANTHROPIC_API_KEY`` (or a project-root ``.env``).
-
-Note on parameters: on Claude Opus 4.x and Fable 5, ``temperature`` / ``top_p`` /
-``seed`` are removed and return a 400 if sent, so this client never passes them.
-Determinism is steered through the prompt instead. The style instruction already
-asks for output-only (no preamble), which also keeps reasoning from leaking into
-the visible response when thinking is off.
+"""
+Thin Anthropic (Claude) chat wrapper, interface-compatible with ChatClient.
 """
 
 from __future__ import annotations

@@ -1,13 +1,5 @@
-"""Quick comparison of inference outputs: BLEU, chrF, and an archaic-register proxy.
-
-This is the smoke-test scorer, not the final evaluation harness (COMET / paired
-bootstrap / LLM-as-Judge come later). Its purpose is to confirm the loop runs and
-to give an early read on whether the kNN-few-shot baseline shifts the register
-relative to the reference condition, per RQ2.
-
-The register proxy counts second-person sacred forms and vocatives ("thou",
-"thee", "thy", "art", "hast", "doth", "O ...") per segment -- a crude but
-direction-correct stand-in for the stylometric features.
+"""
+Quick comparison of inference outputs: BLEU, chrF, and an archaic-register proxy.
 
 Usage:
     python -m src.eval.quick --conditions reference knn_fewshot --split val
@@ -21,8 +13,6 @@ from pathlib import Path
 
 from sacrebleu.metrics import BLEU, CHRF
 
-# Single source of truth for the archaic-register markers (shared with the
-# stylometrics report so the two scorers can never drift apart).
 from src.eval.stylometrics import _MARKERS
 
 

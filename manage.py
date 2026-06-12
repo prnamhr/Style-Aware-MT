@@ -1,13 +1,10 @@
 #!/usr/bin/env python
-"""Command dispatcher for the Style-Aware-MT data pipeline.
+"""
+Command dispatcher for the Style-Aware-MT data pipeline.
 
-Django-style entry point: `python manage.py <command> [args...]`.
-Each command delegates to the `main()` of the underlying module, which keeps
-its own argparse — so all the existing `--flags` work verbatim, e.g.:
-
-    python manage.py preprocess
-    python manage.py preprocess --output_dir data/processed
-    python manage.py split --seed 7
+python manage.py preprocess
+python manage.py preprocess --output_dir data/processed
+python manage.py split --seed 7
 """
 
 import importlib
