@@ -3,6 +3,7 @@ Token and cost accounting shared across generator providers.
 """
 
 from __future__ import annotations
+
 from dataclasses import dataclass, field
 
 
