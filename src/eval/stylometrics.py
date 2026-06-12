@@ -30,6 +30,9 @@ _MARKERS = re.compile(
 # family, archaic adverbs and relative forms) that recur in the authorized register.
 # Counted as *function* words, so a heavily archaic passage scores LOWER lexical
 # density -- lex_density and marker_rate are therefore complementary, not redundant.
+# fmt: off
+# Hand-grouped by category for readability; ruff would explode these to one
+# token per line, so formatting is disabled across both word-list sets.
 _STANDARD_FUNCTION_WORDS = {
     # articles / determiners
     "a", "an", "the", "this", "that", "these", "those", "such", "no", "every",
@@ -70,6 +73,7 @@ _ARCHAIC_FUNCTION_WORDS = {
     "whereof", "whereby", "whereupon", "wherewith", "herein", "hereof", "hereby",
     "hereunto", "withal", "nay", "yea",
 }
+# fmt: on
 
 FUNCTION_WORDS = frozenset(_STANDARD_FUNCTION_WORDS | _ARCHAIC_FUNCTION_WORDS)
 
