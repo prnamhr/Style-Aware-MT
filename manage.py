@@ -21,6 +21,7 @@ COMMANDS = {
     "infer": "src.infer.run",
     "eval": "src.eval.quick",
     "fertility": "src.eval.fertility",
+    "stylometrics": "src.eval.stylometrics",
 }
 
 

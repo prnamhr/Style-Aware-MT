@@ -13,6 +13,82 @@ Each entry should document four elements: **what changed, why the change was mad
 
 ---
 
+## 2026-06-12 — Phase 2: stylometrics module (per-segment features + target-register centroid)
+
+### What changed
+
+Added `src/eval/stylometrics.py`, the objective style-measurement layer the README
+promises (`README.md:136-137`) and the dependency of two later stages: the style
+rerank (which scores candidates by closeness to the target register) and **H2**, the
+variance hypothesis, which was previously *unmeasurable* — nothing recorded per-segment
+feature variance at all.
+
+- **Per-segment features** (`features(text)`, `FEATURE_NAMES` order via
+  `feature_vector(text)` — the form the rerank will consume): `lex_density`, `ttr`,
+  `root_ttr`, `sent_len_mean`, `sent_len_var`, `marker_rate`.
+- **Target-register centroid** (`build_centroid`) over the 10,860 training English
+  targets, saved to `results/stylometrics_centroid.json` with per-feature **mean and
+  std** so the rerank can z-score candidate vectors (the "standardized feature vector"
+  of `README.md:137`). `std` is floored at `1e-9` to keep z-scoring safe.
+- **Reporting** (`aggregate`, `distance_to_centroid`): a new `manage.py stylometrics`
+  command prints per-condition feature **mean *and* across-segment std** (the std is
+  the H2 signal) plus `stylo_dist`, the standardized Euclidean distance of a condition's
+  mean vector to the centroid.
+- **Single source of truth for register markers:** the archaic-marker regex `_MARKERS`
+  now lives in `stylometrics.py:35`; `src/eval/quick.py:25` imports it instead of
+  redefining it, so the smoke scorer and the stylometrics report can never drift. No
+  change to `quick.py`'s `_marker_rate` semantics.
+- Registered `"stylometrics"` in `manage.py:24`. Added `tests/test_stylometrics.py`, a
+  pytest-free assertion script (none is installed) including a **hand-labeled**
+  lexical-density check.
+
+### Rationale
+
+**Lexical density is a function-word ratio with a register-aware list, not POS-based.**
+A word is content unless it is in `FUNCTION_WORDS` — a standard English function-word
+set extended with the archaic thee/thou/hath family (`thou, thee, thy, thine, ye, hath,
+doth, hast, art, unto, verily, whilst, wherefore, thereof, therein, shall, …`). This
+keeps the project's no-spaCy/no-nltk stance and is deterministic, at the cost of being
+approximate. Tokenizing strips punctuation first (`[a-z']+` on lowercased text) so
+`"word."` and `"word"` are one token. Both raw `ttr` and length-robust
+`root_ttr = types/√tokens` (Guiraud) are reported because scripture segments vary
+widely in length and raw TTR is length-confounded.
+
+### Limitations / risks
+
+- **`lex_density` is approximate** — name it "function-word ratio with a register-aware
+  list" in the thesis, with a one-paragraph limitation note.
+- Because archaic pronouns (`thou/thee/thy`) are counted as **function** words, a
+  heavily archaic passage scores *lower* lexical density. `lex_density` and
+  `marker_rate` are therefore **complementary, not redundant** signals — do not read a
+  lex-density drop as a register drop.
+- The shared `_MARKERS` regex is **case-sensitive** (inherited from `quick.py`):
+  sentence-initial "Thou" is not matched, and `\bO\b` matches only the capital-O
+  vocative. Left as-is to preserve `quick.py`'s established marker rates.
+- Regex sentence splitter; single-sentence segments give `sent_len_var = 0`.
+
+### Verification
+
+`ruff check` clean on all touched files. `python tests/test_stylometrics.py` → 7/7
+pass, including the hand-labeled excerpt (train target #0, 42 tokens → 18 content / 31
+types → `lex_density = 18/42`). Centroid built over n=10,860 with plausible means
+(`lex_density 0.4344`, `ttr 0.8540`, `marker_rate 0.0327`); gold targets report
+`stylo_dist = 0.0` against their own centroid. Per-condition path exercised against the
+quarantined smoke outputs (`reference`/`knn_fewshot`, n=25), and
+`manage.py eval` still runs — confirming the `_MARKERS` import refactor did not break
+the smoke scorer.
+
+### Reproduction
+
+```bash
+python tests/test_stylometrics.py                                  # 7/7 sanity checks
+python manage.py stylometrics --build-centroid                     # writes results/stylometrics_centroid.json
+python manage.py stylometrics --targets-split train                # H2 reference distribution (per-feature mean + std)
+python manage.py stylometrics --conditions reference knn_fewshot --split val   # per-condition report + stylo_dist
+```
+
+---
+
 ## 2026-06-12 — Phase 1 repo hygiene: re-point to open-source base, seal test, quarantine smoke, relabel baseline
 
 ### What changed

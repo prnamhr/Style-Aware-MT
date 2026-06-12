@@ -17,15 +17,13 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
 from pathlib import Path
 
 from sacrebleu.metrics import BLEU, CHRF
 
-_MARKERS = re.compile(
-    r"\b(thou|thee|thy|thine|art|hast|hath|dost|doth|shalt|wilt|unto|ye)\b"
-    r"|\bO\b",
-)
+# Single source of truth for the archaic-register markers (shared with the
+# stylometrics report so the two scorers can never drift apart).
+from src.eval.stylometrics import _MARKERS
 
 
 def _marker_rate(texts: list[str]) -> float:
