@@ -73,7 +73,9 @@ def measure(model: str, sources: list[str]) -> dict:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Tokenizer fertility on the source side.")
-    parser.add_argument("--model", required=True, help="HF tokenizer id, e.g. Qwen/Qwen2.5-7B-Instruct")
+    parser.add_argument(
+        "--model", required=True, help="HF tokenizer id, e.g. Qwen/Qwen2.5-7B-Instruct"
+    )
     parser.add_argument(
         "--split",
         default="train",
