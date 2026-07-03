@@ -13,6 +13,103 @@ Each entry documents four points: what changed, why the change was made, how the
 
 ---
 
+## 2026-07-03 — Model × Shot-Count Smoke Sweep Harness
+
+### Summary
+
+A sweep harness was added to compare commercial-API models across few-shot sizes in a single run, score each combination with the existing quick metrics, and emit artifacts for manual human evaluation. It runs the `reference` condition at `n = 0` and the `knn_fewshot` condition at each `n > 0`, so a single invocation covers the shot-count sensitivity sweep that the configs and README flag for the dev split.
+
+Important: like the `*_smoke.yaml` configs, this is smoke and loop-validation only. The thesis base model is the local `Qwen/Qwen2.5-7B-Instruct`; nothing produced by this harness is a thesis finding. Its purpose is picking a sensible commercial default and eyeballing output quality.
+
+### What changed
+
+Added:
+
+```bash
+src/infer/sweep.py
+```
+
+and registered a `sweep` command in `manage.py`.
+
+The module iterates over a set of models and a set of shot counts `n`, running every `(model, n)` combination on the same eval slice. It reuses the existing pipeline rather than duplicating it:
+
+* prompt assembly via `build_reference_user` and `build_knn_fewshot_user` from `src/infer/run.py`;
+* provider dispatch via `make_client`, so OpenAI and Anthropic models are driven through one interface;
+* scoring via `sacrebleu` BLEU/chrF and the shared `_MARKERS` regex from `src/eval/stylometrics.py`, keeping metric definitions identical to the quick scorer.
+
+A `MODEL_REGISTRY` maps `--models` names to generator blocks. The cheap models (`gpt-4o-mini`, `claude-haiku-4-5`, `claude-sonnet-4-6`) are the defaults; the flagships (`gpt-5.5`, `claude-opus-4-8`) are present but opt-in because they are far pricier.
+
+Retrieval is model-independent, so exemplars for each `n` are retrieved once and reused across all models. A fresh client is constructed per `(model, n)` combination so the `Usage` accumulator reports isolated per-run token counts and cost.
+
+Output filenames are now tagged with the model and shot count:
+
+```bash
+outputs/<model>__n<k>_<split>.jsonl
+```
+
+This directly addresses the overwrite risk recorded in the 2026-06-11 smoke entry, where the fixed `knn_fewshot_val.jsonl` filename would clobber earlier predictions across runs.
+
+Three result artifacts are written per sweep:
+
+```bash
+results/sweep_leaderboard_<split>.json   # metrics + cost per (model, n), for ranking
+results/human_eval_<split>.tsv           # one row per (segment × run) with blank score columns
+results/human_eval_<split>.md            # readable side-by-side, grouped by segment
+```
+
+The TSV carries empty `adequacy_1to5`, `style_1to5`, and `notes` columns for hand scoring; the Markdown groups every system's output under each source and reference for quick reading. A leaderboard table sorted by chrF is also printed to the terminal.
+
+### Rationale
+
+The configs and README call for a shot-count sensitivity sweep over `k ∈ {2, 4, 8}` on the dev split, and for choosing a commercial default before the local pipeline exists. Doing this by editing YAML and re-running `src/infer/run.py` once per combination both overwrites outputs and makes cross-model comparison manual. A single harness that fans out over models and shot counts, tags its outputs, and aggregates a leaderboard removes that friction.
+
+The human-evaluation artifacts exist because BLEU, chrF, and marker rate are only proxies. A side-by-side dump lets the register and adequacy of candidate outputs be judged directly before committing to a model or shot count.
+
+### Verification
+
+The harness was validated end-to-end on a cheap four-call slice:
+
+```bash
+python manage.py sweep --models gpt-4o-mini --n 0 2 --limit 2
+```
+
+This exercised retrieval, both conditions, tagged output writing, scoring, the leaderboard, and both human-eval files.
+
+CI-equivalent checks pass on the touched sources:
+
+```bash
+ruff check src
+ruff format --check src
+python -m compileall -q src
+```
+
+The retrieval index required by `n > 0` was rebuilt first and reported `embeddings (10860, 1024)` over 10,860 pairs.
+
+### Reproduction
+
+```bash
+python manage.py build_index --config configs/base_qwen.yaml   # if data/knn_index/ is absent
+python manage.py sweep --models gpt-4o-mini claude-haiku-4-5 claude-sonnet-4-6 --n 0 2 4 8 --limit 25
+```
+
+Defaults match that full command, so `python manage.py sweep` is equivalent. Add `gpt-5.5` and `claude-opus-4-8` to `--models` for the flagship comparison. Required environment variables are `OPENAI_API_KEY` and `ANTHROPIC_API_KEY`, which may live in a project-root `.env`.
+
+### Limitations and risks
+
+These are smoke numbers on commercial APIs, not thesis findings, and must never be reported as results.
+
+API cost and wall-clock scale with `models × n × limit`; the flagship models are excluded from the defaults for this reason.
+
+The leaderboard sorts by chrF purely as a display convenience. It is not a principled "best model" criterion — register fidelity in particular is better judged from the human-eval artifacts than from chrF or the crude marker-rate proxy.
+
+The retrieval index is reloaded once per shot count when prompts are built, a minor inefficiency that is negligible at this corpus size but would matter if the sweep grew large.
+
+Shot counts are bounded by the base model context window; the registry and defaults assume `n ≤ 8`.
+
+The human-eval TSV score columns are intentionally blank and must be filled by a human; no automatic judge is applied at this stage.
+
+---
+
 ## 2026-06-12 — Phase 2: Stylometrics Module
 
 ### Summary
