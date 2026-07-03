@@ -63,64 +63,6 @@ def build_knn_fewshot_user(source: str, exemplars: list[dict]) -> str:
     return "\n".join(blocks)
 
 
-def load_glossary(path: str | Path | None) -> list[tuple[str, str]]:
-    """Read tab-separated ``source_term<TAB>target_term`` register pairs.
-
-    Blank lines and lines beginning with ``#`` are ignored. A missing or unset
-    path returns an empty glossary, which disables word-level weighting.
-    """
-    if not path:
-        return []
-    p = Path(path)
-    if not p.exists():
-        return []
-    pairs: list[tuple[str, str]] = []
-    for line in p.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if not line or line.startswith("#"):
-            continue
-        cells = line.split("\t")
-        if len(cells) >= 2 and cells[0].strip() and cells[1].strip():
-            pairs.append((cells[0].strip(), cells[1].strip()))
-    return pairs
-
-
-def _term_line(source: str, glossary: list[tuple[str, str]], max_pairs: int = 6) -> str:
-    """Render the glossary entries whose source term occurs in ``source`` as a
-    single ``[Terms]`` line, capped at ``max_pairs``. Returns an empty string when
-    there are no matches (multi-view word-level weighting, per §3 of the strategy
-    document)."""
-    hits = [(s, t) for s, t in glossary if s in source][:max_pairs]
-    if not hits:
-        return ""
-    return "[Terms] " + " | ".join(f"{s} → {t}" for s, t in hits)
-
-
-def build_afsp_user(
-    source: str, exemplars: list[dict], glossary: list[tuple[str, str]] | None = None
-) -> str:
-    """Assemble the AFSP user prompt. Register word pairs are injected before each
-    exemplar and before the query.
-
-    Exemplars are supplied by ``AFSPRetriever.select`` in final prompt order
-    (highest-scoring last) and are emitted without reversal, unlike
-    ``build_knn_fewshot_user``.
-    """
-    glossary = glossary or []
-    blocks = ["Here are example translations in the required style:\n"]
-    for e in exemplars:
-        term_line = _term_line(e["input"], glossary)
-        if term_line:
-            blocks.append(term_line)
-        blocks.append(f"Source: {e['input']}\nEnglish: {e['output']}\n")
-    blocks.append("Now translate the following text into English in the same style:\n")
-    query_terms = _term_line(source, glossary)
-    if query_terms:
-        blocks.append(query_terms)
-    blocks.append(f"Source: {source}\nEnglish:")
-    return "\n".join(blocks)
-
-
 def run(condition: str, cfg: dict) -> None:
     gen = cfg["generator"]
     style_instruction = Path(cfg["prompt"]["style_instruction_file"]).read_text(encoding="utf-8")
@@ -140,28 +82,8 @@ def run(condition: str, cfg: dict) -> None:
         print(f"Retrieving k={retr['k']} exemplars for {len(sources)} sources ...")
         retrieved = index.retrieve(sources, k=retr["k"])
         user_msgs = [build_knn_fewshot_user(s, ex) for s, ex in zip(sources, retrieved)]
-    elif condition == "afsp":
-        from src.retrieval.afsp import AFSPRetriever, load_centroid
-        from src.retrieval.retrieve import RetrievalIndex
-
-        retr = cfg["retrieval"]
-        af = cfg["afsp"]
-        index = RetrievalIndex(retr["index_dir"], embed_model=retr["embed_model"])
-        retriever = AFSPRetriever(
-            index,
-            load_centroid(af["centroid_file"]),
-            index_dir=retr["index_dir"],
-            beta=af.get("beta", 0.3),
-            knn_hubness=af.get("knn_hubness", 5),
-            pool_mult=af.get("pool_mult", 4),
-            lambda_style=af.get("lambda_style", 0.3),
-        )
-        glossary = load_glossary(af.get("glossary_file")) if af.get("word_pairs", True) else []
-        print(f"AFSP: selecting k={retr['k']} exemplars for {len(sources)} sources ...")
-        selected = retriever.select(sources, k=retr["k"])
-        user_msgs = [build_afsp_user(s, ex, glossary) for s, ex in zip(sources, selected)]
     else:
-        raise ValueError(f"unknown condition '{condition}' (expected reference|knn_fewshot|afsp)")
+        raise ValueError(f"unknown condition '{condition}' (expected reference|knn_fewshot)")
 
     client = make_client(gen)
 
@@ -201,7 +123,7 @@ def run(condition: str, cfg: dict) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Provider-agnostic eval-set inference.")
-    parser.add_argument("--condition", required=True, choices=["reference", "knn_fewshot", "afsp"])
+    parser.add_argument("--condition", required=True, choices=["reference", "knn_fewshot"])
     parser.add_argument("--config", default="configs/openai_smoke.yaml")
     args = parser.parse_args()
 
