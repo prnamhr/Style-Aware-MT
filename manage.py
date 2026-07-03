@@ -16,6 +16,7 @@ COMMANDS = {
     "split": "src.data.split",
     "build_index": "src.retrieval.build_index",
     "infer": "src.infer.run",
+    "sweep": "src.infer.sweep",
     "eval": "src.eval.quick",
     "fertility": "src.eval.fertility",
     "stylometrics": "src.eval.stylometrics",
