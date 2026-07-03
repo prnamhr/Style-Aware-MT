@@ -13,6 +13,124 @@ Each entry documents four points: what changed, why the change was made, how the
 
 ---
 
+## 2026-07-03 — AFSP: Adaptive Few-Shot Prompting Implementation
+
+### Summary
+
+The AFSP method was implemented as an adaptive selection layer over the existing
+`knn_fewshot` retrieval index, and an `afsp` condition was added to the
+provider-agnostic inference pipeline. AFSP had until now been specified only in
+`docs/afsp_strategies.md`, with an empty results row; the corresponding code now
+exists.
+
+This entry records the implementation only. The AFSP condition was not run: no
+inference was performed, no API calls were made, and no results were produced.
+The AFSP row in the README remains empty until the method is run on the
+development split and, subsequently, the sealed test split.
+
+### What changed
+
+`src/retrieval/afsp.py` was added, providing `AFSPRetriever` and
+`load_centroid`. In `src/infer/run.py`, the `afsp` condition was added together
+with its prompt builder `build_afsp_user`, the glossary loader `load_glossary`,
+and the helper `_term_line`; `afsp` was registered as a choice in the
+`run.py` argument parser. `eval/quick.py` and `eval/stylometrics.py` accept
+conditions as arbitrary strings and therefore require no change.
+
+The implementation follows the four mechanisms of `docs/afsp_strategies.md`,
+operating over the shared index of English training targets.
+
+1. Margin-based scoring with hub penalisation. The candidate score is
+   `cos(x, y) − β · ½(hub(x) + hub(y))`, where `hub` is the mean cosine
+   similarity of a row to its `knn_hubness` nearest neighbours, self-similarity
+   excluded. This is the distance-form margin of Artetxe and Schwenk (2019) with
+   a tunable `β`. Candidate hubness is precomputed in row batches and cached to
+   `data/knn_index/hubness_top{m}.npy`.
+
+2. Target-distribution-priority selection. A candidate pool of size `pool_mult·k`
+   is drawn by margin score, and each candidate's English target is then scored
+   by its standardised distance to the target-register centroid
+   (`results/stylometrics_centroid.json`), reusing `stylometrics.features` and
+   `distance_to_centroid`. The final ranking combines margin similarity and
+   register fit, weighted by `lambda_style`.
+
+3. Demonstration ordering. `select` returns the exemplars with the
+   highest-scoring one last, adjacent to the test source. `build_afsp_user`
+   preserves this order and does not reverse it, in contrast to the baseline
+   builder.
+
+4. Multi-view word-level pairs. A curated seed glossary
+   `prompts/register_glossary.tsv` (`source_term<TAB>target_term`) is
+   substring-matched against each exemplar and the query source, and the matches
+   are inserted as a `[Terms]` line to emphasise register-bearing terminology.
+
+A new `afsp:` block in `configs/base_qwen.yaml` exposes `beta`, `knn_hubness`,
+`pool_mult`, `lambda_style`, `centroid_file`, `word_pairs`, and `glossary_file`.
+
+By construction, `beta = 0` together with `lambda_style = 0` reduces AFSP to the
+`knn_fewshot` baseline. The two parameters therefore isolate the contribution of
+the adaptive components from that of naive retrieval, and support a direct
+ablation.
+
+### Verification
+
+No inference was run. The touched sources pass the CI-equivalent static checks:
+
+```bash
+ruff check src
+ruff format --check src
+python -m compileall -q src
+```
+
+A separate offline check, loading no embedding model and making no API calls,
+exercised the numeric helpers and prompt assembly against synthetic arrays and a
+small in-memory index. It confirmed min-max normalisation and top-k mean, the
+batched candidate-hubness computation (which ranked a near-duplicate cluster as
+hubs), the target-register fit (which ranked an archaic exemplar above a plain
+one using the real stylometric centroid), glossary parsing, and the ordering and
+`[Terms]` injection of the assembled prompt.
+
+### Reproduction
+
+Not yet run. AFSP requires the retrieval index and the target-register centroid
+to be built beforehand:
+
+```bash
+python manage.py build_index --config configs/base_qwen.yaml
+python manage.py stylometrics --build-centroid
+python manage.py infer --condition afsp --config configs/base_qwen.yaml
+python manage.py eval --conditions knn_fewshot afsp --split val
+python manage.py stylometrics --conditions knn_fewshot afsp --split val
+```
+
+`configs/base_qwen.yaml` specifies `provider: local`, whose client is not yet
+implemented, so an end-to-end run requires either that client or a
+commercial-API generator block. Development tuning should sweep `beta`,
+`lambda_style`, and `k` before any test-set run.
+
+### Limitations and risks
+
+The register glossary is a hand-curated seed list rather than a statistical word
+alignment. Matching is plain substring matching over undiacritised forms and may
+miss diacritised forms or over-match short terms; a subsequent revision should
+align and extend the list against the corpus. The mechanism is inactive when the
+file is absent or `word_pairs` is false.
+
+Candidate hubness is an `O(N²)` precomputation over the index. It is batched and
+cached, and is inexpensive at roughly 10.8k rows, but would need revisiting at a
+larger scale. The cache key encodes only `knn_hubness`, so an index rebuilt at
+the same path requires its `hubness_top*.npy` files to be cleared.
+
+The target-register centroid must exist before the AFSP condition runs;
+`load_centroid` raises an explicit error when it is missing rather than degrading
+silently.
+
+AFSP has not been evaluated against reference translations. Its effect on
+register and adequacy relative to the `knn_fewshot` baseline is unknown until the
+condition is run.
+
+---
+
 ## 2026-07-03 — Model × Shot-Count Smoke Sweep Harness
 
 ### Summary
