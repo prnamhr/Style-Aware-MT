@@ -13,6 +13,169 @@ Each entry documents four points: what changed, why the change was made, how the
 
 ---
 
+## 2026-07-03 — Stage 0: Local Open-Source Generator (Qwen2.5-7B-Instruct)
+
+### Summary
+
+The local generator client was implemented, completing the last model-agnostic
+gap in the inference pipeline. Until now the canonical base configuration
+(`configs/base_qwen.yaml`) declared `provider: local` as a placeholder, and no
+open-source generator existed: the pipeline could be exercised only through the
+commercial-API smoke clients, which produce no thesis findings. `LocalChatClient`
+now runs `Qwen/Qwen2.5-7B-Instruct` through HuggingFace `transformers`, exposing
+the same `complete(system, user)` interface as the OpenAI and Anthropic clients,
+so the four thesis conditions (reference, PEFT, knn_fewshot/AFSP, RLSF) can be
+generated on the locked open-source base rather than a commercial API.
+
+The decoding contract for every thesis run was fixed and documented as part of
+this stage. The client and its wiring were verified end to end on the
+`Qwen2.5-0.5B-Instruct` sibling, which shares the Qwen2.5 chat template and
+tokenizer family. The full 5-segment reference smoke on the 7B base was **not**
+run locally: the development GPU (RTX 4060 Laptop, 8 GB VRAM) cannot hold the 7B
+base in `bfloat16` (approximately 15 GB), so that run is deferred to a
+larger-memory environment (Colab) in order to keep the frozen base unquantized.
+This entry records the implementation and the decoding decision; it reports no
+translation quality results, and a 5-segment slice would in any case be
+loop-validation, not a finding.
+
+### What changed
+
+`src/infer/local_client.py` was added, providing `LocalChatClient`
+(`src/infer/local_client.py:26`). It is a dataclass mirroring the existing
+clients: a `complete(system, user) -> str` method
+(`src/infer/local_client.py:77`) and a shared `Usage` accumulator. `torch` and
+`transformers` are imported lazily inside `__post_init__`
+(`src/infer/local_client.py:43`) and `complete`, so importing the module — for
+example from `make_client` — does not require the heavy dependencies or a GPU.
+
+Generation applies the model's chat template to a system/user message pair
+(`src/infer/local_client.py:84`) with `add_generation_prompt=True`, generates
+with `torch.no_grad`, and decodes only the newly generated tokens by slicing off
+the prompt prefix. Prompt and completion token counts are recorded through
+`Usage`; because local weights carry no per-token price, the pricing table is
+empty and `cost_usd` remains zero while token counts still accumulate for
+throughput and reproducibility bookkeeping.
+
+In `src/infer/run.py`, a `local` branch was added to `make_client`
+(`src/infer/run.py:41`) that constructs `LocalChatClient` from the `generator`
+block, reading `temperature`, `top_p`, `seed`, `dtype`, `device_map`, and
+`load_in_4bit` with defaults. The error message for an unrecognised provider now
+lists `local` (`src/infer/run.py:54`).
+
+`configs/base_qwen.yaml` was updated: the `provider: local` placeholder comment
+and the "client not implemented" note were removed, and the locked decoding
+settings were made explicit and documented in the `generator` block.
+
+`configs/qwen_smoke.yaml` was added as a loop-validation configuration. It mirrors
+the base model and locked decoding but sets `data.limit: 5` and runs the
+`reference` condition; it is labelled, like the commercial-API smoke configs, as
+producing no thesis findings, the distinction being that it exercises the real
+thesis base rather than a commercial API.
+
+`requirements.txt` gained `transformers==5.12.1`, `accelerate==1.14.0` (required
+for `device_map: auto`), and `bitsandbytes==0.49.2` (required only for the 4-bit
+fallback).
+
+### Decoding decision
+
+Decoding is fixed identically across all four conditions so that cross-condition
+differences are attributable to adaptation rather than to sampling. The locked
+settings, recorded in `configs/base_qwen.yaml`, are:
+
+```text
+temperature   = 0.0     greedy decoding, fully deterministic (do_sample=False)
+top_p         = 1.0     inert under greedy; used only if temperature is raised
+seed          = 42      fixes any residual kernel nondeterminism / sampling RNG
+max_new_tokens = 1024   covers a paragraph-length translation
+```
+
+Greedy decoding was chosen as the reproducible default: it removes sampling
+variance entirely, so a run can be reproduced byte-for-byte. `temperature` and
+`top_p` remain configurable for later sampling experiments, in which case `seed`
+governs the RNG through `transformers.set_seed`.
+
+`dtype`, `device_map`, and `load_in_4bit` are treated as hardware-placement
+settings, not part of the decoding contract. The frozen thesis base is
+full-precision `bfloat16`; `load_in_4bit` (NF4, approximately 5 GB) exists only as
+a fallback for GPUs with 8 GB of VRAM or less and is off by default, because
+enabling it would quantize the base model and therefore change the frozen-base
+definition that underpins cross-condition attribution.
+
+### Verification
+
+The touched sources pass the CI-equivalent static checks:
+
+```bash
+ruff check src/infer configs
+python -m py_compile src/infer/local_client.py src/infer/run.py
+```
+
+Wiring was validated without loading weights by parsing `configs/base_qwen.yaml`
+and `configs/qwen_smoke.yaml` through `make_client`, confirming `provider: local`
+dispatch, the propagated decoding settings, and the `complete(self, system, user)`
+signature.
+
+The generation path was then exercised end to end on `Qwen/Qwen2.5-0.5B-Instruct`,
+the smallest member of the same model family and therefore sharing the Qwen2.5
+chat template and tokenizer. Using the project style instruction and
+`build_reference_user`, the client produced a correct English translation of an
+Arabic test source, recorded non-zero prompt and completion token counts through
+`Usage`, and — under the locked greedy configuration — produced byte-for-byte
+identical output across two calls, confirming determinism. The 0.5B run validates
+the client code path (chat-template application, generation, prompt-prefix
+slicing, token accounting, and decoding); it does not characterise 7B behaviour.
+
+The 7B smoke on the locked base was not run. `Qwen/Qwen2.5-7B-Instruct` in
+`bfloat16` requires roughly 15 GB of weights and does not fit the development
+GPU's 8 GB of VRAM.
+
+### Reproduction
+
+The 5-segment loop-validation smoke, intended for a GPU with at least 16 GB of
+VRAM (for example a Colab T4/L4/A100) so the base loads in full `bfloat16`:
+
+```bash
+pip install -r requirements.txt
+python -m src.infer.run --condition reference --config configs/qwen_smoke.yaml
+```
+
+The full development run uses the canonical configuration, which reads the entire
+validation split (`data.limit: null`):
+
+```bash
+python -m src.infer.run --condition reference --config configs/base_qwen.yaml
+```
+
+`configs/base_qwen.yaml` sets `device_map: auto`, which requires `accelerate`. On
+a GPU with 8 GB of VRAM or less, set `load_in_4bit: true` (requiring
+`bitsandbytes`); this fits the model at the cost of quantizing the base, which
+must then be documented as the base-model definition. The Qwen weights are fetched
+from the HuggingFace Hub on first run; no `HF_TOKEN` is required for these public
+weights.
+
+### Limitations and risks
+
+The end-to-end verification used the 0.5B sibling, not the 7B thesis base. It
+confirms the client is correct as code but not that the 7B base loads and
+generates within a given memory budget; that is confirmed only when the smoke runs
+on adequate hardware.
+
+The development GPU cannot run the locked base in full precision. Until the smoke
+is run on a larger-memory environment, `configs/base_qwen.yaml` is implemented but
+not yet exercised on its own base model. Enabling the `load_in_4bit` fallback to
+run locally would change the frozen base to a quantized model and must not be
+treated as equivalent to the `bfloat16` base.
+
+A 5-segment run validates the loop only and is not an evaluation; no translation
+quality numbers from `configs/qwen_smoke.yaml` may be reported as thesis findings.
+
+The `accelerate` and `bitsandbytes` pins were selected as current releases
+compatible with `transformers==5.12.1` but have not been installed and exercised
+together in this environment; the first full `pip install -r requirements.txt` on
+the target machine should confirm the resolution.
+
+---
+
 ## 2026-07-03 — AFSP: Adaptive Few-Shot Prompting Implementation
 
 ### Summary

@@ -38,7 +38,20 @@ def make_client(gen: dict):
             max_tokens=gen.get("max_tokens", 1024),
             thinking=gen.get("thinking", False),
         )
-    raise ValueError(f"unknown provider '{provider}' (expected openai|anthropic)")
+    if provider == "local":
+        from src.infer.local_client import LocalChatClient
+
+        return LocalChatClient(
+            model=gen["model"],
+            max_tokens=gen.get("max_tokens", 1024),
+            temperature=gen.get("temperature", 0.0),
+            top_p=gen.get("top_p", 1.0),
+            seed=gen.get("seed", 42),
+            dtype=gen.get("dtype", "bfloat16"),
+            device_map=gen.get("device_map"),
+            load_in_4bit=gen.get("load_in_4bit", False),
+        )
+    raise ValueError(f"unknown provider '{provider}' (expected openai|anthropic|local)")
 
 
 def _read_jsonl(path: Path, limit: int | None) -> list[dict]:

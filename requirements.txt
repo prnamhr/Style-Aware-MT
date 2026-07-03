@@ -1,5 +1,8 @@
 sentence-transformers==5.5.1
 torch==2.12.0
+transformers==5.12.1
+accelerate==1.14.0        # required for device_map: auto in the local generator
+bitsandbytes==0.49.2      # only needed for load_in_4bit (<=8GB VRAM fallback)
 openai==2.41.1
 anthropic==0.109.1
 sacrebleu==2.6.0

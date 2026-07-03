@@ -8,20 +8,33 @@
 # 2026-06-12). Freezing the base here keeps cross-condition differences
 # attributable to adaptation, not model identity.
 #
-# NOTE: the local generator client (transformers / vLLM) is NOT implemented yet
-# -- that lands in a later phase. This config is the canonical record of the
-# base and the run settings; `provider: local` will be wired to a real client
-# then. The commercial-API smoke configs (openai_smoke.yaml / anthropic_smoke.yaml)
-# exist only to validate the loop and produce NO thesis findings.
+# The generator runs locally via src/infer/local_client.py (HuggingFace
+# `transformers` generate). The commercial-API smoke configs (openai_smoke.yaml /
+# anthropic_smoke.yaml) exist only to validate the loop and produce NO thesis
+# findings.
 # ============================================================================
 
-# --- Generation (local open-source base; client pending) ---
+# --- Generation (local open-source base) ---
+# Decoding is LOCKED here and applied identically across all four conditions, so
+# cross-condition differences are attributable to adaptation, not decoding.
+#   temperature: 0.0  -> greedy, fully deterministic (no sampling); the reproducible
+#                        default. seed still fixes any residual kernel nondeterminism.
+#   top_p:       1.0  -> inert while greedy; only used if temperature is raised.
+#   max_tokens: 1024  -> max_new_tokens; comfortably covers a paragraph translation.
+# dtype/device_map/load_in_4bit are hardware placement, NOT part of the thesis
+# decoding contract. load_in_4bit is required to fit the 7B base on <=8GB VRAM
+# (NF4, ~5GB) and needs `bitsandbytes` + `accelerate`; leave it false on a GPU
+# with >=16GB VRAM to run the base in full bf16.
 generator:
-  provider: local                 # TODO(next phase): implement src/infer/local_client.py
+  provider: local
   model: Qwen/Qwen2.5-7B-Instruct
   max_tokens: 1024
-  # Decoding settings (temperature, top_p, max_new_tokens) are fixed and logged
-  # before any inference run, identically across all four conditions.
+  temperature: 0.0
+  top_p: 1.0
+  seed: 42
+  dtype: bfloat16
+  device_map: auto          # let accelerate place layers; null -> single-device .to()
+  load_in_4bit: false       # set true to fit the 7B base on <=8GB VRAM (needs bitsandbytes)
 
 # --- Prompting ---
 prompt:
