@@ -1,0 +1,51 @@
+# Multi-view word-level register glossary for AFSP (docs/afsp_strategies.md, §3).
+#
+# Format: <source_term><TAB><target_term>, one pair per line. For each exemplar
+# and for the test source, the entries whose source term occurs in the source
+# text are inserted as a preceding "[Terms]" line, directing the model toward the
+# intended terminology and archaic register markers.
+#
+# The list is a curated seed of high-frequency scriptural and register-bearing
+# terms rather than a statistical word alignment. Matching is plain substring
+# matching over undiacritised forms; a subsequent revision should align and
+# extend the list against the corpus. Word-level weighting is disabled when this
+# file is absent or when word_pairs is set to false.
+#
+# source	target
+ای	O
+یا	O
+اللّه	God
+الله	God
+اللّهمّ	O God
+ربّ	Lord
+ربّنا	our Lord
+ربّی	my Lord
+سبحان	glorified be
+سبحانک	glorified art Thou
+قل	Say
+قد	verily
+انّ	verily
+إنّ	verily
+بسم	in the name of
+الرّحمن	the All-Merciful
+الرّحیم	the Most Compassionate
+عبد	servant
+عبده	His servant
+ملکوت	the Kingdom
+جبروت	the realm of glory
+جمال	beauty
+حضرت	His Holiness
+مبارک	blessed
+نور	light
+انوار	lights
+روح	spirit
+قدس	holiness
+قدّوس	the All-Holy
+سلطان	sovereign
+عزیز	the Almighty
+حکمت	wisdom
+رحمت	mercy
+عظمت	grandeur
+جلال	glory
+بهاء	glory
+ابهی	the Most Glorious

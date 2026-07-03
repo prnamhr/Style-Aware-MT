@@ -34,6 +34,19 @@ retrieval:
   train_file: data/splits/train.jsonl   # exemplar pool (English target side)
   k: 4                                   # shots; sweep {2,4,8} on dev later
 
+# AFSP (adaptive variant over the same index; see docs/afsp_strategies.md)
+# The knobs below add the adaptive machinery on top of the knn_fewshot baseline.
+# beta = 0 AND lambda_style = 0 reduces AFSP exactly to knn_fewshot, so these two
+# isolate how much register shift comes from the adaptive layer vs. naive retrieval.
+afsp:
+  beta: 0.3                                    # hub-penalisation weight; 0 = plain cosine
+  knn_hubness: 5                               # neighbours used to estimate hubness per side
+  pool_mult: 4                                 # candidate pool = pool_mult * k, re-ranked by register fit
+  lambda_style: 0.3                            # target-distribution-priority weight in [0, 1]
+  centroid_file: results/stylometrics_centroid.json  # built by `stylometrics --build-centroid`
+  word_pairs: true                             # multi-view word-level pair injection
+  glossary_file: prompts/register_glossary.tsv # source_term<TAB>target_term; optional
+
 # --- Data ---
 # Tuning / dev runs use val.jsonl. test.jsonl is SEALED until the final eval.
 data:
