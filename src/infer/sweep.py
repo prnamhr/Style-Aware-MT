@@ -15,8 +15,8 @@ from sacrebleu.metrics import BLEU, CHRF
 from src.eval.stylometrics import _MARKERS
 from src.infer.run import (
     _read_jsonl,
-    build_knn_fewshot_user,
-    build_reference_user,
+    build_fewshot_user,
+    build_zeroshot_user,
     make_client,
     order_exemplars,
 )
@@ -81,7 +81,7 @@ def _flat(text: str) -> str:
 def _build_user_messages(sources: list[str], n: int, cfg: dict) -> tuple[str, list[str]]:
     """Return (condition, per-source user messages) for shot count n."""
     if n == 0:
-        return "reference", [build_reference_user(s) for s in sources]
+        return "zeroshot", [build_zeroshot_user(s) for s in sources]
 
     from src.retrieval.retrieve import RetrievalIndex
 
@@ -93,7 +93,7 @@ def _build_user_messages(sources: list[str], n: int, cfg: dict) -> tuple[str, li
     print(f"  retrieving k={n} exemplars for {len(sources)} sources ({ordering}) ...")
     retrieved = index.retrieve(sources, k=n)
     ordered = [order_exemplars(ex, ordering, rng) for ex in retrieved]
-    return "knn_fewshot", [build_knn_fewshot_user(s, ex) for s, ex in zip(sources, ordered)]
+    return "knn_fewshot", [build_fewshot_user(s, ex) for s, ex in zip(sources, ordered)]
 
 
 def run_one(

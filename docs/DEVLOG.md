@@ -13,6 +13,121 @@ Each entry documents four points: what changed, why the change was made, how the
 
 ---
 
+## 2026-07-04 — Stage 3: Ablation Ladder as Discrete Conditions + Glossary Decoupling
+
+### Summary
+
+The prompting arm was restructured from three conditions (`reference`,
+`knn_fewshot`, `afsp`) into a five-rung **ablation ladder** of discrete
+conditions, and the register glossary was decoupled from the AFSP arm so it no
+longer confounds the selection-mechanism comparison. Two changes:
+(1) `reference` was renamed to `zeroshot`, and `random_fewshot`, `afsp_margin`,
+and `afsp_full` were added, so each rung adds exactly one component over the one
+before it; (2) the `[Terms]` glossary line, previously emitted only inside
+`build_afsp_user`, was moved into a single shared few-shot prompt builder and
+promoted to a controlled `prompt:` flag applied uniformly to every few-shot
+rung. No inference was run. The change was verified with the CI-equivalent
+static checks, the stylometrics test, and an offline exercise of the new
+selection and prompt-assembly paths.
+
+### 1. The ladder
+
+`src/infer/run.py` now defines `CONDITIONS = (zeroshot, random_fewshot,
+knn_fewshot, afsp_margin, afsp_full)` and dispatches on it:
+
+| Condition | Exemplars | Selection | β | λ | Isolates |
+|---|---|---|---|---|---|
+| `zeroshot` | none | — | — | — | instruction only |
+| `random_fewshot` | k | random (seeded) | — | — | having examples at all |
+| `knn_fewshot` | k | cosine top-k | 0 | 0 | relevance-based retrieval |
+| `afsp_margin` | k | margin + hub | β>0 | 0 | AFSP margin/hub penalty |
+| `afsp_full` | k | margin + register rerank | β>0 | λ>0 | full AFSP method |
+
+`afsp_margin` and `afsp_full` are both served by the existing `AFSPRetriever`
+via a `_select_afsp(..., rerank)` helper: `afsp_margin` forces `lambda_style = 0`
+and passes `centroid=None`, so it exercises margin/hub selection only and does
+**not** require the target-register centroid to be built; `afsp_full` uses the
+configured `beta` and `lambda_style` and loads the centroid. This preserves the
+Stage-0 ablation property that `β = 0, λ = 0` reduces AFSP to `knn_fewshot`, and
+adds an intermediate rung isolating the margin from the register rerank.
+`random_fewshot` samples `k` exemplars per source from the training pool via the
+shared seeded `random.Random`, so it is reproducible across reruns.
+
+`reference` is renamed `zeroshot` because "reference" was ambiguous with the gold
+reference target used for scoring; "zeroshot" names precisely what the rung is
+(instruction only, no in-context examples).
+
+### 2. Glossary confound
+
+`_term_line` was called only inside `build_afsp_user`, so the multi-view word
+pairs rode along with AFSP alone. A win of `afsp` over `knn_fewshot` could
+therefore have come from the glossary rather than the adaptive selection — a
+confound. The two prompt builders (`build_knn_fewshot_user`, `build_afsp_user`)
+were unified into one `build_fewshot_user(source, exemplars, glossary=None)`
+shared by every few-shot rung; when `glossary` is empty its output is
+byte-identical to the old baseline builder. The glossary is now loaded once by
+`_load_configured_glossary` from a controlled `prompt:` block flag
+(`word_pairs` + `glossary_file`, with a fallback to the legacy `afsp:` location)
+and applied uniformly across `random_fewshot`, `knn_fewshot`, `afsp_margin`, and
+`afsp_full`. It is therefore held constant across the selection ladder — no
+longer an AFSP-only rider — and can be toggled as its own controlled factor.
+`configs/base_qwen.yaml` moved `word_pairs`/`glossary_file` from the `afsp:`
+block to the `prompt:` block accordingly.
+
+`src/infer/sweep.py` (smoke harness) was updated to the new builder/label names,
+and `src/eval/quick.py`'s default/example conditions were relabelled.
+
+### Verification
+
+No inference was run. CI-equivalent static checks pass with the pinned
+`ruff==0.14.2`:
+
+```bash
+ruff check src
+ruff format --check src
+python -m compileall -q src
+python tests/test_stylometrics.py    # 7/7
+```
+
+Two pre-existing one-line-docstring format deviations (in `run.py` from the
+demonstration-ordering commit and in `stylometrics.py` from the Stage-1 commit),
+which had left this branch's `ruff format --check` red, were also collapsed so
+the format gate is green.
+
+Offline (no generator, no embedding model, no API): the shared builder was shown
+to omit `[Terms]` when the glossary is empty and to inject it when non-empty;
+`_select_random` was confirmed seeded, per-source, and of length `k`;
+`_load_configured_glossary` was confirmed to read the `prompt:` block, fall back
+to the legacy `afsp:` location, and default to disabled; and `run("reference", …)`
+was confirmed to raise, listing the five valid rungs.
+
+### Reproduction
+
+```bash
+python -m src.retrieval.build_index --config configs/base_qwen.yaml
+python manage.py stylometrics --build-centroid            # required by afsp_full only
+python -m src.infer.run --condition zeroshot       --config configs/base_qwen.yaml
+python -m src.infer.run --condition random_fewshot --config configs/base_qwen.yaml
+python -m src.infer.run --condition knn_fewshot    --config configs/base_qwen.yaml
+python -m src.infer.run --condition afsp_margin    --config configs/base_qwen.yaml
+python -m src.infer.run --condition afsp_full      --config configs/base_qwen.yaml
+python -m src.eval.quick --conditions zeroshot random_fewshot knn_fewshot afsp_margin afsp_full --split val
+```
+
+### Limitations and risks
+
+Holding the glossary constant across the ladder resolves the confound but does
+not by itself measure the glossary's effect; that requires an explicit contrast
+(the same condition with `word_pairs` on vs. off), which the flag now makes
+possible but which has not been run. `random_fewshot` draws from the whole
+training pool without a topical floor, so at very small `k` its exemplars may be
+off-topic — that is the intended contrast against `knn_fewshot`, but its variance
+across seeds should be reported. The ladder has been exercised only offline on
+the selection and prompt-assembly paths; no translations were generated, so no
+register results exist for any rung.
+
+---
+
 ## 2026-07-04 — Stage 1: AFSP Coherence Fixes (retrieval space, margin, register fit)
 
 ### Summary

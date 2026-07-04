@@ -140,8 +140,7 @@ def feature_vector(text: str) -> list[float]:
 
 
 def build_centroid(targets: list[str]) -> dict:
-    """Per-feature mean and (sample) std over the training English targets.
-    """
+    """Per-feature mean and (sample) std over the training English targets."""
     vectors = [[features(t)[name] for name in CENTROID_FEATURES] for t in targets if t.strip()]
     matrix = np.asarray(vectors, dtype=float)
     mean = matrix.mean(axis=0)
@@ -169,8 +168,7 @@ def aggregate(texts: list[str]) -> dict:
 
 
 def distance_to_centroid(agg_mean: dict[str, float], centroid: dict) -> float:
-    """Standardized (z-scored) Euclidean distance of a mean vector to the centroid.
-    """
+    """Standardized (z-scored) Euclidean distance of a mean vector to the centroid."""
     mean = np.asarray(centroid["mean"], dtype=float)
     std = np.asarray(centroid["std"], dtype=float)
     vec = np.asarray([agg_mean[name] for name in centroid["features"]], dtype=float)
@@ -178,8 +176,7 @@ def distance_to_centroid(agg_mean: dict[str, float], centroid: dict) -> float:
 
 
 def register_salience(feats: dict[str, float], centroid: dict) -> float:
-    """Directed register strength: the mean z-score of a segment's register features
-    """
+    """Directed register strength: the mean z-score of a segment's register features"""
     mean = np.asarray(centroid["mean"], dtype=float)
     std = np.asarray(centroid["std"], dtype=float)
     vec = np.asarray([feats[name] for name in centroid["features"]], dtype=float)
