@@ -14,24 +14,24 @@ generator:
 prompt:
   style_instruction_file: prompts/style_instruction.txt
   ordering: most_similar_last
-  ordering_seed: 42            # only used when ordering: random 
+  ordering_seed: 42            # also seeds random_fewshot sampling
+  word_pairs: true                             # multi-view word-level pair injection
+  glossary_file: prompts/register_glossary.tsv 
 
-# --- Retrieval (knn_fewshot baseline; shared index for the AFSP condition) ---
+# --- Retrieval (shared source-side index for every few-shot condition) ---
 retrieval:
   embed_model: intfloat/multilingual-e5-large-instruct
   index_dir: data/knn_index             # built by `build_index` (source-side)
   train_file: data/splits/train.jsonl   # exemplar pool (source side indexed)
   k: 4                                   # shots; sweep {2,4,8} on dev later
 
-# AFSP 
+# AFSP
 afsp:
   beta: 0.3                                    # hub-penalisation weight; 0 = plain cosine
   knn_hubness: 5                               # neighbours used to estimate hubness per side
   pool_mult: 4                                 # candidate pool = pool_mult * k, re-ranked by register fit
   lambda_style: 0.3                            # target-distribution-priority weight in [0, 1]
   centroid_file: results/stylometrics_centroid.json  # built by `stylometrics --build-centroid`
-  word_pairs: true                             # multi-view word-level pair injection
-  glossary_file: prompts/register_glossary.tsv # source_term<TAB>target_term; optional
 
 # --- Data ---
 data:

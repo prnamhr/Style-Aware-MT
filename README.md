@@ -107,7 +107,17 @@ No parameter updates. At inference time:
 2. Retrieve top-k relevant exemplars by nearest neighbour over an index built over the **Persian/Arabic (source-side)** training partition, then map each match back to its aligned English target.
 3. Insert them into a fixed prompt template (system role + style instruction + k exemplars + new source).
 
-**`knn_fewshot` is the baseline:** plain top-k cosine retrieval with the above template — a baseline row, not the contribution. It is what `src/retrieval/` currently implements. **AFSP** is the adaptive variant built on top of the same index — margin-based scoring (hub penalisation), target-distribution-priority selection, demonstration ordering, and multi-view word-level weighting (see [`docs/afsp_strategies.md`](docs/afsp_strategies.md)). Reporting both isolates how much of any register shift comes from naive retrieval vs. the adaptive machinery.
+**Ablation ladder.** The prompting conditions form a ladder, each rung adding one component over the previous one so any register shift is attributable to that component:
+
+| Condition | Exemplars | Selection | Isolates |
+|---|---|---|---|
+| `zeroshot` | none | — | instruction only |
+| `random_fewshot` | k | random (seeded) | having examples at all |
+| `knn_fewshot` | k | cosine top-k | relevance-based retrieval |
+| `afsp_margin` | k | margin + hub penalisation | AFSP margin (λ = 0) |
+| `afsp_full` | k | margin + target-register rerank (λ > 0) | full AFSP method |
+
+`knn_fewshot` is the baseline (plain top-k cosine), not the contribution; **AFSP** is the adaptive variant on the same index — margin-based scoring (hub penalisation), target-distribution-priority selection, demonstration ordering, and multi-view word-level weighting (see [`docs/afsp_strategies.md`](docs/afsp_strategies.md)). By construction `β = 0, λ = 0` reduces AFSP to `knn_fewshot`, so the rungs cleanly separate naive retrieval from the adaptive machinery. The register glossary (multi-view word pairs) is a **controlled prompt augmentation** set in the `prompt:` config block and applied uniformly to every few-shot rung, so it augments no single arm and can be toggled to measure its own effect.
 
 The index is built over the **source** side (not the English targets) so that the AFSP margin — query–candidate similarity plus query and candidate hubness — is computed in one comparable space; target-side register is scored separately by the style rerank, from the exemplar text (see `docs/DEVLOG.md`, 2026-07-04).
 
@@ -145,17 +155,19 @@ All four conditions, same held-out test set, same decoding settings (temperature
 - Where budget permits, a **cross-family** confirmation pass with a judge from a different commercial LLM family is performed; judge–judge agreement is reported.
 
 ### Statistics
-- System-level comparisons: paired bootstrap at the segment level, α = 0.05. Primary: each adaptation vs. Reference. Secondary: pairwise among the three adaptation conditions.
+- System-level comparisons: paired bootstrap at the segment level, α = 0.05. Primary: each adaptation vs. the zero-shot base. Secondary: pairwise among the adaptation conditions, and adjacent rungs of the prompting ablation ladder.
 - Evaluation-component agreement (RQ4): pairwise Spearman correlation between COMET, stylometric distance, and LLM-as-Judge, with 95 % bootstrap CIs. Descriptive only.
 
 ### Results table *(filled as conditions complete)*
 
 | Condition | COMET | BLEU | LLM-Judge Φ | Lex. density | TTR | Stylo. dist. | Latency (s/seg) | Trainable params |
 |---|---|---|---|---|---|---|---|---|
-| Reference | — | — | — | — | — | — | — | 0 |
+| Zero-shot | — | — | — | — | — | — | — | 0 |
+| Random few-shot (k = —) | — | — | — | — | — | — | — | 0 |
 | kNN few-shot (baseline, k = —) | — | — | — | — | — | — | — | 0 |
+| AFSP-margin (k = —) | — | — | — | — | — | — | — | 0 |
+| AFSP-full (k = —) | — | — | — | — | — | — | — | 0 |
 | PEFT (LoRA) | — | — | — | — | — | — | — | — |
-| AFSP (k = —) | — | — | — | — | — | — | — | 0 |
 | RLSF (PPO) | — | — | — | — | — | — | — | — |
 
 Detailed per-segment scores and bootstrap CIs land in `results/`.
@@ -200,16 +212,18 @@ python -m src.data.split        # writes data/splits/ with hashes
 ### Running a condition
 
 ```bash
-# Reference
-python -m src.infer --condition reference --config configs/reference.yaml
+# Prompting ablation ladder (all share the source-side index)
+python -m src.retrieval.build_index --config configs/base_qwen.yaml
+python manage.py stylometrics --build-centroid          # required by afsp_full
+python -m src.infer.run --condition zeroshot       --config configs/base_qwen.yaml
+python -m src.infer.run --condition random_fewshot --config configs/base_qwen.yaml
+python -m src.infer.run --condition knn_fewshot    --config configs/base_qwen.yaml
+python -m src.infer.run --condition afsp_margin    --config configs/base_qwen.yaml
+python -m src.infer.run --condition afsp_full      --config configs/base_qwen.yaml
 
 # PEFT
 python -m src.peft.train       --config configs/peft.yaml
 python -m src.infer --condition peft --config configs/peft.yaml
-
-# kNN few-shot baseline (and AFSP, once implemented; both share the index)
-python -m src.retrieval.build_index --config configs/base_qwen.yaml
-python -m src.infer.run --condition knn_fewshot --config configs/base_qwen.yaml
 
 # RLSF
 python -m src.rlsf.train       --config configs/rlsf.yaml
@@ -219,7 +233,7 @@ python -m src.infer --condition rlsf --config configs/rlsf.yaml
 ### Evaluation
 
 ```bash
-python -m src.eval.run --condition reference knn_fewshot peft afsp rlsf
+python -m src.eval.quick --conditions zeroshot random_fewshot knn_fewshot afsp_margin afsp_full --split val
 python -m src.eval.agreement   # RQ4 pairwise Spearman + plots
 ```
 

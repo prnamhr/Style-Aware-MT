@@ -1,9 +1,22 @@
 """
 Test-set inference, provider-agnostic across the configured generator.
 
+The condition is one rung of an ablation ladder, each adding one component over
+the one before it so any register shift is attributable to that component:
+
+    zeroshot        instruction only, no exemplars
+    random_fewshot  k random exemplars (isolates "having examples at all")
+    knn_fewshot     k cosine top-k exemplars (isolates relevance-based retrieval)
+    afsp_margin     + margin/hub-penalised selection, no register rerank (lambda=0)
+    afsp_full       + target-register rerank (lambda>0) -- the full AFSP method
+
+The register glossary is a controlled prompt augmentation (see the `prompt:`
+config block), applied uniformly to every few-shot rung, not an AFSP-only rider.
+
 Usage:
-    python -m src.infer.run --condition reference   --config configs/openai_smoke.yaml
-    python -m src.infer.run --condition knn_fewshot --config configs/openai_smoke.yaml
+    python -m src.infer.run --condition zeroshot    --config configs/openai_smoke.yaml
+    python -m src.infer.run --condition knn_fewshot  --config configs/openai_smoke.yaml
+    python -m src.infer.run --condition afsp_full    --config configs/base_qwen.yaml
 """
 
 from __future__ import annotations
@@ -18,12 +31,14 @@ import yaml
 # Demonstration ordering is a controlled experimental flag. Exemplars reach
 ORDERINGS = ("most_similar_last", "most_similar_first", "random")
 
+# Ablation ladder: each rung adds one component over the previous one.
+CONDITIONS = ("zeroshot", "random_fewshot", "knn_fewshot", "afsp_margin", "afsp_full")
+
 
 def order_exemplars(
     exemplars: list[dict], ordering: str = "most_similar_last", rng: random.Random | None = None
 ) -> list[dict]:
-    """Arrange canonically most-relevant-first exemplars into final prompt order.
-    """
+    """Arrange canonically most-relevant-first exemplars into final prompt order."""
     if ordering == "most_similar_last":
         return list(reversed(exemplars))
     if ordering == "most_similar_first":
@@ -80,19 +95,8 @@ def _read_jsonl(path: Path, limit: int | None) -> list[dict]:
     return rows[:limit] if limit else rows
 
 
-def build_reference_user(source: str) -> str:
+def build_zeroshot_user(source: str) -> str:
     return f"Translate the following text into English:\n\n{source}"
-
-
-def build_knn_fewshot_user(source: str, exemplars: list[dict]) -> str:
-    # Exemplars arrive already in final prompt order
-    blocks = [
-        "Here are example translations in the required style:\n",
-        *(f"Source: {e['input']}\nEnglish: {e['output']}\n" for e in exemplars),
-        "Now translate the following text into English in the same style:\n",
-        f"Source: {source}\nEnglish:",
-    ]
-    return "\n".join(blocks)
 
 
 def load_glossary(path: str | Path | None) -> list[tuple[str, str]]:
@@ -124,11 +128,17 @@ def _term_line(source: str, glossary: list[tuple[str, str]], max_pairs: int = 6)
     return "[Terms] " + " | ".join(f"{s} → {t}" for s, t in hits)
 
 
-def build_afsp_user(
+def build_fewshot_user(
     source: str, exemplars: list[dict], glossary: list[tuple[str, str]] | None = None
 ) -> str:
-    """Assemble the AFSP user prompt. Register word pairs are injected before each
-    exemplar and before the query.
+    """Assemble the few-shot user prompt shared by every retrieval condition
+    (random_fewshot, knn_fewshot, afsp_margin, afsp_full).
+
+    When ``glossary`` is non-empty, a ``[Terms]`` register line is injected
+    before each exemplar and before the query. An empty or ``None`` glossary
+    disables it, in which case the output is byte-identical to the plain
+    baseline prompt -- so the glossary is a controlled augmentation applied
+    uniformly across conditions, not an AFSP-only confound.
 
     Exemplars arrive already in final prompt order.
     """
@@ -147,53 +157,96 @@ def build_afsp_user(
     return "\n".join(blocks)
 
 
+def _select_random(
+    sources: list[str], pool: list[dict], k: int, rng: random.Random
+) -> list[list[dict]]:
+    """Draw ``k`` random exemplars per source from the training pool (seeded).
+
+    This is the ``random_fewshot`` rung: it holds shot count fixed but removes
+    relevance, isolating the effect of retrieval over merely having examples.
+    """
+    n = len(pool)
+    k = min(k, n)
+    return [[pool[i] for i in rng.sample(range(n), k)] for _ in sources]
+
+
+def _select_afsp(sources, cfg, retr, index, k, *, rerank):
+    """AFSP exemplar selection.
+
+    ``rerank=False`` is the ``afsp_margin`` rung: it forces ``lambda_style = 0``
+    (margin/hub-penalised selection only) and needs no register centroid.
+    ``rerank=True`` is the full method, using the configured ``lambda_style`` and
+    the target-register centroid.
+    """
+    from src.retrieval.afsp import AFSPRetriever, load_centroid
+
+    af = cfg.get("afsp", {})
+    retriever = AFSPRetriever(
+        index,
+        load_centroid(af["centroid_file"]) if rerank else None,
+        index_dir=retr["index_dir"],
+        beta=af.get("beta", 0.3),
+        knn_hubness=af.get("knn_hubness", 5),
+        pool_mult=af.get("pool_mult", 4),
+        lambda_style=af.get("lambda_style", 0.3) if rerank else 0.0,
+    )
+    return retriever.select(sources, k=k)
+
+
+def _load_configured_glossary(cfg: dict) -> list[tuple[str, str]]:
+    """Load the register glossary as a controlled prompt augmentation.
+
+    It is read from the ``prompt:`` block so it applies uniformly to every
+    few-shot condition rather than riding along with AFSP alone. The legacy
+    ``afsp:`` location is honoured as a fallback for older configs. Disabled
+    (empty) unless ``word_pairs`` is truthy.
+    """
+    prompt_cfg = cfg.get("prompt", {})
+    af = cfg.get("afsp", {})
+    if not prompt_cfg.get("word_pairs", af.get("word_pairs", False)):
+        return []
+    return load_glossary(prompt_cfg.get("glossary_file", af.get("glossary_file")))
+
+
 def run(condition: str, cfg: dict) -> None:
     gen = cfg["generator"]
     prompt_cfg = cfg.get("prompt", {})
     style_instruction = Path(prompt_cfg["style_instruction_file"]).read_text(encoding="utf-8")
     ordering = prompt_cfg.get("ordering", "most_similar_last")
-    # Seeded so `random` ordering is reproducible across reruns and conditions.
+    # Seeded so `random` ordering and random_fewshot sampling are reproducible.
     rng = random.Random(prompt_cfg.get("ordering_seed", 42))
     eval_file = Path(cfg["data"]["eval_file"])
     split = eval_file.stem  # e.g. "val" -- tags outputs so val results never look like test
     test_rows = _read_jsonl(eval_file, cfg["data"].get("limit"))
     sources = [r["input"] for r in test_rows]
 
-    # Build the per-segment user messages for the chosen condition.
-    if condition == "reference":
-        user_msgs = [build_reference_user(s) for s in sources]
-    elif condition == "knn_fewshot":
+    # Register glossary is applied uniformly to every few-shot rung (a controlled
+    # augmentation), so it never confounds the selection-mechanism comparison.
+    glossary = _load_configured_glossary(cfg)
+
+    # Build the per-segment user messages for the chosen ablation rung.
+    if condition == "zeroshot":
+        user_msgs = [build_zeroshot_user(s) for s in sources]
+    elif condition in ("random_fewshot", "knn_fewshot", "afsp_margin", "afsp_full"):
         from src.retrieval.retrieve import RetrievalIndex
 
         retr = cfg["retrieval"]
+        k = retr["k"]
         index = RetrievalIndex(retr["index_dir"], embed_model=retr["embed_model"])
-        print(f"Retrieving k={retr['k']} exemplars for {len(sources)} sources ({ordering}) ...")
-        retrieved = index.retrieve(sources, k=retr["k"])
-        ordered = [order_exemplars(ex, ordering, rng) for ex in retrieved]
-        user_msgs = [build_knn_fewshot_user(s, ex) for s, ex in zip(sources, ordered)]
-    elif condition == "afsp":
-        from src.retrieval.afsp import AFSPRetriever, load_centroid
-        from src.retrieval.retrieve import RetrievalIndex
-
-        retr = cfg["retrieval"]
-        af = cfg["afsp"]
-        index = RetrievalIndex(retr["index_dir"], embed_model=retr["embed_model"])
-        retriever = AFSPRetriever(
-            index,
-            load_centroid(af["centroid_file"]),
-            index_dir=retr["index_dir"],
-            beta=af.get("beta", 0.3),
-            knn_hubness=af.get("knn_hubness", 5),
-            pool_mult=af.get("pool_mult", 4),
-            lambda_style=af.get("lambda_style", 0.3),
-        )
-        glossary = load_glossary(af.get("glossary_file")) if af.get("word_pairs", True) else []
-        print(f"AFSP: selecting k={retr['k']} for {len(sources)} sources ({ordering}) ...")
-        selected = retriever.select(sources, k=retr["k"])
+        if condition == "random_fewshot":
+            print(f"Sampling k={k} random exemplars for {len(sources)} sources ...")
+            selected = _select_random(sources, index.pairs, k, rng)
+        elif condition == "knn_fewshot":
+            print(f"Retrieving k={k} exemplars for {len(sources)} sources ({ordering}) ...")
+            selected = index.retrieve(sources, k=k)
+        else:  # afsp_margin | afsp_full
+            rerank = condition == "afsp_full"
+            print(f"{condition}: selecting k={k} for {len(sources)} sources ({ordering}) ...")
+            selected = _select_afsp(sources, cfg, retr, index, k, rerank=rerank)
         ordered = [order_exemplars(ex, ordering, rng) for ex in selected]
-        user_msgs = [build_afsp_user(s, ex, glossary) for s, ex in zip(sources, ordered)]
+        user_msgs = [build_fewshot_user(s, ex, glossary) for s, ex in zip(sources, ordered)]
     else:
-        raise ValueError(f"unknown condition '{condition}' (expected reference|knn_fewshot|afsp)")
+        raise ValueError(f"unknown condition '{condition}' (expected {'|'.join(CONDITIONS)})")
 
     client = make_client(gen)
 
@@ -233,7 +286,7 @@ def run(condition: str, cfg: dict) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Provider-agnostic eval-set inference.")
-    parser.add_argument("--condition", required=True, choices=["reference", "knn_fewshot", "afsp"])
+    parser.add_argument("--condition", required=True, choices=list(CONDITIONS))
     parser.add_argument("--config", default="configs/openai_smoke.yaml")
     args = parser.parse_args()
 

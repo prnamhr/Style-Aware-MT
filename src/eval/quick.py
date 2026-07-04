@@ -2,7 +2,7 @@
 Quick comparison of inference outputs: BLEU, chrF, and an archaic-register proxy.
 
 Usage:
-    python -m src.eval.quick --conditions reference knn_fewshot --split val
+    python -m src.eval.quick --conditions zeroshot knn_fewshot afsp_full --split val
 """
 
 from __future__ import annotations
@@ -44,7 +44,7 @@ def score(condition: str, out_dir: Path, split: str) -> dict:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Quick BLEU/chrF/register comparison.")
-    parser.add_argument("--conditions", nargs="+", default=["reference", "knn_fewshot"])
+    parser.add_argument("--conditions", nargs="+", default=["zeroshot", "knn_fewshot"])
     parser.add_argument("--out_dir", default="outputs")
     parser.add_argument("--split", default="val", help="output split tag to score (default: val)")
     args = parser.parse_args()
