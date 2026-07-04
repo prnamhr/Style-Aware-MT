@@ -1,27 +1,11 @@
-# ============================================================================
-# SMOKE TEST ONLY -- NOT A THESIS CONDITION, NOT A SOURCE OF FINDINGS.
-# ----------------------------------------------------------------------------
-# This config runs the reference / knn_fewshot pipeline against a COMMERCIAL API
-# purely to validate the retrieval -> prompt -> generation -> output -> scoring
-# loop. The thesis base model is the open-source Qwen2.5-7B-Instruct
-# (see configs/base_qwen.yaml); numbers produced here are pipeline-validation
-# artifacts and must never be reported as results.
-#
-# Runs on data/splits/val.jsonl. The test split stays sealed until the final
-# evaluation run -- do NOT point this at test.jsonl.
-# ============================================================================
 
-# --- Generation (OpenAI chat completions) ---
-# gpt-5.5 is a reasoning model: it rejects a custom temperature and bills hidden
-# reasoning tokens as output, so temperature/seed are omitted and max_tokens is
-# raised to leave room for reasoning + the visible translation. For a cheap
-# non-reasoning run, set model: gpt-4o-mini, temperature: 0.0, max_tokens: 1024,
-# and drop reasoning_effort.
+# SMOKE TEST ONLY -- NOT A THESIS CONDITION, NOT A SOURCE OF FINDINGS.
+
 generator:
   provider: openai
   model: gpt-5.5
-  max_tokens: 4096          # covers reasoning tokens + output (counts toward this cap)
-  reasoning_effort: low     # translation isn't reasoning-heavy; raise for harder tasks
+  max_tokens: 4096      
+  reasoning_effort: low   
 
 # --- Prompting ---
 prompt:
@@ -30,9 +14,9 @@ prompt:
 # --- Retrieval (knn_fewshot baseline) ---
 retrieval:
   embed_model: intfloat/multilingual-e5-large-instruct
-  index_dir: data/knn_index             # built by `build_index`
-  train_file: data/splits/train.jsonl   # exemplar pool (English target side)
-  k: 4                                   # shots; sweep {2,4,8} on dev later
+  index_dir: data/knn_index          
+  train_file: data/splits/train.jsonl 
+  k: 4                               
 
 # --- Data ---
 # Tuning and smoke runs use the DEV split. test.jsonl is sealed for final eval.

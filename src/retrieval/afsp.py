@@ -1,37 +1,5 @@
 """
 Adaptive Few-Shot Prompting (AFSP): exemplar selection.
-
-AFSP extends the ``knn_fewshot`` baseline (``src/retrieval/retrieve.py``) and
-operates over the same index of English training targets
-(``src/retrieval/build_index.py``). The baseline returns the top-k exemplars by
-cosine similarity; AFSP replaces this with an adaptive selection procedure that
-realises three of the four mechanisms described in ``docs/afsp_strategies.md``.
-The fourth, multi-view word-level pairs, is applied during prompt assembly
-(``src/infer/run.py``).
-
-1. Margin-based scoring with hub penalisation. The candidate score is
-   ``cos(x, y) - beta * 0.5 * (hub(x) + hub(y))``, where ``hub(z)`` is the mean
-   cosine similarity of ``z`` to its ``knn_hubness`` nearest neighbours.
-   Candidates that are similar to many rows (hubs) receive a larger penalty,
-   which favours more discriminative exemplars. The formulation follows the
-   distance-form margin of Artetxe and Schwenk (2019); ``beta`` sets the
-   strength of the penalty, and ``beta = 0`` recovers plain cosine similarity.
-
-2. Target-distribution-priority selection. Because generation is into English,
-   the register of the target side is weighted above source-side similarity. A
-   candidate pool of size ``pool_mult * k`` is drawn by margin score, and each
-   candidate is then scored by the standardised distance of its English target
-   to the target-register centroid (``results/stylometrics_centroid.json``). The
-   final ranking combines the two scores, with ``lambda_style`` setting their
-   relative weight.
-
-3. Demonstration ordering. ``select`` returns the exemplars in prompt order,
-   with the highest-scoring exemplar placed last, adjacent to the test source.
-   The AFSP prompt builder preserves this order; the baseline builder reverses.
-
-Setting ``beta = 0`` and ``lambda_style = 0`` reduces AFSP to the
-``knn_fewshot`` baseline, which isolates the contribution of the adaptive
-components from that of naive retrieval.
 """
 
 from __future__ import annotations
@@ -41,7 +9,7 @@ from pathlib import Path
 
 import numpy as np
 
-from src.eval.stylometrics import distance_to_centroid, features
+from src.eval.stylometrics import features, register_salience
 from src.retrieval.embed import embed_queries
 from src.retrieval.retrieve import RetrievalIndex
 
@@ -143,14 +111,13 @@ class AFSPRetriever:
     # -- Target-distribution-priority selection (mechanism 2) --------------
 
     def _style_fit(self, indices: np.ndarray) -> np.ndarray:
-        """Register fit of the pooled candidates: the negative standardised distance
-        of each candidate's English target to the target-register centroid. Larger
-        values are closer to the centroid."""
+        """Register salience of the pooled candidates: the mean standardised deviation
+        """
         for i in indices:
             if np.isnan(self._style_cache[i]):
                 target = self.index.pairs[i]["output"]
-                self._style_cache[i] = distance_to_centroid(features(target), self.centroid)
-        return -self._style_cache[indices]
+                self._style_cache[i] = register_salience(features(target), self.centroid)
+        return self._style_cache[indices]
 
     # -- Selection ---------------------------------------------------------
 

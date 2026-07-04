@@ -77,7 +77,8 @@ _ARCHAIC_FUNCTION_WORDS = {
 
 FUNCTION_WORDS = frozenset(_STANDARD_FUNCTION_WORDS | _ARCHAIC_FUNCTION_WORDS)
 
-# Feature vector order. feature_vector() and the centroid follow this exactly.
+# Full per-segment feature order, used for reporting and the H2 variance signal.
+# feature_vector() follows this exactly.
 FEATURE_NAMES = [
     "lex_density",
     "ttr",
@@ -86,6 +87,9 @@ FEATURE_NAMES = [
     "sent_len_var",
     "marker_rate",
 ]
+
+# Features used for the target-register centroid and the register-fit distance
+CENTROID_FEATURES = ["lex_density", "ttr", "root_ttr", "marker_rate"]
 
 _WORD_RE = re.compile(r"[a-z']+")
 _SENT_SPLIT_RE = re.compile(r"[.!?]+\s+")
@@ -137,18 +141,15 @@ def feature_vector(text: str) -> list[float]:
 
 def build_centroid(targets: list[str]) -> dict:
     """Per-feature mean and (sample) std over the training English targets.
-
-    ``std`` is floored at a small epsilon so a degenerate zero-variance feature
-    cannot blow up the z-scoring the rerank does against this centroid.
     """
-    vectors = [feature_vector(t) for t in targets if t.strip()]
+    vectors = [[features(t)[name] for name in CENTROID_FEATURES] for t in targets if t.strip()]
     matrix = np.asarray(vectors, dtype=float)
     mean = matrix.mean(axis=0)
     std = matrix.std(axis=0, ddof=1)
     std = np.where(std < 1e-9, 1e-9, std)
     return {
         "n_segments": int(matrix.shape[0]),
-        "features": FEATURE_NAMES,
+        "features": CENTROID_FEATURES,
         "mean": mean.tolist(),
         "std": std.tolist(),
     }
@@ -168,11 +169,21 @@ def aggregate(texts: list[str]) -> dict:
 
 
 def distance_to_centroid(agg_mean: dict[str, float], centroid: dict) -> float:
-    """Standardized (z-scored) Euclidean distance of a mean vector to the centroid."""
+    """Standardized (z-scored) Euclidean distance of a mean vector to the centroid.
+    """
     mean = np.asarray(centroid["mean"], dtype=float)
     std = np.asarray(centroid["std"], dtype=float)
     vec = np.asarray([agg_mean[name] for name in centroid["features"]], dtype=float)
     return float(np.linalg.norm((vec - mean) / std))
+
+
+def register_salience(feats: dict[str, float], centroid: dict) -> float:
+    """Directed register strength: the mean z-score of a segment's register features
+    """
+    mean = np.asarray(centroid["mean"], dtype=float)
+    std = np.asarray(centroid["std"], dtype=float)
+    vec = np.asarray([feats[name] for name in centroid["features"]], dtype=float)
+    return float(np.mean((vec - mean) / std))
 
 
 def _load_field(path: Path, field: str) -> list[str]:
@@ -231,9 +242,9 @@ def main() -> None:
         _CENTROID_PATH.parent.mkdir(parents=True, exist_ok=True)
         _CENTROID_PATH.write_text(json.dumps(centroid, indent=2) + "\n", encoding="utf-8")
         print(f"\nTarget-register centroid  (n={centroid['n_segments']})  -> {_CENTROID_PATH}")
-        width = max(len(n) for n in FEATURE_NAMES)
+        width = max(len(n) for n in centroid["features"])
         print("-" * (width + 28))
-        for name, m, s in zip(FEATURE_NAMES, centroid["mean"], centroid["std"]):
+        for name, m, s in zip(centroid["features"], centroid["mean"], centroid["std"]):
             print(f"  {name:<{width}}  mean {m:.4f}   std {s:.4f}")
         print()
         return

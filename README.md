@@ -104,10 +104,12 @@ LoRA adapters on the query and value projection layers of each attention block, 
 No parameter updates. At inference time:
 
 1. Embed the source segment with a multilingual sentence-transformer.
-2. Retrieve top-k stylistically relevant exemplars by nearest neighbour over an index built over the **English (target-side)** training partition.
+2. Retrieve top-k relevant exemplars by nearest neighbour over an index built over the **Persian/Arabic (source-side)** training partition, then map each match back to its aligned English target.
 3. Insert them into a fixed prompt template (system role + style instruction + k exemplars + new source).
 
 **`knn_fewshot` is the baseline:** plain top-k cosine retrieval with the above template — a baseline row, not the contribution. It is what `src/retrieval/` currently implements. **AFSP** is the adaptive variant built on top of the same index — margin-based scoring (hub penalisation), target-distribution-priority selection, demonstration ordering, and multi-view word-level weighting (see [`docs/afsp_strategies.md`](docs/afsp_strategies.md)). Reporting both isolates how much of any register shift comes from naive retrieval vs. the adaptive machinery.
+
+The index is built over the **source** side (not the English targets) so that the AFSP margin — query–candidate similarity plus query and candidate hubness — is computed in one comparable space; target-side register is scored separately by the style rerank, from the exemplar text (see `docs/DEVLOG.md`, 2026-07-04).
 
 Shot-count sensitivity on dev over **k ∈ {2, 4, 8}**, subject to base model context limits. Final k is fixed on dev before test inference. Pattern: Tang et al. [AFSP, 2025]; related precedents in Wang et al. style-activation prompting and style-matching exemplar selection.
 
