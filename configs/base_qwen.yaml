@@ -13,6 +13,8 @@ generator:
 # --- Prompting ---
 prompt:
   style_instruction_file: prompts/style_instruction.txt
+  ordering: most_similar_last
+  ordering_seed: 42            # only used when ordering: random 
 
 # --- Retrieval (knn_fewshot baseline; shared index for the AFSP condition) ---
 retrieval:

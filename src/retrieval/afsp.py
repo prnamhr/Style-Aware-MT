@@ -111,8 +111,7 @@ class AFSPRetriever:
     # -- Target-distribution-priority selection (mechanism 2) --------------
 
     def _style_fit(self, indices: np.ndarray) -> np.ndarray:
-        """Register salience of the pooled candidates: the mean standardised deviation
-        """
+        """Register salience of the pooled candidates: the mean standardised deviation"""
         for i in indices:
             if np.isnan(self._style_cache[i]):
                 target = self.index.pairs[i]["output"]
@@ -122,8 +121,6 @@ class AFSPRetriever:
     # -- Selection ---------------------------------------------------------
 
     def select(self, queries: list[str], k: int) -> list[list[dict]]:
-        """Select ``k`` exemplars per query, returned in prompt order (highest
-        score last)."""
         e = self.index.embeddings
         q = embed_queries(self.index._model_lazy(), queries).astype(np.float32)
         sims = (q @ e.T).astype(np.float64)  # [Q, N] cosine
@@ -149,8 +146,8 @@ class AFSPRetriever:
             else:
                 style_component = np.zeros(pool)
             combined = (1 - self.lambda_style) * sim_component + self.lambda_style * style_component
-            # Ascending order places the highest combined score last, next to the query.
-            order = np.argsort(combined, kind="stable")
-            chosen = pool_idx[order][-k:]
+            # Descending order yields most-relevant-first (highest combined score first).
+            order = np.argsort(-combined, kind="stable")
+            chosen = pool_idx[order][:k]
             selected.append([self.index.pairs[i] for i in chosen])
         return selected
