@@ -15,6 +15,8 @@ generator:
 # --- Prompting ---
 prompt:
   style_instruction_file: prompts/style_instruction.txt
+  ordering: most_similar_last   # most_similar_last | most_similar_first | random
+  ordering_seed: 42             # only used when ordering: random
 
 # --- Retrieval (unused by the reference condition; kept for knn_fewshot/afsp smokes) ---
 retrieval:

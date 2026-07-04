@@ -10,9 +10,29 @@ from __future__ import annotations
 
 import argparse
 import json
+import random
 from pathlib import Path
 
 import yaml
+
+# Demonstration ordering is a controlled experimental flag. Exemplars reach
+ORDERINGS = ("most_similar_last", "most_similar_first", "random")
+
+
+def order_exemplars(
+    exemplars: list[dict], ordering: str = "most_similar_last", rng: random.Random | None = None
+) -> list[dict]:
+    """Arrange canonically most-relevant-first exemplars into final prompt order.
+    """
+    if ordering == "most_similar_last":
+        return list(reversed(exemplars))
+    if ordering == "most_similar_first":
+        return list(exemplars)
+    if ordering == "random":
+        out = list(exemplars)
+        (rng or random).shuffle(out)
+        return out
+    raise ValueError(f"unknown ordering '{ordering}' (expected {'|'.join(ORDERINGS)})")
 
 
 def make_client(gen: dict):
@@ -65,11 +85,10 @@ def build_reference_user(source: str) -> str:
 
 
 def build_knn_fewshot_user(source: str, exemplars: list[dict]) -> str:
-    # Most-similar last: closest to the query, where positional influence is strongest.
-    ordered = list(reversed(exemplars))
+    # Exemplars arrive already in final prompt order
     blocks = [
         "Here are example translations in the required style:\n",
-        *(f"Source: {e['input']}\nEnglish: {e['output']}\n" for e in ordered),
+        *(f"Source: {e['input']}\nEnglish: {e['output']}\n" for e in exemplars),
         "Now translate the following text into English in the same style:\n",
         f"Source: {source}\nEnglish:",
     ]
@@ -99,10 +118,6 @@ def load_glossary(path: str | Path | None) -> list[tuple[str, str]]:
 
 
 def _term_line(source: str, glossary: list[tuple[str, str]], max_pairs: int = 6) -> str:
-    """Render the glossary entries whose source term occurs in ``source`` as a
-    single ``[Terms]`` line, capped at ``max_pairs``. Returns an empty string when
-    there are no matches (multi-view word-level weighting, per §3 of the strategy
-    document)."""
     hits = [(s, t) for s, t in glossary if s in source][:max_pairs]
     if not hits:
         return ""
@@ -115,9 +130,7 @@ def build_afsp_user(
     """Assemble the AFSP user prompt. Register word pairs are injected before each
     exemplar and before the query.
 
-    Exemplars are supplied by ``AFSPRetriever.select`` in final prompt order
-    (highest-scoring last) and are emitted without reversal, unlike
-    ``build_knn_fewshot_user``.
+    Exemplars arrive already in final prompt order.
     """
     glossary = glossary or []
     blocks = ["Here are example translations in the required style:\n"]
@@ -136,7 +149,11 @@ def build_afsp_user(
 
 def run(condition: str, cfg: dict) -> None:
     gen = cfg["generator"]
-    style_instruction = Path(cfg["prompt"]["style_instruction_file"]).read_text(encoding="utf-8")
+    prompt_cfg = cfg.get("prompt", {})
+    style_instruction = Path(prompt_cfg["style_instruction_file"]).read_text(encoding="utf-8")
+    ordering = prompt_cfg.get("ordering", "most_similar_last")
+    # Seeded so `random` ordering is reproducible across reruns and conditions.
+    rng = random.Random(prompt_cfg.get("ordering_seed", 42))
     eval_file = Path(cfg["data"]["eval_file"])
     split = eval_file.stem  # e.g. "val" -- tags outputs so val results never look like test
     test_rows = _read_jsonl(eval_file, cfg["data"].get("limit"))
@@ -150,9 +167,10 @@ def run(condition: str, cfg: dict) -> None:
 
         retr = cfg["retrieval"]
         index = RetrievalIndex(retr["index_dir"], embed_model=retr["embed_model"])
-        print(f"Retrieving k={retr['k']} exemplars for {len(sources)} sources ...")
+        print(f"Retrieving k={retr['k']} exemplars for {len(sources)} sources ({ordering}) ...")
         retrieved = index.retrieve(sources, k=retr["k"])
-        user_msgs = [build_knn_fewshot_user(s, ex) for s, ex in zip(sources, retrieved)]
+        ordered = [order_exemplars(ex, ordering, rng) for ex in retrieved]
+        user_msgs = [build_knn_fewshot_user(s, ex) for s, ex in zip(sources, ordered)]
     elif condition == "afsp":
         from src.retrieval.afsp import AFSPRetriever, load_centroid
         from src.retrieval.retrieve import RetrievalIndex
@@ -170,9 +188,10 @@ def run(condition: str, cfg: dict) -> None:
             lambda_style=af.get("lambda_style", 0.3),
         )
         glossary = load_glossary(af.get("glossary_file")) if af.get("word_pairs", True) else []
-        print(f"AFSP: selecting k={retr['k']} exemplars for {len(sources)} sources ...")
+        print(f"AFSP: selecting k={retr['k']} for {len(sources)} sources ({ordering}) ...")
         selected = retriever.select(sources, k=retr["k"])
-        user_msgs = [build_afsp_user(s, ex, glossary) for s, ex in zip(sources, selected)]
+        ordered = [order_exemplars(ex, ordering, rng) for ex in selected]
+        user_msgs = [build_afsp_user(s, ex, glossary) for s, ex in zip(sources, ordered)]
     else:
         raise ValueError(f"unknown condition '{condition}' (expected reference|knn_fewshot|afsp)")
 

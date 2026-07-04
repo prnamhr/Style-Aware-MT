@@ -6,13 +6,20 @@ from __future__ import annotations
 
 import argparse
 import json
+import random
 from pathlib import Path
 
 import yaml
 from sacrebleu.metrics import BLEU, CHRF
 
 from src.eval.stylometrics import _MARKERS
-from src.infer.run import _read_jsonl, build_knn_fewshot_user, build_reference_user, make_client
+from src.infer.run import (
+    _read_jsonl,
+    build_knn_fewshot_user,
+    build_reference_user,
+    make_client,
+    order_exemplars,
+)
 
 # Model registry for the smoke sweep. Keys are the --models names; each maps to a
 # generator block for src.infer.run.make_client. Cheap by default; flagships opt-in.
@@ -79,10 +86,14 @@ def _build_user_messages(sources: list[str], n: int, cfg: dict) -> tuple[str, li
     from src.retrieval.retrieve import RetrievalIndex
 
     retr = cfg["retrieval"]
+    prompt_cfg = cfg.get("prompt", {})
+    ordering = prompt_cfg.get("ordering", "most_similar_last")
+    rng = random.Random(prompt_cfg.get("ordering_seed", 42))
     index = RetrievalIndex(retr["index_dir"], embed_model=retr["embed_model"])
-    print(f"  retrieving k={n} exemplars for {len(sources)} sources ...")
+    print(f"  retrieving k={n} exemplars for {len(sources)} sources ({ordering}) ...")
     retrieved = index.retrieve(sources, k=n)
-    return "knn_fewshot", [build_knn_fewshot_user(s, ex) for s, ex in zip(sources, retrieved)]
+    ordered = [order_exemplars(ex, ordering, rng) for ex in retrieved]
+    return "knn_fewshot", [build_knn_fewshot_user(s, ex) for s, ex in zip(sources, ordered)]
 
 
 def run_one(
