@@ -13,6 +13,164 @@ Each entry documents four points: what changed, why the change was made, how the
 
 ---
 
+## 2026-07-04 — Stage 1: AFSP Coherence Fixes (retrieval space, margin, register fit)
+
+### Summary
+
+The AFSP mechanisms implemented on 2026-07-03 were built but diverged from the
+intended design in ways that would have silently degraded the method. This entry
+records four corrective changes: (1) the retrieval index is committed to the
+**source** side so the margin runs in one comparable space; (2) the margin terms
+are confirmed consistent with that space; (3) the two heavy-tailed sentence-length
+features are dropped from the register-fit centroid where they were dead weight;
+and (4) the register rerank is changed from *toward-centroid* (which surfaced the
+register-bland corpus average) to a directed **register-salience** score that
+prefers register-bearing exemplars. No thesis inference was run. The changes were
+verified with static checks, the stylometrics test, an offline corpus-geometry
+analysis, and a handful of real validation queries through `AFSPRetriever.select`.
+
+### 1. Source-side index (the space the margin lives in)
+
+The margin in `src/retrieval/afsp.py` scores a candidate as
+`cos(x, y) − β·½(hub(x) + hub(y))`, with all three terms read from
+`self.index.embeddings`. That is only coherent if the index is a **single**
+embedding space. The committed `build_index.py` embedded the English **target**
+side, which made `cos(x, y)` and the query hubness `hub(x)` cross-lingual
+(source→target) while the candidate hubness `hub(y)` was monolingual English —
+three quantities in two different spaces, added together. This is the
+Artetxe–Schwenk (2019) margin applied incoherently.
+
+A verification pass showed the on-disk `data/knn_index/embeddings.npy` was in fact
+already **source**-side (cosine 1.00 to the source of pair 0, 0.86 to its target),
+and its `meta.json` carried an `indexed_side: "source"` key that no committed code
+ever wrote — the artifact had been rebuilt source-side out of band while the code
+and docs still described a target-side, cross-lingual index.
+
+Decision: **commit to the source-side index.** Retrieval is now monolingual on the
+source side — a Persian/Arabic query is matched against the embedded training
+sources, and each match maps back to its aligned English target. This makes the
+margin's similarity, query hubness, and candidate hubness one comparable
+source-side space, and it preserves the ablation property that `β = 0, λ = 0`
+reduces AFSP exactly to the `knn_fewshot` baseline (both become source-side
+top-k). Target-side register is scored separately by the style rerank from the
+exemplar's English *text*, which needs no embedding, so nothing register-related
+is lost by not embedding the targets. The alternative — keeping a cross-lingual
+variant — was rejected: it would require a second (source) embedding index anyway
+to compute a coherent candidate hubness, and it conflates semantic similarity with
+translation-pair alignment quality.
+
+`src/retrieval/build_index.py` now embeds `pairs[i]["input"]` and records
+`indexed_side: "source"`. `src/retrieval/embed.py`'s query instruction was
+rewritten from "Retrieve English translations …" (cross-lingual) to a
+source-to-source instruction; on pair 0 this raised the self-similarity of the
+query embedding against its own stored row from 0.929 to 0.967 and produced a
+cleaner top-3 neighbourhood, confirming the old instruction was mismatched to the
+source index. `retrieve.py`, `afsp.py`, the README, and `configs/*.yaml` retrieval
+comments were updated to describe source-side retrieval.
+
+### 2. Margin formula vs. the committed space
+
+With the index committed to the source side, the existing margin is correct as
+written: `sims`, `qhub` (`_topk_mean(sims)`), and `chub` (`_candidate_hubness`)
+are all computed from the source embeddings, so `qhub` and `chub` are the two
+halves of one symmetric same-space margin. No formula change was needed; the fix
+was to guarantee the space, not to rewrite the algebra. The cached
+`hubness_top{m}.npy` is source-space (built from the source embeddings) and stays
+valid; per the cache-key caveat, it must be cleared only if the index is rebuilt.
+
+### 3. Inert sentence-length features in the register centroid
+
+In the target-register centroid the length features had centroid std ≈ 16.6
+(`sent_len_mean`) and ≈ 58.4 (`sent_len_var`) against means of 24.7 and 6.7. Under
+the z-scoring in `distance_to_centroid` such a large denominator makes their
+standardized contribution vanish, so they were dead weight in any `lambda_style`
+sweep, and they measure segment structure rather than register.
+
+`stylometrics.py` now defines `CENTROID_FEATURES = [lex_density, ttr, root_ttr,
+marker_rate]` and builds the centroid and the register-fit distance over that
+subset. The two length features remain in `FEATURE_NAMES`, so the reporting table
+and the H2 across-segment variance analysis still see them; only the register-fit
+distance drops them. `distance_to_centroid` already iterated `centroid["features"]`
+and needed no change; the `--build-centroid` printout was fixed to iterate the
+centroid's own feature list rather than the full `FEATURE_NAMES`. The centroid was
+rebuilt (`n = 10860`, four features).
+
+### 4. Register rerank: salience, not toward-centroid
+
+`_style_fit` previously returned `−distance_to_centroid`, i.e. it preferred
+exemplars **closest to the centroid**. Because the centroid is the corpus *mean*,
+this selects the register-bland average and demotes strongly-styled exemplars. An
+offline analysis over the 10,860 training targets confirmed it empirically:
+
+* closest-5%-to-centroid mean marker rate 0.024 and closest-25% 0.019, both
+  **below** the corpus mean of 0.033;
+* the farthest-5% mean marker rate 0.136, and the top-5% highest-marker
+  (most register-bearing) exemplars sit at the **93rd** distance percentile;
+* `corr(distance, marker_rate) = +0.51`, `corr(distance, lex_density) = +0.36`.
+
+So minimizing distance to the centroid actively pushes the most register-bearing
+exemplars to the bottom — the opposite of the "target-distribution-priority" and
+anti-neutral-register intent in `docs/afsp_strategies.md`.
+
+The rerank now uses `register_salience`: the mean z-score of an exemplar's register
+features relative to the centroid, in the register-positive direction (every
+`CENTROID_FEATURES` entry — marker rate, lexical density, ttr, root_ttr — marks
+stronger register when higher). `_style_fit` returns this salience directly (no
+negation); larger = more strongly in-register. `distance_to_centroid` is retained,
+undirected, for reporting how far a system's output distribution sits from the
+target centre.
+
+On a handful of validation queries through `AFSPRetriever.select`, raising
+`lambda_style` from 0.0 to 0.5 shifted the mean marker rate of the selected
+exemplars from 0.0197 to 0.0270 — toward stronger register, as intended. Unbounded
+salience over the *whole* corpus tops out on degenerate two-word fragments
+("O Lord.", marker rate 0.5), but these never enter the rerank: it operates only
+within the `pool_mult·k` source-similarity pool, whose members are topically
+relevant and of realistic length, so the pool constraint bounds the effect.
+
+### Verification
+
+No inference was run. CI-equivalent static checks pass on the touched sources:
+
+```bash
+ruff check src
+ruff format --check src
+python -m compileall -q src
+python tests/test_stylometrics.py    # 7/7 (features() and FEATURE_NAMES unchanged)
+```
+
+Offline (no generator, no API): the source/target identity of `embeddings.npy` was
+confirmed against the embedding model; the source-to-source query instruction was
+shown to improve self-similarity and neighbourhood quality; the toward-centroid
+bias was quantified over all training targets; and `AFSPRetriever.select` was run
+on validation queries with `lambda_style ∈ {0, 0.5}` to confirm the salience
+rerank shifts selection toward register-bearing exemplars.
+
+### Reproduction
+
+```bash
+python manage.py build_index --config configs/base_qwen.yaml   # now source-side
+python manage.py stylometrics --build-centroid                 # four register features
+python manage.py infer --condition afsp --config configs/base_qwen.yaml
+```
+
+If `data/knn_index/` already holds a target-side `embeddings.npy` from before this
+change, delete the directory (including `hubness_top*.npy`) and rebuild so the
+index and its hubness cache are source-side.
+
+### Limitations and risks
+
+The register-salience direction assumes each `CENTROID_FEATURES` entry is
+monotonically register-positive on this corpus, which held empirically here
+(distance–marker and distance–lex correlations are positive) but is a
+corpus-specific assumption to revisit if the feature set changes. Salience is
+unbounded and length-sensitive in isolation; it is only safe because it reranks
+within the source-similarity pool — a much larger `pool_mult` would begin to admit
+short high-marker fragments and should be swept with that in mind. `lambda_style`
+and `beta` still need a dev-split sweep; these fixes make that sweep meaningful
+(non-inert features, coherent margin, correctly-signed register term) but do not
+themselves select values.
+
 ## 2026-07-03 — Stage 0: Local Open-Source Generator (Qwen2.5-7B-Instruct)
 
 ### Summary

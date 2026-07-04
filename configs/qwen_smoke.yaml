@@ -1,20 +1,4 @@
-# ============================================================================
 # LOCAL QWEN LOOP-VALIDATION SMOKE -- validates the local generator end to end,
-# NOT a source of thesis findings (a 5-segment slice is not an evaluation).
-# ----------------------------------------------------------------------------
-# Same frozen base and LOCKED decoding as configs/base_qwen.yaml; the only
-# differences are data.limit (5 segments) and this header. Unlike the
-# commercial-API smoke configs, this runs the REAL thesis base (Qwen2.5-7B) --
-# it just runs too few segments to report. For the full dev run, use
-# configs/base_qwen.yaml (data.limit: null).
-#
-# Intended target: a >=16GB-VRAM GPU (e.g. Colab T4/L4/A100) so the 7B base
-# loads in full bf16. device_map: auto lets accelerate place it. On <=8GB VRAM,
-# set load_in_4bit: true (needs bitsandbytes) -- but note that quantizes the base.
-#
-# Run:
-#   python -m src.infer.run --condition reference --config configs/qwen_smoke.yaml
-# ============================================================================
 
 # --- Generation (local open-source base; decoding LOCKED, matches base_qwen.yaml) ---
 generator:
@@ -26,7 +10,7 @@ generator:
   seed: 42
   dtype: bfloat16
   device_map: auto
-  load_in_4bit: false       # set true only to fit on <=8GB VRAM (quantizes the base)
+  load_in_4bit: false   
 
 # --- Prompting ---
 prompt:
@@ -43,7 +27,7 @@ retrieval:
 # DEV split only. test.jsonl stays sealed until the final evaluation.
 data:
   eval_file: data/splits/val.jsonl
-  limit: 5                   # loop-validation slice; use base_qwen.yaml for the full run
+  limit: 5  
 
 # --- Output ---
 output:

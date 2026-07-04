@@ -1,30 +1,4 @@
-# ============================================================================
-# Canonical base-model configuration for the thesis pipeline.
-# ----------------------------------------------------------------------------
-# Qwen2.5-7B-Instruct is the locked open-source base for all four conditions
-# (reference / PEFT / knn_fewshot+AFSP / RLSF). It was selected on a tokenizer
-# fertility check over the Arabic/Persian-script source: 2.70 subword
-# tokens/word, well clear of the catastrophic zone (see docs/DEVLOG.md,
-# 2026-06-12). Freezing the base here keeps cross-condition differences
-# attributable to adaptation, not model identity.
-#
-# The generator runs locally via src/infer/local_client.py (HuggingFace
-# `transformers` generate). The commercial-API smoke configs (openai_smoke.yaml /
-# anthropic_smoke.yaml) exist only to validate the loop and produce NO thesis
-# findings.
-# ============================================================================
-
 # --- Generation (local open-source base) ---
-# Decoding is LOCKED here and applied identically across all four conditions, so
-# cross-condition differences are attributable to adaptation, not decoding.
-#   temperature: 0.0  -> greedy, fully deterministic (no sampling); the reproducible
-#                        default. seed still fixes any residual kernel nondeterminism.
-#   top_p:       1.0  -> inert while greedy; only used if temperature is raised.
-#   max_tokens: 1024  -> max_new_tokens; comfortably covers a paragraph translation.
-# dtype/device_map/load_in_4bit are hardware placement, NOT part of the thesis
-# decoding contract. load_in_4bit is required to fit the 7B base on <=8GB VRAM
-# (NF4, ~5GB) and needs `bitsandbytes` + `accelerate`; leave it false on a GPU
-# with >=16GB VRAM to run the base in full bf16.
 generator:
   provider: local
   model: Qwen/Qwen2.5-7B-Instruct
@@ -33,8 +7,8 @@ generator:
   top_p: 1.0
   seed: 42
   dtype: bfloat16
-  device_map: auto          # let accelerate place layers; null -> single-device .to()
-  load_in_4bit: false       # set true to fit the 7B base on <=8GB VRAM (needs bitsandbytes)
+  device_map: auto        
+  load_in_4bit: false 
 
 # --- Prompting ---
 prompt:
@@ -43,14 +17,11 @@ prompt:
 # --- Retrieval (knn_fewshot baseline; shared index for the AFSP condition) ---
 retrieval:
   embed_model: intfloat/multilingual-e5-large-instruct
-  index_dir: data/knn_index             # built by `build_index`
-  train_file: data/splits/train.jsonl   # exemplar pool (English target side)
+  index_dir: data/knn_index             # built by `build_index` (source-side)
+  train_file: data/splits/train.jsonl   # exemplar pool (source side indexed)
   k: 4                                   # shots; sweep {2,4,8} on dev later
 
-# AFSP (adaptive variant over the same index; see docs/afsp_strategies.md)
-# The knobs below add the adaptive machinery on top of the knn_fewshot baseline.
-# beta = 0 AND lambda_style = 0 reduces AFSP exactly to knn_fewshot, so these two
-# isolate how much register shift comes from the adaptive layer vs. naive retrieval.
+# AFSP 
 afsp:
   beta: 0.3                                    # hub-penalisation weight; 0 = plain cosine
   knn_hubness: 5                               # neighbours used to estimate hubness per side
@@ -61,7 +32,6 @@ afsp:
   glossary_file: prompts/register_glossary.tsv # source_term<TAB>target_term; optional
 
 # --- Data ---
-# Tuning / dev runs use val.jsonl. test.jsonl is SEALED until the final eval.
 data:
   eval_file: data/splits/val.jsonl
   limit: null                            # full dev set
