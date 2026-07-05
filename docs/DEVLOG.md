@@ -13,6 +13,121 @@ Each entry documents four points: what changed, why the change was made, how the
 
 ---
 
+## 2026-07-04 — Stage 4: Evaluation Backbone (COMET, LLM-as-Judge, paired bootstrap)
+
+### Summary
+
+The evaluation backbone needed to report any AFSP result was implemented: learned
+adequacy (COMET), register-fidelity LLM-as-Judge with a frozen evaluation-time
+template, paired-bootstrap confidence intervals for pairwise condition
+comparisons, and a reusable per-segment chrF/BLEU entry point so every metric can
+be computed over any `<condition>_<split>.jsonl`. A shared loader keeps all
+scorers aligned segment-for-segment, which the bootstrap requires. No COMET
+checkpoint was downloaded and no judge API calls were made; the pieces that can be
+checked without a model or network — bootstrap statistics, per-segment chrF/BLEU,
+judge parsing/aggregation (via a mock client), lazy imports, and CLI wiring — were
+verified offline, and the CI-equivalent static checks pass.
+
+### What changed
+
+`src/eval/_io.py` (new) centralises loading: `load_condition(out_dir, condition,
+split)` returns aligned `(sources, predictions, references)` from the inference
+JSONL. `quick.py`'s `score` was refactored onto it, and `quick.py` gained
+`segment_scores(preds, refs, metric)` — sentence-level chrF (default) or BLEU
+(`effective_order=True`) — so chrF is now a reusable library entry point rather
+than living only in the smoke sweep (addresses the Stage-4 chrF item).
+
+`src/eval/comet.py` (new, `manage.py comet`) scores each condition with
+`Unbabel/wmt22-comet-da` against the gold targets and writes **per-segment**
+scores to `results/comet_<split>.json`. The `comet` package and the ~2.3 GB
+checkpoint are imported/downloaded lazily inside `load_model`, so importing the
+module needs neither; GPU is auto-detected with CPU fallback. `unbabel-comet==2.2.6`
+was pinned in `requirements.txt`.
+
+`src/eval/judge.py` (new, `manage.py judge`) + `prompts/judge_eval.txt` (new)
+implement the **evaluation-time** register-fidelity judge, deliberately separate
+from the RLSF training-time reward judge. The frozen template rates a candidate's
+register against the authorized reference on a 1-5 rubric; the judge model is read
+from a `judge:` block (`configs/judge_eval.yaml`, new — an OpenAI model at
+temperature 0 + seed for determinism) and driven through the existing
+`make_client`. `parse_score` prefers an explicit `Score: N` verdict and falls back
+to the last lone 1-5 integer, rejecting `12`/`3.5` while allowing a sentence-final
+`3.`; unparseable/refused segments become `None` and are dropped rather than
+mis-scored. Per-segment scores, mean, and coverage are written to
+`results/judge_<split>.json`. Cross-family confirmation is a second run with a
+different-family judge block (commented in the config).
+
+`src/eval/bootstrap.py` (new, `manage.py bootstrap`) implements segment-level
+paired resampling (Koehn 2004): `paired_bootstrap(a, b, n_resamples, alpha, seed)`
+returns the observed mean difference, the two-sided 95 % CI, a bootstrap p-value,
+and a significance flag, dropping NaN pairs first. The CLI works on any metric —
+chrF/BLEU computed on the fly, COMET/judge read from their JSON — compares each
+condition against the ladder floor (`zeroshot`), and with `--adjacent` reports
+each consecutive-rung difference. `manage.py` registers `comet`, `judge`, and
+`bootstrap`; the README evaluation section documents the full flow.
+
+### Verification
+
+No COMET download, no judge API calls. CI-equivalent static checks pass with
+`ruff==0.14.2`:
+
+```bash
+ruff check src
+ruff format --check src
+python -m compileall -q src
+python tests/test_stylometrics.py    # 7/7
+```
+
+Offline behavioural checks (no model, no network): `paired_bootstrap` gives
+`diff = 0` with a zero-width CI and non-significance on identical inputs, a
+positive significant difference with CI excluding 0 on clearly-separated inputs,
+is reproducible under a fixed seed, and drops NaN pairs (n falls accordingly);
+`segment_scores` ranks a close match above a distant one for both chrF and BLEU
+and rejects unknown metrics; `parse_score` handles the `Score: N`, bare-integer,
+`3.`, `3.5`, `12`, refusal, and empty cases; `build_prompt` fills the frozen
+template and is brace-safe against stray braces in inserted text; `score_condition`
++ `_aggregate` produce the right scores/mean/coverage against a mock client with a
+simulated refusal; the `comet` module imports without `comet` installed and
+`load_model` raises only when called. The `bootstrap` CLI was then run end to end
+over synthetic fixtures for both the on-the-fly chrF path and the stored-JSON
+COMET/judge path, and `manage.py` was confirmed to dispatch and argparse the three
+new commands.
+
+### Reproduction
+
+```bash
+pip install -r requirements.txt        # pulls unbabel-comet (heavy)
+CONDS="zeroshot random_fewshot knn_fewshot afsp_margin afsp_full"
+python manage.py eval         --conditions $CONDS --split val
+python manage.py comet        --conditions $CONDS --split val
+python manage.py judge        --conditions $CONDS --split val --config configs/judge_eval.yaml
+python manage.py stylometrics --conditions $CONDS --split val
+python manage.py bootstrap --metric comet --conditions $CONDS --split val --adjacent
+```
+
+### Limitations and risks
+
+`unbabel-comet==2.2.6` was pinned but not installed or resolved in this
+environment; COMET depends on `pytorch-lightning` and a `transformers` range that
+may conflict with the pinned `transformers==5.12.1`, so the first real install
+should confirm the resolution (and may need a separate environment). COMET was not
+run, so no adequacy numbers exist for any condition.
+
+The judge is an intentional commercial-API evaluator, not smoke, but it has not
+been run: no register-fidelity scores exist yet, and the rubric/template will need
+a small human-agreement check before the numbers are trusted. Judge determinism
+relies on an OpenAI model honouring `temperature=0` + `seed`; the Anthropic
+cross-family judge is non-deterministic (no temperature control in the client) and
+should be treated as a confirmation pass, not a reproducible primary.
+
+The paired bootstrap assumes conditions are aligned segment-for-segment (identical
+eval order and count); the CLI asserts equal counts but cannot detect a reordering,
+so all conditions must be generated from the same eval file. The two-sided p-value
+is the standard twice-the-smaller-tail estimate and is granular at small
+`n_resamples`; the default 10,000 is adequate for α = 0.05 reporting.
+
+---
+
 ## 2026-07-04 — Stage 3: Ablation Ladder as Discrete Conditions + Glossary Decoupling
 
 ### Summary

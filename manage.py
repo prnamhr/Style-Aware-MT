@@ -18,6 +18,9 @@ COMMANDS = {
     "infer": "src.infer.run",
     "sweep": "src.infer.sweep",
     "eval": "src.eval.quick",
+    "comet": "src.eval.comet",
+    "judge": "src.eval.judge",
+    "bootstrap": "src.eval.bootstrap",
     "fertility": "src.eval.fertility",
     "stylometrics": "src.eval.stylometrics",
 }
