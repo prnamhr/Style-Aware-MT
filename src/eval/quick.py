@@ -8,11 +8,11 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import json
 from pathlib import Path
 
 from sacrebleu.metrics import BLEU, CHRF
 
+from src.eval._io import load_condition
 from src.eval.stylometrics import _MARKERS
 
 
@@ -23,18 +23,32 @@ def _marker_rate(texts: list[str]) -> float:
     return sum(len(_MARKERS.findall(t)) for t in texts) / len(texts)
 
 
+def segment_scores(preds: list[str], refs: list[str], metric: str = "chrf") -> list[float]:
+    """Per-segment sentence-level chrF (default) or BLEU, for the paired bootstrap.
+
+    Sentence-level BLEU uses ``effective_order`` so short segments are not driven
+    to zero by missing higher-order n-grams. This is the reusable surface-metric
+    entry point for any ``<condition>_<split>.jsonl`` file; the corpus-level
+    ``score`` below uses the same sacrebleu metrics.
+    """
+    metric = metric.lower()
+    if metric == "chrf":
+        m = CHRF()
+        return [m.sentence_score(p, [r]).score for p, r in zip(preds, refs)]
+    if metric == "bleu":
+        m = BLEU(effective_order=True)
+        return [m.sentence_score(p, [r]).score for p, r in zip(preds, refs)]
+    raise ValueError(f"unknown metric '{metric}' (expected chrf|bleu)")
+
+
 def score(condition: str, out_dir: Path, split: str) -> dict:
-    path = out_dir / f"{condition}_{split}.jsonl"
-    with path.open(encoding="utf-8") as f:
-        rows = [json.loads(line) for line in f if line.strip()]
-    preds = [r["prediction"] for r in rows]
-    refs = [r["output"] for r in rows]
+    _, preds, refs = load_condition(out_dir, condition, split)
 
     bleu = BLEU().corpus_score(preds, [refs]).score
     chrf = CHRF().corpus_score(preds, [refs]).score
     return {
         "condition": condition,
-        "n": len(rows),
+        "n": len(preds),
         "BLEU": round(bleu, 2),
         "chrF": round(chrf, 2),
         "marker_rate": round(_marker_rate(preds), 2),

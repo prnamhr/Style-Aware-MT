@@ -232,12 +232,32 @@ python -m src.infer --condition rlsf --config configs/rlsf.yaml
 
 ### Evaluation
 
+The evaluation backbone scores any set of `<condition>_<split>.jsonl` files. Let
+`CONDS = zeroshot random_fewshot knn_fewshot afsp_margin afsp_full`:
+
 ```bash
-python -m src.eval.quick --conditions zeroshot random_fewshot knn_fewshot afsp_margin afsp_full --split val
-python -m src.eval.agreement   # RQ4 pairwise Spearman + plots
+# Surface overlap + register proxy (BLEU, chrF, marker rate)
+python manage.py eval          --conditions $CONDS --split val
+
+# Learned adequacy (COMET wmt22-comet-da) -> results/comet_val.json  (per-segment)
+python manage.py comet         --conditions $CONDS --split val
+
+# Register fidelity Φ, evaluation-time LLM-as-Judge -> results/judge_val.json
+python manage.py judge         --conditions $CONDS --split val --config configs/judge_eval.yaml
+
+# Stylometrics vs. the target-register centroid (per-condition feature table)
+python manage.py stylometrics  --conditions $CONDS --split val
+
+# Paired-bootstrap 95% CIs for pairwise differences (α = 0.05), any metric
+python manage.py bootstrap --metric chrf  --conditions $CONDS --split val --adjacent
+python manage.py bootstrap --metric comet --conditions $CONDS --split val --adjacent
+python manage.py bootstrap --metric judge --conditions $CONDS --split val --adjacent
 ```
 
-Outputs land in `results/`.
+`bootstrap` computes chrF/BLEU on the fly from the inference files and reads
+COMET/judge from the JSON their own commands write, so run those first. Each
+non-baseline condition is compared against the ladder floor (`zeroshot`), and
+`--adjacent` adds each consecutive-rung difference. Outputs land in `results/`.
 
 ---
 
