@@ -13,6 +13,114 @@ Each entry documents four points: what changed, why the change was made, how the
 
 ---
 
+## 2026-07-06 — Stage 5: The Real AFSP k × λ Sweep (val, Qwen)
+
+### Summary
+
+The thesis hyperparameter sweep was implemented as `src/infer/afsp_sweep.py`
+(`manage.py afsp_sweep`) with its own config `configs/afsp_sweep.yaml`. It runs
+the AFSP condition over the grid k ∈ {1, 2, 3, 4} × λ_style ∈ {0, 0.25, 0.5,
+0.75, 1.0} — 20 cells — on the **val** split, on the frozen local Qwen base, and
+recommends a single (k, λ) for a human to freeze into `configs/base_qwen.yaml`
+before `test.jsonl` is ever touched. This is deliberately separate from
+`src/infer/sweep.py`, the model × shot-count *smoke* sweep that drives commercial
+APIs and produces no findings.
+
+The sweep was **not run**: generating 20 × 1,323 val translations needs a GPU
+that holds Qwen-7B in bf16 (~15 GB), which the development machine (8 GB) cannot
+provide — the same constraint recorded for the Stage 0 local generator. Generation
+is therefore deferred to a Colab-class GPU. Everything that runs without the base
+model — cell tagging, the free/local scoring pass, the selection rule, the
+test-split seal, the resumable-generation skip logic, and the CLI/dispatch — was
+verified offline, and the CI-equivalent static checks pass.
+
+### What changed
+
+`src/infer/afsp_sweep.py` (new). `generate_grid` loads one shared source-side
+index and a single `AFSPRetriever` (with the register centroid loaded) and reuses
+them across all cells, mutating only `lambda_style` and the selection `k`, so the
+candidate-hubness and register caches are computed once. Each cell reuses the
+Stage 3 prompt path exactly — `_load_configured_glossary`, `order_exemplars`,
+`build_fewshot_user` — so a swept cell is byte-identical in prompt construction to
+the corresponding `afsp_margin`/`afsp_full` rung (λ = 0 is margin-only; λ > 0 adds
+the register rerank). Cells are written to `outputs/sweep/afsp_k{k}_l{λ}_{split}.jsonl`
+in the standard inference schema (plus `k` and `lambda_style` fields), and existing
+cells are skipped unless `--overwrite`, making a multi-hour GPU sweep resumable
+across interrupted sessions.
+
+`generate_grid` refuses to run when the eval file's split stem is `test`, so the
+sweep cannot accidentally consume the sealed split. Selection uses only free,
+local signals — chrF/BLEU against the gold targets (via `src.eval.quick`) and the
+standardized stylometric distance to the target-register centroid (via
+`src.eval.stylometrics`); the expensive COMET / LLM-as-Judge metrics are reserved
+for the final frozen conditions, not spent on 20 exploratory cells.
+
+`recommend` encodes the thesis objective — register preservation without
+sacrificing adequacy — as: keep cells whose chrF is within `--adequacy-margin`
+(default 1.0) of the grid's best chrF, then pick the smallest register distance
+among them, breaking ties toward higher chrF and then smaller k (cheaper prompt).
+It falls back to max chrF when no centroid is available. The recommended (k, λ),
+the full cell table, and the margin are written to `results/afsp_sweep_<split>.json`,
+and the exact `base_qwen.yaml` edits to freeze are printed. `--score-only`
+re-scores and re-selects over already-generated cells with no GPU.
+
+`configs/afsp_sweep.yaml` (new) mirrors `base_qwen.yaml`'s locked decoding and
+retrieval, pins the val split, and documents that `retrieval.k` / `afsp.lambda_style`
+are placeholders overridden per cell by the grid. `manage.py` registers the
+`afsp_sweep` command.
+
+### Verification
+
+No generation (no Qwen base loaded, no GPU). CI-equivalent static checks pass with
+`ruff==0.14.2`:
+
+```bash
+ruff check src
+ruff format --check src
+python -m compileall -q src
+python tests/test_stylometrics.py    # 7/7
+```
+
+Offline behavioural checks: `cell_tag` produces collision-free, filesystem-safe
+tags with `%g`-formatted λ (`afsp_k2_l0.25`, `afsp_k4_l1`); `recommend` picks the
+lowest register distance strictly within the chrF band, widens its choice as the
+margin grows, breaks ties toward smaller k, falls back to max chrF without a
+centroid, and returns `None` on an empty grid; `generate_grid` raises on a `test`
+eval file (seal intact). The `--score-only` CLI was then run end to end over
+synthetic `outputs/sweep/*.jsonl` cells: it scored the present cells, skipped the
+absent grid positions with a note, printed the register-fidelity-ordered table
+with the recommendation marked, and wrote `results/afsp_sweep_val.json`.
+`manage.py afsp_sweep --help` dispatches and argparses.
+
+### Reproduction
+
+```bash
+# On a Colab-class GPU (Qwen-7B bf16). Full grid over val:
+python manage.py afsp_sweep --config configs/afsp_sweep.yaml
+
+# Re-score / re-select over already-generated cells anywhere (no GPU):
+python manage.py afsp_sweep --config configs/afsp_sweep.yaml --score-only
+```
+
+Then read `results/afsp_sweep_val.json`, freeze the recommended `retrieval.k` and
+`afsp.lambda_style` into `configs/base_qwen.yaml`, and only then run the final
+`afsp_full` condition on `test.jsonl`.
+
+### Limitations and risks
+
+The sweep has not been run; there are no val numbers and therefore no frozen
+(k, λ) yet. The selection rule is a defensible default (register-first within an
+adequacy band) but is a modelling choice; the chrF adequacy proxy and the
+stylometric register distance are both crude relative to the COMET/judge metrics
+reserved for the frozen conditions, so the recommendation should be sanity-checked
+against a COMET/judge pass on the top few cells before freezing. β is held fixed
+at 0.3 across the sweep — it is not a swept axis here, so an interaction between β
+and (k, λ) would go unseen. The full grid is 20 × |val| generations; `--overwrite`
+is off by default and cells are skipped when present, but the wall-clock and the
+requirement to keep the base unquantized (no `load_in_4bit`) both point to Colab.
+
+---
+
 ## 2026-07-04 — Stage 4: Evaluation Backbone (COMET, LLM-as-Judge, paired bootstrap)
 
 ### Summary

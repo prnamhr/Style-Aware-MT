@@ -17,6 +17,7 @@ COMMANDS = {
     "build_index": "src.retrieval.build_index",
     "infer": "src.infer.run",
     "sweep": "src.infer.sweep",
+    "afsp_sweep": "src.infer.afsp_sweep",
     "eval": "src.eval.quick",
     "comet": "src.eval.comet",
     "judge": "src.eval.judge",

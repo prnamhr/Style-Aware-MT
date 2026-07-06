@@ -220,6 +220,7 @@ python -m src.infer.run --condition random_fewshot --config configs/base_qwen.ya
 python -m src.infer.run --condition knn_fewshot    --config configs/base_qwen.yaml
 python -m src.infer.run --condition afsp_margin    --config configs/base_qwen.yaml
 python -m src.infer.run --condition afsp_full      --config configs/base_qwen.yaml
+python manage.py afsp_sweep --config configs/afsp_sweep.yaml
 
 # PEFT
 python -m src.peft.train       --config configs/peft.yaml
