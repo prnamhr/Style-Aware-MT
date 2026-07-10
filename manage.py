@@ -21,6 +21,7 @@ COMMANDS = {
     "eval": "src.eval.quick",
     "comet": "src.eval.comet",
     "judge": "src.eval.judge",
+    "human": "src.eval.human",
     "bootstrap": "src.eval.bootstrap",
     "fertility": "src.eval.fertility",
     "stylometrics": "src.eval.stylometrics",
