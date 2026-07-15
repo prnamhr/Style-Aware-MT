@@ -13,6 +13,57 @@ Each entry documents four points: what changed, why the change was made, how the
 
 ---
 
+## 2026-07-13 — Resolving the COMET dependency conflict (separate venv)
+
+### Summary
+
+`unbabel-comet==2.2.6` was split out of `requirements.txt` into a new
+`requirements-comet.txt`, installed in its own virtualenv. The Stage-4 log flagged
+this as a risk; it is a hard, three-way conflict, so `pip install -r requirements.txt`
+as written never resolves.
+
+### What changed
+
+- `requirements.txt`: removed the `unbabel-comet==2.2.6` line (replaced with a comment
+  pointing to the new file). The generation stack now installs cleanly.
+- `requirements-comet.txt` (new): `unbabel-comet==2.2.6` plus the two conflict-critical
+  transitive pins from the verified resolution (`transformers==4.57.6`, `numpy==1.26.4`),
+  with a header documenting the local (CPU torch) and Colab (GPU torch) setup.
+- `README.md`: Setup adds the `.venv-comet` environment; the Evaluation section notes
+  `manage.py comet` must run from it.
+
+### Why
+
+COMET 2.2.6's metadata pins `transformers>=4.17,<5.0`, `numpy>=1.20,<2.0`, and
+`huggingface-hub<1.0`. The generation stack pins `transformers==5.12.1` and
+`numpy==2.4.1`. All three constraints conflict, so co-resolution is impossible — this
+is not a version-bump-away problem. COMET only scores the inference `*.jsonl` files
+post-hoc (`src/eval/comet.py:19` imports `comet` lazily; `src/eval/_io.py` is
+stdlib-only), so the eval backbone already decouples and a second venv is the clean fix.
+
+### How to reproduce / verify
+
+```bash
+python -m venv .venv-comet && source .venv-comet/bin/activate
+pip install torch==2.13.0 --index-url https://download.pytorch.org/whl/cpu
+pip install -r requirements-comet.txt
+python manage.py comet --help   # imports comet + torch; exits 0
+```
+
+Verified 2026-07-13 on Python 3.11: both `requirements.txt` (minus COMET) and
+`requirements-comet.txt` resolve independently via `pip install --dry-run`; COMET
+imports and `manage.py comet --help` runs under the isolated stack.
+
+### Risks / to monitor
+
+- The COMET stack pulls its own `transformers`/`numpy`/`torch` (~CPU torch locally, GPU
+  torch on Colab); keep the two venvs strictly separate — never `pip install` one file
+  into the other's environment.
+- `transformers==4.57.6` / `numpy==1.26.4` are pinned to the resolution verified today;
+  if COMET is ever upgraded, re-verify these against its new metadata.
+
+---
+
 ## 2026-07-06 — Stage 5: The Real AFSP k × λ Sweep (val, Qwen)
 
 ### Summary

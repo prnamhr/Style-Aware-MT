@@ -204,6 +204,12 @@ python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 
+python -m venv .venv-comet
+source .venv-comet/bin/activate
+pip install torch==2.13.0 --index-url https://download.pytorch.org/whl/cpu  # local/off-GPU; skip on Colab
+pip install -r requirements-comet.txt
+deactivate
+
 # data prep (expects raw TSVs under data/raw/)
 python -m src.data.preprocess
 python -m src.data.split        # writes data/splits/ with hashes
@@ -241,6 +247,7 @@ The evaluation backbone scores any set of `<condition>_<split>.jsonl` files. Let
 python manage.py eval          --conditions $CONDS --split val
 
 # Learned adequacy (COMET wmt22-comet-da) -> results/comet_val.json  (per-segment)
+# NOTE: run this one from the .venv-comet environment (see Setup), not .venv.
 python manage.py comet         --conditions $CONDS --split val
 
 # Register fidelity Φ, evaluation-time LLM-as-Judge -> results/judge_val.json

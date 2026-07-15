@@ -6,7 +6,6 @@ bitsandbytes==0.49.2      # only needed for load_in_4bit (<=8GB VRAM fallback)
 openai==2.41.1
 anthropic==0.109.1
 sacrebleu==2.6.0
-unbabel-comet==2.2.6     
 PyYAML==6.0.3
 python-dotenv==1.2.2
 asttokens==3.0.1

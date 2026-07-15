@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from pathlib import Path
 
 import yaml
@@ -88,7 +89,11 @@ def generate_grid(
             user_msgs = [build_fewshot_user(s, ex, glossary) for s, ex in zip(sources, ordered)]
 
             print(f"[{tag}] generating {len(rows)} translations with {gen['model']} ...")
-            with out_path.open("w", encoding="utf-8") as f:
+            # Write to a temp file and atomically rename on completion so an
+            # interruption mid-cell (e.g. a dead Colab session) never leaves a
+            # partial file that resume would skip as "done".
+            tmp_path = out_path.with_suffix(out_path.suffix + ".tmp")
+            with tmp_path.open("w", encoding="utf-8") as f:
                 for row, user in zip(rows, user_msgs):
                     prediction = client.complete(style_instruction, user)
                     f.write(
@@ -107,6 +112,9 @@ def generate_grid(
                         )
                         + "\n"
                     )
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(tmp_path, out_path)
     return split
 
 
