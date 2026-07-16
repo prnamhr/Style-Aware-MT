@@ -13,6 +13,82 @@ Each entry documents four points: what changed, why the change was made, how the
 
 ---
 
+## 2026-07-16 — Stage 5b hardening: judge-gating the freeze, persisting per-segment COMET
+
+### Summary
+
+Two correctness fixes to `src/infer/afsp_verify.py` before the confirmation is run
+for real on the A100, both aimed at making the freeze decision trustworthy rather
+than merely runnable.
+
+First, a **judge-gating** fix. Supplying `--judge-config` is a statement of intent:
+*confirm the pick on both axes — adequacy (COMET) and register fidelity (judge Φ).*
+But `_freeze_pick` decides "do I have judge scores?" from the data, not from that
+intent: if the judge pass came back empty (every call failed) or too thin to trust
+(a handful of segments parsed), `have_judge` silently went `False` and the code fell
+through to freezing on the **best-COMET cell alone**. That path is indistinguishable
+in the output from a deliberate COMET-only run, so a broken or under-covered judge
+pass could quietly freeze a (k, λ) on adequacy while the run looked like a two-axis
+confirmation. The fix refuses instead of falling back.
+
+Second, **persisting per-segment COMET**. `comet.score` already returns the
+segment-level vector, but the verifier kept only the system score, so the paired
+bootstrap the thesis uses for significance had nothing aligned to resample. The
+verifier now persists the per-segment COMET for each confirmed cell, plus the shared
+source list, and guards that the cells are actually segment-aligned before it does.
+
+Still not run here (needs the Qwen base + COMET, ~15 GB); static checks pass and the
+sweep is grinding on the A100 as this lands, so `afsp_verify` is correct by the time
+its results are consumed.
+
+### What changed
+
+`src/infer/afsp_verify.py`:
+
+* After the judge pass, when `--judge-config` was supplied, the run now checks every
+  top cell has a usable Φ — `mean is not None` **and** `coverage >= --min-judge-coverage`
+  (new flag, default 0.9). Any thin cell raises `SystemExit` with the offending tags,
+  a pointer to the resumable per-segment cache under `results/judge_<split>_segments/`,
+  and the explicit alternative (rerun without `--judge-config` to freeze on COMET
+  deliberately). `_freeze_pick` is unchanged; its COMET-only branch is now reached
+  only when no judge was requested, which is the one case it is correct for.
+* The COMET loop keeps `res["segments"]` alongside `res["system"]`. Because a paired
+  bootstrap requires segment i to mean the same source across cells, the loop asserts
+  every top cell loads an identical source list (same val rows, same order) and raises
+  `SystemExit` on any mismatch rather than pairing misaligned segments.
+* `results/afsp_verify_<split>.json` gains a top-level `sources` (persisted once) and
+  a per-cell `comet_segments`, so the bootstrap can re-verify alignment and resample
+  without re-running COMET.
+
+### Verification
+
+No generation, no COMET load. Static checks pass:
+
+```bash
+python -m py_compile src/infer/afsp_verify.py
+ruff check src/infer/afsp_verify.py
+```
+
+Reasoned through the gate: with `--judge-config` and a full-coverage judge pass the
+run freezes on Φ within the COMET band as before; with a judge pass that fails or
+falls below `--min-judge-coverage` it now exits non-zero instead of freezing on COMET;
+without `--judge-config` the COMET-only freeze is untouched. The alignment guard fires
+before COMET is scored on the second cell, so a misaligned regeneration is caught
+early rather than silently paired.
+
+### Limitations and risks
+
+The coverage threshold (0.9) is a judgement call — a legitimately hard cell that the
+judge refuses on many segments will now block the freeze rather than freeze on a thin
+mean; that is the intended trade (fail loud), but it means a genuinely low-coverage
+val split needs `--min-judge-coverage` lowered consciously, not by accident. Persisted
+`comet_segments` assume the COMET checkpoint is fixed across cells (it is — one model
+load), so the stored vectors are only comparable within a single verify run, not across
+runs on different checkpoints. The paired bootstrap that consumes these segments is not
+yet written.
+
+---
+
 ## 2026-07-16 — Stage 5b: Confirming the sweep pick on full val (COMET/judge)
 
 ### Summary

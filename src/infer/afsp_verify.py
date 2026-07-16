@@ -143,6 +143,13 @@ def main() -> None:
         default=0.01,
         help="COMET band within which judge Φ decides the freeze (default 0.01)",
     )
+    parser.add_argument(
+        "--min-judge-coverage",
+        type=float,
+        default=0.9,
+        help="when --judge-config is set, minimum per-cell judge coverage required to freeze on "
+        "both axes; below this the run refuses rather than falling back to COMET (default 0.9)",
+    )
     parser.add_argument("--batch_size", type=int, default=8, help="COMET batch size")
     parser.add_argument(
         "--gpus", type=int, default=None, help="COMET GPU count; default auto (1 if CUDA else 0)"
@@ -199,19 +206,46 @@ def main() -> None:
     sweep_dir = _sweep_dir(cfg)
     comet_model = comet_mod.load_model()
     comet_by_tag: dict[str, float] = {}
+    comet_segments_by_tag: dict[str, list[float]] = {}
+    shared_sources: list[str] | None = None
     for r in top:
         tag = r["tag"]
         sources, preds, refs = load_condition(sweep_dir, tag, val_split)
+        # Every top cell is generated from the same val rows in the same order, so
+        # segment i lines up across cells -- the precondition a paired bootstrap needs.
+        # Guard it explicitly rather than trust it silently.
+        if shared_sources is None:
+            shared_sources = sources
+        elif sources != shared_sources:
+            raise SystemExit(
+                f"segment misalignment: {tag} sources differ from the earlier cells on "
+                f"{val_split}; regenerate the top cells (--overwrite) before verifying"
+            )
         res = comet_mod.score(
             sources, preds, refs, model=comet_model, batch_size=args.batch_size, gpus=args.gpus
         )
         comet_by_tag[tag] = res["system"]
+        comet_segments_by_tag[tag] = res["segments"]
         print(f"  {tag:<16} COMET {res['system']:.4f}  (n={len(preds)})")
 
     # Judge (paid) only when a config is supplied.
     judge_by_tag: dict[str, dict] = {}
     if args.judge_config:
         judge_by_tag = _run_judge(args.judge_config, top, sweep_dir, val_split)
+        thin = [
+            tag
+            for tag in (r["tag"] for r in top)
+            if judge_by_tag.get(tag, {}).get("mean") is None
+            or judge_by_tag.get(tag, {}).get("coverage", 0.0) < args.min_judge_coverage
+        ]
+        if thin:
+            raise SystemExit(
+                "refusing to freeze: a --judge-config was given (confirm on both axes) but the "
+                f"judge pass is unusable for {thin} (mean missing, or coverage below "
+                f"--min-judge-coverage {args.min_judge_coverage:.0%}). Fix the judge run (the "
+                f"per-segment cache under results/judge_{val_split}_segments/ is resumable) or "
+                "rerun without --judge-config to freeze on COMET alone deliberately."
+            )
 
     freeze = _freeze_pick(top, comet_by_tag, judge_by_tag, args.comet_adequacy)
     freeze_tag = freeze["tag"]
@@ -243,6 +277,9 @@ def main() -> None:
                 "proxy_pick": proxy_tag,
                 "freeze": freeze_tag,
                 "proxy_pick_held": held,
+                # Shared across cells (same val rows, same order); persisted once so the
+                # paired bootstrap can re-verify segment alignment before pairing.
+                "sources": shared_sources,
                 "cells": [
                     {
                         "tag": r["tag"],
@@ -251,6 +288,8 @@ def main() -> None:
                         "chrF": r.get("chrF"),
                         "stylo_dist": r.get("stylo_dist"),
                         "comet_system": comet_by_tag[r["tag"]],
+                        # Aligned per-segment COMET, kept for a later paired bootstrap.
+                        "comet_segments": comet_segments_by_tag[r["tag"]],
                         "judge_mean": judge_by_tag.get(r["tag"], {}).get("mean"),
                         "judge_coverage": judge_by_tag.get(r["tag"], {}).get("coverage"),
                     }
