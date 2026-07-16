@@ -11,8 +11,10 @@ from src.eval._io import load_condition
 from src.eval.quick import score as quick_score
 from src.eval.stylometrics import aggregate, distance_to_centroid
 
-DEFAULT_KS = (1, 2, 3, 4)
+DEFAULT_KS = (1, 2, 4, 8, 16)
 DEFAULT_LAMBDAS = (0.0, 0.25, 0.5, 0.75, 1.0)
+
+ZEROSHOT_TAG = "afsp_zeroshot"
 
 
 def cell_tag(k: int, lam: float) -> str:
@@ -121,6 +123,96 @@ def generate_cells(cfg: dict, cells: list[tuple[int, float]], *, overwrite: bool
     return split
 
 
+def generate_zeroshot(cfg: dict, *, overwrite: bool = False) -> str:
+    """Generate the zero-shot reference
+    """
+    from src.infer.run import build_zeroshot_user, make_client
+
+    gen = cfg["generator"]
+    style_instruction = Path(cfg["prompt"]["style_instruction_file"]).read_text(encoding="utf-8")
+
+    eval_file = Path(cfg["data"]["eval_file"])
+    split = eval_file.stem
+    if split == "test":
+        raise ValueError("refusing to sweep on the sealed test split; sweep on val")
+    with eval_file.open(encoding="utf-8") as f:
+        rows = [json.loads(line) for line in f if line.strip()]
+    limit = cfg["data"].get("limit")
+    if limit:
+        rows = rows[:limit]
+
+    sweep_dir = _sweep_dir(cfg)
+    sweep_dir.mkdir(parents=True, exist_ok=True)
+    out_path = sweep_dir / f"{ZEROSHOT_TAG}_{split}.jsonl"
+    if out_path.exists() and not overwrite:
+        print(f"skip {ZEROSHOT_TAG}: {out_path} exists (use --overwrite to regenerate)")
+        return split
+
+    client = make_client(gen)
+    print(f"[{ZEROSHOT_TAG}] generating {len(rows)} zero-shot translations with {gen['model']} ...")
+    tmp_path = out_path.with_suffix(out_path.suffix + ".tmp")
+    failures = 0
+    with tmp_path.open("w", encoding="utf-8") as f:
+        for row in rows:
+            try:
+                prediction = client.complete(style_instruction, build_zeroshot_user(row["input"]))
+                error = None
+            except Exception as e:  # one bad segment must not discard the cell
+                prediction = ""
+                error = f"{type(e).__name__}: {e}"
+                failures += 1
+            record = {
+                "input": row["input"],
+                "output": row["output"],
+                "prediction": prediction,
+                "condition": ZEROSHOT_TAG,
+                "k": 0,
+                "lambda_style": None,
+                "model": gen["model"],
+                "metadata": row.get("metadata", {}),
+            }
+            if error is not None:
+                record["error"] = error
+            f.write(json.dumps(record, ensure_ascii=False) + "\n")
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(tmp_path, out_path)
+    if failures:
+        print(
+            f"[{ZEROSHOT_TAG}] WARNING: {failures}/{len(rows)} segments failed and were recorded "
+            f"with an empty prediction (see the `error` field); --overwrite to retry."
+        )
+    return split
+
+
+def score_zeroshot(cfg: dict, split: str) -> dict | None:
+    """Score the zero-shot anchor, if present. Returns an anchor-flagged row."""
+    sweep_dir = _sweep_dir(cfg)
+    path = sweep_dir / f"{ZEROSHOT_TAG}_{split}.jsonl"
+    if not path.exists():
+        print(f"skip {ZEROSHOT_TAG}: {path} not found")
+        return None
+    centroid_path = Path(cfg.get("afsp", {}).get("centroid_file", ""))
+    centroid = (
+        json.loads(centroid_path.read_text(encoding="utf-8")) if centroid_path.exists() else None
+    )
+    s = quick_score(ZEROSHOT_TAG, sweep_dir, split)
+    _, preds, _ = load_condition(sweep_dir, ZEROSHOT_TAG, split)
+    row = {
+        "tag": ZEROSHOT_TAG,
+        "k": 0,
+        "lambda": None,
+        "anchor": True,
+        "n": s["n"],
+        "chrF": s["chrF"],
+        "BLEU": s["BLEU"],
+        "marker_rate": s["marker_rate"],
+    }
+    if centroid is not None:
+        row["stylo_dist"] = round(distance_to_centroid(aggregate(preds)["mean"], centroid), 4)
+    return row
+
+
 def generate_grid(
     cfg: dict, ks: list[int], lambdas: list[float], *, overwrite: bool = False
 ) -> str:
@@ -165,6 +257,7 @@ def score_grid(cfg: dict, ks: list[int], lambdas: list[float], split: str) -> li
 
 def recommend(rows: list[dict], adequacy_margin: float) -> dict | None:
     """Recommend a (k, lambda) cell: best register fidelity within an adequacy band."""
+    rows = [r for r in rows if not r.get("anchor")]
     if not rows:
         return None
     if not all("stylo_dist" in r for r in rows):
@@ -177,6 +270,7 @@ def recommend(rows: list[dict], adequacy_margin: float) -> dict | None:
 def ranked_cells(rows: list[dict], adequacy_margin: float) -> list[dict]:
     """Cells ordered best-first by the same rule ``recommend`` uses to pick one.
     """
+    rows = [r for r in rows if not r.get("anchor")]
     if not rows:
         return []
     if not all("stylo_dist" in r for r in rows):
@@ -203,7 +297,12 @@ def _print_table(rows: list[dict], pick: dict | None) -> None:
     print(header)
     print("-" * len(header))
     for r in ordered:
-        mark = "  <== recommended" if pick and r["tag"] == pick["tag"] else ""
+        if r.get("anchor"):
+            mark = "  (zero-shot anchor)"
+        elif pick and r["tag"] == pick["tag"]:
+            mark = "  <== recommended"
+        else:
+            mark = ""
         print("  ".join(str(r[c]).ljust(widths[c]) for c in cols) + mark)
 
 
@@ -219,6 +318,11 @@ def main() -> None:
     )
     parser.add_argument("--overwrite", action="store_true", help="regenerate existing cells")
     parser.add_argument(
+        "--no-zeroshot",
+        action="store_true",
+        help="skip the zero-shot reference anchor (x=0)",
+    )
+    parser.add_argument(
         "--adequacy-margin",
         type=float,
         default=1.0,
@@ -232,11 +336,17 @@ def main() -> None:
         split = Path(cfg["data"]["eval_file"]).stem
     else:
         split = generate_grid(cfg, args.ks, args.lambdas, overwrite=args.overwrite)
+        if not args.no_zeroshot:
+            generate_zeroshot(cfg, overwrite=args.overwrite)
 
     rows = score_grid(cfg, args.ks, args.lambdas, split)
     if not rows:
         print("no scored cells; generate the grid first (drop --score-only)")
         return
+    if not args.no_zeroshot:
+        anchor = score_zeroshot(cfg, split)
+        if anchor is not None:
+            rows.append(anchor)
 
     pick = recommend(rows, args.adequacy_margin)
     print(f"\nAFSP sweep ({split}, {len(rows)} cells)  -- register fidelity first")
