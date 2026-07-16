@@ -13,6 +13,117 @@ Each entry documents four points: what changed, why the change was made, how the
 
 ---
 
+## 2026-07-16 — Stage 5b: Confirming the sweep pick on full val (COMET/judge)
+
+### Summary
+
+The Stage 5 sweep ranks the 20-cell k × λ grid on **free, local proxies** — a
+chrF adequacy band, then stylometric distance to the register centroid — and may
+be run on a reduced selection subset to keep generation compute affordable. Those
+proxies are crude next to the COMET and LLM-as-Judge metrics the thesis actually
+reports, and the selection set may be a sample rather than the full split. Either
+gap could let the proxy-picked (k, λ) be a false winner. Stage 5b closes both with
+a first-class command, `src/infer/afsp_verify.py` (`manage.py afsp_verify`): it
+takes the top-N proxy cells, **regenerates only those on the full val split**,
+scores them with COMET (free/local) and — only when a judge config is supplied —
+the paid judge, and reports whether the proxy pick holds up on the reported
+metrics or a runner-up overtakes it. The freeze decision is made here, on full
+val under the reported metrics; the sealed test split is never touched.
+
+This makes the methods claim defensible: *hyperparameters were pre-ranked with
+inexpensive proxies (optionally on a selection subset), and the top candidates
+were confirmed on full val under COMET and the judge before freezing; all reported
+results are on the full val and test splits.* That is stronger than a full-val
+proxy sweep, which spends the compute on more proxy estimates while still selecting
+on a metric the thesis does not report.
+
+Like Stage 5, this was **not run**: the confirmation regenerates cells with the
+Qwen-7B base (bf16, ~15 GB) and loads COMET, neither of which the 8 GB dev box can
+hold, so a live run is deferred to a Colab-class GPU. Everything that runs without
+the base model and COMET — the candidate ranking, the freeze rule, the test-split
+seal, the CLI/dispatch — was verified offline and the CI-equivalent static checks
+pass.
+
+### What changed
+
+`src/infer/afsp_sweep.py`: the per-cell generation loop was extracted into
+`generate_cells(cfg, cells, ...)`, which takes an explicit list of (k, λ) cells;
+`generate_grid` now delegates to it with the full cross-product, so the sweep's
+behaviour is byte-for-byte unchanged (same shared index/retriever reuse, same
+atomic-write + cell-level resume, same `test` seal). `afsp_verify` reuses
+`generate_cells` to regenerate just the top cells on a different (full) split.
+A new `ranked_cells(rows, adequacy_margin)` exposes the sweep's own selection
+ordering — in-adequacy-band cells first, register fidelity (lower `stylo_dist`)
+within each group, ties toward higher chrF then smaller k — so the verifier pulls
+exactly the candidates `recommend` would have chosen from.
+
+`src/infer/afsp_verify.py` (new). It loads `results/afsp_sweep_<split>.json`
+(derived from the sweep config's `eval_file`, or `--sweep-result`), ranks the
+cells with `ranked_cells` at the sweep's own `adequacy_margin`, takes `--top`
+(default 3), and regenerates them on `--val-file` (default `data/splits/val.jsonl`,
+with the same `test`-seal refusal). It COMET-scores each cell with one model load
+reused across cells, and — only if `--judge-config` is given — runs the resumable
+judge (per-cell segment cache under `results/judge_<split>_segments/`), so the paid
+metric is opt-in. The freeze rule (`_freeze_pick`) is the real-metric analogue of
+the sweep's proxy rule: with judge scores present, keep cells within
+`--comet-adequacy` (default 0.01) of the best COMET and pick the highest register
+Φ among them; without the judge, take the best COMET cell. It prints a
+COMET-ordered table marking both the proxy pick and the freeze pick, states
+whether the pick held, writes `results/afsp_verify_<split>.json`, and prints the
+exact `base_qwen.yaml` edits to freeze. `manage.py` registers the `afsp_verify`
+command.
+
+### Verification
+
+No generation and no COMET load (no Qwen base, no GPU). CI-equivalent static checks
+pass with `ruff==0.14.2`:
+
+```bash
+ruff check src/infer/afsp_sweep.py src/infer/afsp_verify.py manage.py
+ruff format --check src/infer/afsp_sweep.py src/infer/afsp_verify.py
+python -m compileall -q src/infer/afsp_sweep.py src/infer/afsp_verify.py manage.py
+```
+
+Offline behavioural checks on synthetic proxy tables: `ranked_cells` leads with the
+in-band lowest-`stylo_dist` cell and sinks an out-of-band cell despite its better
+fidelity; `_freeze_pick` returns the best-COMET cell with no judge, switches to the
+highest-Φ cell when all candidates sit within the COMET band, and re-excludes a cell
+that falls outside a tightened band before Φ is consulted. `manage.py afsp_verify
+--help` dispatches and argparses, the command appears in the dispatcher listing, and
+pointing `--val-file` at `test.jsonl` raises the seal (`refusing to verify on the
+sealed test split`) before any model is loaded.
+
+### Reproduction
+
+```bash
+# After a sweep has written results/afsp_sweep_<split>.json.
+# COMET-only confirmation of the top 3 proxy cells on full val (free/local, needs a GPU for Qwen):
+python manage.py afsp_verify --config configs/afsp_sweep.yaml --top 3
+
+# Add the paid judge pass (top cells only) to decide within the COMET band:
+python manage.py afsp_verify --config configs/afsp_sweep.yaml --top 3 \
+    --judge-config configs/afsp_sweep.yaml   # any YAML carrying a `judge:` block
+```
+
+Then read `results/afsp_verify_val.json`, freeze the reported `retrieval.k` and
+`afsp.lambda_style` into `configs/base_qwen.yaml`, and only then run the final
+`afsp_full` condition on `test.jsonl`.
+
+### Limitations and risks
+
+The confirmation has not been run; there are no COMET/judge numbers and no frozen
+(k, λ) yet. It confirms only the top-N proxy cells, so a strong cell that the proxy
+ranked below N is never re-scored — widen `--top` if the proxy table is flat near
+the top. The COMET-band-then-Φ freeze rule is a modelling choice mirroring the
+sweep's proxy rule; `--comet-adequacy` defaults to 0.01 (COMET-DA system scores are
+~0–1) and should be set against the paired-bootstrap noise floor, not eyeballed. The
+judge is a paid commercial API and, per the project's findings discipline, any judge
+number is a sanity signal for selection, not a reported thesis result — the reported
+judge numbers still come from the frozen conditions on val/test. β stays fixed at
+0.3, unchanged from the sweep.
+
+---
+
 ## 2026-07-13 — Resolving the COMET dependency conflict (separate venv)
 
 ### Summary

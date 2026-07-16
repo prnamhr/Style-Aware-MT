@@ -24,10 +24,8 @@ def _sweep_dir(cfg: dict) -> Path:
     return Path(cfg["output"]["dir"]) / "sweep"
 
 
-def generate_grid(
-    cfg: dict, ks: list[int], lambdas: list[float], *, overwrite: bool = False
-) -> str:
-    """Generate predictions for every (k, lambda) cell with the local Qwen base.
+def generate_cells(cfg: dict, cells: list[tuple[int, float]], *, overwrite: bool = False) -> str:
+    """Generate predictions for the given (k, lambda) cells with the local Qwen base.
     """
     import random as _random
 
@@ -75,65 +73,64 @@ def generate_grid(
     sweep_dir.mkdir(parents=True, exist_ok=True)
     client = make_client(gen)
 
-    for k in ks:
-        for lam in lambdas:
-            tag = cell_tag(k, lam)
-            out_path = sweep_dir / f"{tag}_{split}.jsonl"
-            if out_path.exists() and not overwrite:
-                print(f"skip {tag}: {out_path} exists (use --overwrite to regenerate)")
-                continue
-            retriever.lambda_style = float(lam)  # 0 -> margin only; >0 -> full rerank
-            print(f"[{tag}] selecting k={k} (lambda={lam}) for {len(sources)} sources ...")
-            selected = retriever.select(sources, k=k)
-            ordered = [order_exemplars(ex, ordering, rng) for ex in selected]
-            user_msgs = [build_fewshot_user(s, ex, glossary) for s, ex in zip(sources, ordered)]
+    for k, lam in cells:
+        tag = cell_tag(k, lam)
+        out_path = sweep_dir / f"{tag}_{split}.jsonl"
+        if out_path.exists() and not overwrite:
+            print(f"skip {tag}: {out_path} exists (use --overwrite to regenerate)")
+            continue
+        retriever.lambda_style = float(lam)  # 0 -> margin only; >0 -> full rerank
+        print(f"[{tag}] selecting k={k} (lambda={lam}) for {len(sources)} sources ...")
+        selected = retriever.select(sources, k=k)
+        ordered = [order_exemplars(ex, ordering, rng) for ex in selected]
+        user_msgs = [build_fewshot_user(s, ex, glossary) for s, ex in zip(sources, ordered)]
 
-            print(f"[{tag}] generating {len(rows)} translations with {gen['model']} ...")
-            # Write to a temp file and atomically rename on completion so an
-            # interruption mid-cell (e.g. a dead Colab session) never leaves a
-            # partial file that resume would skip as "done". Resume is
-            # cell-level (skip existing cells above); within a cell one bad
-            # segment must not throw away the other segments' work, so each
-            # generation is guarded and a failure is recorded with an empty
-            # prediction (mirrors src/infer/run.py).
-            tmp_path = out_path.with_suffix(out_path.suffix + ".tmp")
-            failures = 0
-            with tmp_path.open("w", encoding="utf-8") as f:
-                for row, user in zip(rows, user_msgs):
-                    try:
-                        prediction = client.complete(style_instruction, user)
-                        error = None
-                    except Exception as e:  # one bad segment must not discard the cell
-                        prediction = ""
-                        error = f"{type(e).__name__}: {e}"
-                        failures += 1
-                    record = {
-                        "input": row["input"],
-                        "output": row["output"],
-                        "prediction": prediction,
-                        "condition": tag,
-                        "k": k,
-                        "lambda_style": float(lam),
-                        "model": gen["model"],
-                        "metadata": row.get("metadata", {}),
-                    }
-                    if error is not None:
-                        record["error"] = error
-                    f.write(json.dumps(record, ensure_ascii=False) + "\n")
-                f.flush()
-                os.fsync(f.fileno())
-            os.replace(tmp_path, out_path)
-            if failures:
-                print(
-                    f"[{tag}] WARNING: {failures}/{len(rows)} segments failed and were recorded "
-                    f"with an empty prediction (see the `error` field); --overwrite to retry."
-                )
+        print(f"[{tag}] generating {len(rows)} translations with {gen['model']} ...")
+        tmp_path = out_path.with_suffix(out_path.suffix + ".tmp")
+        failures = 0
+        with tmp_path.open("w", encoding="utf-8") as f:
+            for row, user in zip(rows, user_msgs):
+                try:
+                    prediction = client.complete(style_instruction, user)
+                    error = None
+                except Exception as e:  # one bad segment must not discard the cell
+                    prediction = ""
+                    error = f"{type(e).__name__}: {e}"
+                    failures += 1
+                record = {
+                    "input": row["input"],
+                    "output": row["output"],
+                    "prediction": prediction,
+                    "condition": tag,
+                    "k": k,
+                    "lambda_style": float(lam),
+                    "model": gen["model"],
+                    "metadata": row.get("metadata", {}),
+                }
+                if error is not None:
+                    record["error"] = error
+                f.write(json.dumps(record, ensure_ascii=False) + "\n")
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp_path, out_path)
+        if failures:
+            print(
+                f"[{tag}] WARNING: {failures}/{len(rows)} segments failed and were recorded "
+                f"with an empty prediction (see the `error` field); --overwrite to retry."
+            )
     return split
 
 
+def generate_grid(
+    cfg: dict, ks: list[int], lambdas: list[float], *, overwrite: bool = False
+) -> str:
+    """Generate predictions for every (k, lambda) cell of the full grid."""
+    cells = [(k, lam) for k in ks for lam in lambdas]
+    return generate_cells(cfg, cells, overwrite=overwrite)
+
+
 def score_grid(cfg: dict, ks: list[int], lambdas: list[float], split: str) -> list[dict]:
-    """Score every present cell with free/local metrics only.
-    """
+    """Score every present cell with free/local metrics only."""
     sweep_dir = _sweep_dir(cfg)
     centroid_path = Path(cfg.get("afsp", {}).get("centroid_file", ""))
     centroid = (
@@ -167,8 +164,7 @@ def score_grid(cfg: dict, ks: list[int], lambdas: list[float], split: str) -> li
 
 
 def recommend(rows: list[dict], adequacy_margin: float) -> dict | None:
-    """Recommend a (k, lambda) cell: best register fidelity within an adequacy band.
-    """
+    """Recommend a (k, lambda) cell: best register fidelity within an adequacy band."""
     if not rows:
         return None
     if not all("stylo_dist" in r for r in rows):
@@ -176,6 +172,23 @@ def recommend(rows: list[dict], adequacy_margin: float) -> dict | None:
     best_chrf = max(r["chrF"] for r in rows)
     band = [r for r in rows if r["chrF"] >= best_chrf - adequacy_margin]
     return min(band, key=lambda r: (r["stylo_dist"], -r["chrF"], r["k"]))
+
+
+def ranked_cells(rows: list[dict], adequacy_margin: float) -> list[dict]:
+    """Cells ordered best-first by the same rule ``recommend`` uses to pick one.
+    """
+    if not rows:
+        return []
+    if not all("stylo_dist" in r for r in rows):
+        return sorted(rows, key=lambda r: (-r["chrF"], r["k"]))
+    best_chrf = max(r["chrF"] for r in rows)
+
+    def fidelity(r: dict) -> tuple:
+        return (r["stylo_dist"], -r["chrF"], r["k"])
+
+    band = sorted((r for r in rows if r["chrF"] >= best_chrf - adequacy_margin), key=fidelity)
+    out_band = sorted((r for r in rows if r["chrF"] < best_chrf - adequacy_margin), key=fidelity)
+    return band + out_band
 
 
 def _print_table(rows: list[dict], pick: dict | None) -> None:

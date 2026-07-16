@@ -18,6 +18,7 @@ COMMANDS = {
     "infer": "src.infer.run",
     "sweep": "src.infer.sweep",
     "afsp_sweep": "src.infer.afsp_sweep",
+    "afsp_verify": "src.infer.afsp_verify",
     "eval": "src.eval.quick",
     "comet": "src.eval.comet",
     "judge": "src.eval.judge",
