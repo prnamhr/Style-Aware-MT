@@ -91,30 +91,43 @@ def generate_grid(
             print(f"[{tag}] generating {len(rows)} translations with {gen['model']} ...")
             # Write to a temp file and atomically rename on completion so an
             # interruption mid-cell (e.g. a dead Colab session) never leaves a
-            # partial file that resume would skip as "done".
+            # partial file that resume would skip as "done". Resume is
+            # cell-level (skip existing cells above); within a cell one bad
+            # segment must not throw away the other segments' work, so each
+            # generation is guarded and a failure is recorded with an empty
+            # prediction (mirrors src/infer/run.py).
             tmp_path = out_path.with_suffix(out_path.suffix + ".tmp")
+            failures = 0
             with tmp_path.open("w", encoding="utf-8") as f:
                 for row, user in zip(rows, user_msgs):
-                    prediction = client.complete(style_instruction, user)
-                    f.write(
-                        json.dumps(
-                            {
-                                "input": row["input"],
-                                "output": row["output"],
-                                "prediction": prediction,
-                                "condition": tag,
-                                "k": k,
-                                "lambda_style": float(lam),
-                                "model": gen["model"],
-                                "metadata": row.get("metadata", {}),
-                            },
-                            ensure_ascii=False,
-                        )
-                        + "\n"
-                    )
+                    try:
+                        prediction = client.complete(style_instruction, user)
+                        error = None
+                    except Exception as e:  # one bad segment must not discard the cell
+                        prediction = ""
+                        error = f"{type(e).__name__}: {e}"
+                        failures += 1
+                    record = {
+                        "input": row["input"],
+                        "output": row["output"],
+                        "prediction": prediction,
+                        "condition": tag,
+                        "k": k,
+                        "lambda_style": float(lam),
+                        "model": gen["model"],
+                        "metadata": row.get("metadata", {}),
+                    }
+                    if error is not None:
+                        record["error"] = error
+                    f.write(json.dumps(record, ensure_ascii=False) + "\n")
                 f.flush()
                 os.fsync(f.fileno())
             os.replace(tmp_path, out_path)
+            if failures:
+                print(
+                    f"[{tag}] WARNING: {failures}/{len(rows)} segments failed and were recorded "
+                    f"with an empty prediction (see the `error` field); --overwrite to retry."
+                )
     return split
 
 

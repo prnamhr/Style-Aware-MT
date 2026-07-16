@@ -17,6 +17,8 @@ prompt:
   style_instruction_file: prompts/style_instruction.txt
   ordering: most_similar_last   # most_similar_last | most_similar_first | random
   ordering_seed: 42             # only used when ordering: random
+  word_pairs: true                             # smoke the glossary augmentation too
+  glossary_file: prompts/register_glossary.tsv
 
 # --- Retrieval (unused by the reference condition; kept for knn_fewshot/afsp smokes) ---
 retrieval:
@@ -24,6 +26,14 @@ retrieval:
   index_dir: data/knn_index
   train_file: data/splits/train.jsonl
   k: 4
+
+# --- AFSP (required by afsp_margin/afsp_full smokes; mirrors base_qwen.yaml) ---
+afsp:
+  beta: 0.3
+  knn_hubness: 5
+  pool_mult: 4
+  lambda_style: 0.3
+  centroid_file: results/stylometrics_centroid.json  # built by `stylometrics --build-centroid`
 
 # --- Data ---
 # DEV split only. test.jsonl stays sealed until the final evaluation.
