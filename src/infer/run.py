@@ -23,10 +23,13 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import random
 from pathlib import Path
 
 import yaml
+
+from src.eval._io import read_completed_jsonl
 
 # Demonstration ordering is a controlled experimental flag. Exemplars reach
 ORDERINGS = ("most_similar_last", "most_similar_first", "random")
@@ -254,26 +257,61 @@ def run(condition: str, cfg: dict) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / f"{condition}_{split}.jsonl"
 
-    print(f"Generating {len(test_rows)} translations with {gen['model']} ({condition}) ...")
-    with out_path.open("w", encoding="utf-8") as f:
-        for i, (row, user) in enumerate(zip(test_rows, user_msgs), 1):
-            prediction = client.complete(style_instruction, user)
-            f.write(
-                json.dumps(
-                    {
-                        "input": row["input"],
-                        "output": row["output"],  # reference target, for scoring
-                        "prediction": prediction,
-                        "condition": condition,
-                        "model": gen["model"],
-                        "metadata": row.get("metadata", {}),
-                    },
-                    ensure_ascii=False,
-                )
-                + "\n"
+    # Resume: skip segments already written by an earlier (interrupted) pass.
+    # read_completed_jsonl repairs a torn final line so we never append onto it.
+    done = read_completed_jsonl(out_path)
+    if len(done) > len(test_rows):
+        raise ValueError(
+            f"{out_path} has {len(done)} records but only {len(test_rows)} eval rows; "
+            f"delete it to regenerate (did `data.limit` shrink?)"
+        )
+    for j, rec in enumerate(done):
+        if rec.get("input") != test_rows[j]["input"]:
+            raise ValueError(
+                f"resume misalignment in {out_path} at segment {j}: recorded source differs "
+                f"from the eval file; delete the file to regenerate"
             )
-            if i % 5 == 0 or i == len(test_rows):
-                print(f"  {i}/{len(test_rows)}")
+    start = len(done)
+    if start:
+        print(f"resuming {condition}: {start}/{len(test_rows)} already done")
+
+    total = len(test_rows)
+    print(f"Generating {total} translations with {gen['model']} ({condition}) ...")
+    failures = 0
+    # Append (not truncate) so resumed and prior-pass segments accumulate; each
+    # line is flushed+fsync'd so an interruption loses at most the in-flight call.
+    with out_path.open("a", encoding="utf-8") as f:
+        for i in range(start, total):
+            row, user = test_rows[i], user_msgs[i]
+            try:
+                prediction = client.complete(style_instruction, user)
+                error = None
+            except Exception as e:  # one bad segment must not discard the pass
+                prediction = ""
+                error = f"{type(e).__name__}: {e}"
+                failures += 1
+                print(f"  segment {i + 1} failed, recorded empty: {error}")
+            record = {
+                "input": row["input"],
+                "output": row["output"],  # reference target, for scoring
+                "prediction": prediction,
+                "condition": condition,
+                "model": gen["model"],
+                "metadata": row.get("metadata", {}),
+            }
+            if error is not None:
+                record["error"] = error
+            f.write(json.dumps(record, ensure_ascii=False) + "\n")
+            f.flush()
+            os.fsync(f.fileno())
+            if (i + 1) % 5 == 0 or i + 1 == total:
+                print(f"  {i + 1}/{total}")
+
+    if failures:
+        print(
+            f"WARNING: {failures}/{total} segments failed and were recorded with an empty "
+            f"prediction (see the `error` field). Delete those lines and re-run to retry them."
+        )
 
     usage = client.usage.summary()
     (out_dir / f"{condition}_{split}_usage.json").write_text(

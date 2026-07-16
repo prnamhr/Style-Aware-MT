@@ -43,10 +43,6 @@ def score(
     gpus: int | None = None,
 ) -> dict:
     """Segment- and system-level COMET for one condition.
-
-    Pass a preloaded ``model`` to score many conditions without reloading the
-    checkpoint. ``gpus`` defaults to 1 when CUDA is available, else 0 (CPU).
-    Returns ``{"system": float, "segments": list[float]}``.
     """
     if model is None:
         model = load_model(model_name)
@@ -81,7 +77,7 @@ def main() -> None:
     for cond in present:
         sources, preds, refs = load_condition(out_dir, cond, args.split)
         res = score(sources, preds, refs, model=model, batch_size=args.batch_size, gpus=args.gpus)
-        results[cond] = {"n": len(preds), "model": args.model, **res}
+        results[cond] = {"n": len(preds), "model": args.model, "sources": sources, **res}
         print(f"{cond:<16} COMET {res['system']:.4f}  (n={len(preds)})")
 
     results_dir = Path(args.results_dir)

@@ -62,34 +62,58 @@ def _nan_segments(raw: list) -> list[float]:
     return [float("nan") if v is None else float(v) for v in raw]
 
 
-def _load_segment_scores(metric: str, conditions: list[str], out_dir: Path, split: str) -> dict:
-    """Return ``{condition: per-segment score list}`` for the chosen metric.
-
-    Surface metrics are computed directly from the inference files; COMET/judge
-    are read from the JSON that their own commands wrote.
+def _load_segment_scores(
+    metric: str, conditions: list[str], out_dir: Path, split: str
+) -> tuple[dict, dict]:
+    """Return (scores, sources) keyed by condition for the chosen metric.
     """
     metric = metric.lower()
     if metric in ("chrf", "bleu"):
         from src.eval._io import condition_path, load_condition
         from src.eval.quick import segment_scores
 
-        scores = {}
+        scores: dict = {}
+        sources: dict = {}
         for cond in conditions:
             if not condition_path(out_dir, cond, split).exists():
                 print(f"skip {cond}: inference file not found")
                 continue
-            _, preds, refs = load_condition(out_dir, cond, split)
+            src, preds, refs = load_condition(out_dir, cond, split)
             scores[cond] = segment_scores(preds, refs, metric)
-        return scores
+            sources[cond] = src
+        return scores, sources
 
     if metric in ("comet", "judge"):
         path = Path("results") / f"{metric}_{split}.json"
         if not path.exists():
             raise FileNotFoundError(f"{path} not found; run `manage.py {metric}` first")
         stored = json.loads(path.read_text(encoding="utf-8"))
-        return {c: _nan_segments(stored[c]["segments"]) for c in conditions if c in stored}
+        scores = {c: _nan_segments(stored[c]["segments"]) for c in conditions if c in stored}
+        sources = {c: stored[c].get("sources") for c in conditions if c in stored}
+        return scores, sources
 
     raise ValueError(f"unknown metric '{metric}' (expected chrf|bleu|comet|judge)")
+
+
+def _assert_aligned(present: list[str], sources: dict) -> None:
+    """Fail if conditions' per-segment sources don't line up index-for-index.
+    """
+    ref_cond = present[0]
+    ref_src = sources.get(ref_cond)
+    if ref_src is None:
+        print(f"warning: '{ref_cond}' has no recorded sources; cannot verify paired alignment")
+        return
+    for cond in present[1:]:
+        src = sources.get(cond)
+        if src is None:
+            print(f"warning: '{cond}' has no recorded sources; cannot verify paired alignment")
+            continue
+        if src != ref_src:
+            i = next(k for k, (x, y) in enumerate(zip(ref_src, src)) if x != y)
+            raise ValueError(
+                f"source mismatch between '{ref_cond}' and '{cond}' at segment {i}: paired "
+                f"bootstrap requires identical source order across conditions"
+            )
 
 
 def _pairs(conditions: list[str], baseline: str, adjacent: bool) -> list[tuple[str, str]]:
@@ -117,7 +141,9 @@ def main() -> None:
     parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args()
 
-    scores = _load_segment_scores(args.metric, args.conditions, Path(args.out_dir), args.split)
+    scores, sources = _load_segment_scores(
+        args.metric, args.conditions, Path(args.out_dir), args.split
+    )
     present = [c for c in args.conditions if c in scores]
     if len(present) < 2:
         print("need at least two conditions with scores to compare")
@@ -127,6 +153,7 @@ def main() -> None:
     counts = {c: len(scores[c]) for c in present}
     if len(set(counts.values())) != 1:
         raise ValueError(f"conditions differ in segment count: {counts}")
+    _assert_aligned(present, sources)
 
     baseline = args.baseline or present[0]
     if baseline not in scores:
