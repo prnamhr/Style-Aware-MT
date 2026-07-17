@@ -23,14 +23,14 @@ retrieval:
   embed_model: intfloat/multilingual-e5-large-instruct
   index_dir: data/knn_index             # built by `build_index` (source-side)
   train_file: data/splits/train.jsonl   # exemplar pool (source side indexed)
-  k: 4                                   # shots; sweep {2,4,8} on dev later
+  k: 8                                   # shots; sweep {2,4,8} on dev later
 
 # AFSP
 afsp:
   beta: 0.3                                    # hub-penalisation weight; 0 = plain cosine
   knn_hubness: 5                               # neighbours used to estimate hubness per side
   pool_mult: 4                                 # candidate pool = pool_mult * k, re-ranked by register fit
-  lambda_style: 0.3                            # target-distribution-priority weight in [0, 1]
+  lambda_style: 0.75                            # target-distribution-priority weight in [0, 1]
   centroid_file: results/stylometrics_centroid.json  # built by `stylometrics --build-centroid`
 
 # --- Data ---
