@@ -24,5 +24,4 @@ env/
 .env
 
 # Generated artifacts
-outputs/
 data/knn_index/
