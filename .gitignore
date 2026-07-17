@@ -25,7 +25,4 @@ env/
 
 # Generated artifacts
 data/knn_index/
-results/
-outputs/
-Style-Aware-MT/
 __pycache__/
