@@ -1,0 +1,45 @@
+# --- Generation (local open-source base, 4-bit NF4 for T4) ---
+generator:
+  provider: local
+  model: Qwen/Qwen2.5-7B-Instruct
+  max_tokens: 1024
+  temperature: 0.0
+  top_p: 1.0
+  seed: 42
+  dtype: float16
+  device_map: auto
+  load_in_4bit: true
+
+# --- Prompting ---
+prompt:
+  style_instruction_file: prompts/style_instruction.txt
+  ordering: most_similar_last
+  ordering_seed: 42           
+  word_pairs: true                           
+  glossary_file: prompts/register_glossary.tsv
+
+# --- Retrieval (shared source-side index for every few-shot condition) ---
+retrieval:
+  embed_model: intfloat/multilingual-e5-large-instruct
+  index_dir: data/knn_index             # built by `build_index` (source-side)
+  train_file: data/splits/train.jsonl   # exemplar pool (source side indexed)
+  # k selected by the validation sweep (results/afsp_sweep_val.json -> recommended)
+  k: 16
+
+# AFSP
+afsp:
+  beta: 0.3                               
+  knn_hubness: 5                            
+  pool_mult: 4                                 
+  # lambda selected by the validation sweep (results/afsp_sweep_val.json -> recommended)
+  lambda_style: 0.75       
+  centroid_file: results/stylometrics_centroid.json  
+
+# --- Data ---
+data:
+  eval_file: data/splits/test.jsonl
+  limit: null
+
+# --- Output ---
+output:
+  dir: outputs_t4_q4

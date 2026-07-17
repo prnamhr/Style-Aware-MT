@@ -10,7 +10,7 @@ generator:
   seed: 42
   dtype: bfloat16
   device_map: auto      
-  load_in_4bit: false
+  load_in_4bit: true
 
 # --- Prompting (same controlled augmentations as the ablation ladder) ---
 prompt:
