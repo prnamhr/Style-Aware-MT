@@ -23,7 +23,7 @@ retrieval:
   embed_model: intfloat/multilingual-e5-large-instruct
   index_dir: data/knn_index             # built by `build_index` (source-side)
   train_file: data/splits/train.jsonl   # exemplar pool (source side indexed)
-  k: 8                                   # shots; sweep {2,4,8} on dev later
+  k: 8                              
 
 # AFSP
 afsp:
