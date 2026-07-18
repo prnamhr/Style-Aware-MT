@@ -2,17 +2,16 @@
 Confirm the AFSP sweep's proxy-picked cells on the full val split with the real
 """
 
+from src.eval._io import load_condition
+from src.infer.afsp_sweep import _sweep_dir, generate_cells, ranked_cells
+from src.eval import comet as comet_mod
+from src.infer.run import make_client
+from pathlib import Path
 from __future__ import annotations
 
 import argparse
 import json
-from pathlib import Path
-
 import yaml
-
-from src.eval._io import load_condition
-from src.infer.afsp_sweep import _sweep_dir, generate_cells, ranked_cells
-
 
 def _run_judge(judge_config: str, top: list[dict], sweep_dir: Path, split: str) -> dict[str, dict]:
     """Judge each top cell on ``split``; resumable per-cell segment cache."""
@@ -22,7 +21,6 @@ def _run_judge(judge_config: str, top: list[dict], sweep_dir: Path, split: str) 
         _aggregate,
         score_condition,
     )
-    from src.infer.run import make_client
 
     cfg = yaml.safe_load(Path(judge_config).read_text(encoding="utf-8"))
     if "judge" not in cfg:
@@ -199,9 +197,6 @@ def main() -> None:
     gen_cfg = {**cfg, "data": {**cfg.get("data", {}), "eval_file": str(val_file), "limit": None}}
     cells = [(r["k"], r["lambda"]) for r in top]
     generate_cells(gen_cfg, cells, overwrite=args.overwrite)
-
-    # COMET (free/local), model loaded once and reused across cells.
-    from src.eval import comet as comet_mod
 
     sweep_dir = _sweep_dir(cfg)
     comet_model = comet_mod.load_model()

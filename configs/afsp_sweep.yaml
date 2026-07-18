@@ -10,7 +10,7 @@ generator:
   seed: 42
   dtype: bfloat16
   device_map: auto      
-  load_in_4bit: true
+  load_in_4bit: false
 
 # --- Prompting (same controlled augmentations as the ablation ladder) ---
 prompt:
@@ -40,6 +40,7 @@ afsp:
     lex_density: 0.355
     root_ttr: -0.296
     ttr: 0.098
+  select_target_sigma: 0.5    
   centroid_file: results/stylometrics_centroid.json
 
 # --- Data (VAL ONLY; test stays sealed) ---

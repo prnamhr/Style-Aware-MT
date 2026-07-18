@@ -6,10 +6,11 @@ from __future__ import annotations
 
 import argparse
 import json
-from pathlib import Path
-
 import numpy as np
 
+from pathlib import Path
+from src.eval._io import condition_path, load_condition
+from src.eval.quick import segment_scores
 
 def paired_bootstrap(
     a: list[float],
@@ -20,11 +21,6 @@ def paired_bootstrap(
     seed: int = 42,
 ) -> dict:
     """Paired bootstrap of ``mean(a) - mean(b)`` over aligned per-segment scores.
-
-    ``a`` and ``b`` must be aligned segment-for-segment; pairs where either value
-    is NaN (e.g. an unparsed judge verdict) are dropped before resampling.
-    Returns observed difference, the ``[alpha/2, 1-alpha/2]`` CI, a two-sided
-    bootstrap p-value, the paired sample size, and per-condition means.
     """
     arr_a = np.asarray(a, dtype=float)
     arr_b = np.asarray(b, dtype=float)
@@ -69,8 +65,6 @@ def _load_segment_scores(
     """
     metric = metric.lower()
     if metric in ("chrf", "bleu"):
-        from src.eval._io import condition_path, load_condition
-        from src.eval.quick import segment_scores
 
         scores: dict = {}
         sources: dict = {}

@@ -13,6 +13,7 @@ from pathlib import Path
 import yaml
 
 from src.eval._io import condition_path, load_condition, read_completed_jsonl
+from src.infer.run import make_client
 
 _RESULTS_DIR = Path("results")
 _DEFAULT_TEMPLATE = Path("prompts/judge_eval.txt")
@@ -119,8 +120,6 @@ def main() -> None:
         raise ValueError(f"{args.config} has no `judge:` block")
     template_path = Path(cfg.get("template_file", _DEFAULT_TEMPLATE))
     template = template_path.read_text(encoding="utf-8")
-
-    from src.infer.run import make_client
 
     client = make_client(cfg["judge"])
     judge_model = cfg["judge"].get("model", "unknown")

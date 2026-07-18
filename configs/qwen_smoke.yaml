@@ -10,7 +10,7 @@ generator:
   seed: 42
   dtype: bfloat16
   device_map: auto
-  load_in_4bit: true   
+  load_in_4bit: false   
 
 # --- Prompting ---
 prompt:

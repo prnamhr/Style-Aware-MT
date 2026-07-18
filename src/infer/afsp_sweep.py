@@ -3,13 +3,24 @@ from __future__ import annotations
 import argparse
 import json
 import os
-from pathlib import Path
-
+import random as _random
 import yaml
 
 from src.eval._io import load_condition
 from src.eval.quick import score as quick_score
-from src.eval.stylometrics import aggregate, distance_to_centroid
+from pathlib import Path
+from src.eval.stylometrics import aggregate, distance_to_centroid, register_band_distance
+from src.infer.run import (
+    _load_configured_glossary,
+    build_fewshot_user,
+    make_client,
+    order_exemplars,
+)
+from src.retrieval.afsp import AFSPRetriever, load_centroid
+from src.retrieval.retrieve import RetrievalIndex
+from src.infer.run import build_zeroshot_user, make_client
+from src.retrieval.afsp import _resolve_direction
+
 
 DEFAULT_KS = (1, 2, 4, 8, 16)
 DEFAULT_LAMBDAS = (0.0, 0.1, 0.15, 0.2, 0.25, 0.5, 0.75, 1.0)
@@ -29,17 +40,6 @@ def _sweep_dir(cfg: dict) -> Path:
 def generate_cells(cfg: dict, cells: list[tuple[int, float]], *, overwrite: bool = False) -> str:
     """Generate predictions for the given (k, lambda) cells with the local Qwen base.
     """
-    import random as _random
-
-    from src.infer.run import (
-        _load_configured_glossary,
-        build_fewshot_user,
-        make_client,
-        order_exemplars,
-    )
-    from src.retrieval.afsp import AFSPRetriever, load_centroid
-    from src.retrieval.retrieve import RetrievalIndex
-
     gen = cfg["generator"]
     prompt_cfg = cfg.get("prompt", {})
     style_instruction = Path(prompt_cfg["style_instruction_file"]).read_text(encoding="utf-8")
@@ -129,7 +129,6 @@ def generate_cells(cfg: dict, cells: list[tuple[int, float]], *, overwrite: bool
 def generate_zeroshot(cfg: dict, *, overwrite: bool = False) -> str:
     """Generate the zero-shot reference
     """
-    from src.infer.run import build_zeroshot_user, make_client
 
     gen = cfg["generator"]
     style_instruction = Path(cfg["prompt"]["style_instruction_file"]).read_text(encoding="utf-8")
@@ -212,7 +211,10 @@ def score_zeroshot(cfg: dict, split: str) -> dict | None:
         "marker_rate": s["marker_rate"],
     }
     if centroid is not None:
-        row["stylo_dist"] = round(distance_to_centroid(aggregate(preds)["mean"], centroid), 4)
+        agg_mean = aggregate(preds)["mean"]
+        row["stylo_dist"] = round(distance_to_centroid(agg_mean, centroid), 4)
+        register_fit = _register_fit_fn(cfg, centroid)
+        row["register_fit"] = register_fit(agg_mean)
     return row
 
 
@@ -224,6 +226,20 @@ def generate_grid(
     return generate_cells(cfg, cells, overwrite=overwrite)
 
 
+def _register_fit_fn(cfg: dict, centroid: dict | None):
+    """Build the selector's register-fidelity metric: direction-weighted band
+    """
+    if centroid is None:
+        return None
+
+    af = cfg.get("afsp", {})
+    direction = _resolve_direction(af.get("style_register_direction"), centroid)
+    target_sigma = float(af.get("select_target_sigma", 0.5))
+    return lambda agg_mean: round(
+        register_band_distance(agg_mean, centroid, target_sigma, direction), 4
+    )
+
+
 def score_grid(cfg: dict, ks: list[int], lambdas: list[float], split: str) -> list[dict]:
     """Score every present cell with free/local metrics only."""
     sweep_dir = _sweep_dir(cfg)
@@ -231,6 +247,7 @@ def score_grid(cfg: dict, ks: list[int], lambdas: list[float], split: str) -> li
     centroid = (
         json.loads(centroid_path.read_text(encoding="utf-8")) if centroid_path.exists() else None
     )
+    register_fit = _register_fit_fn(cfg, centroid)
 
     rows: list[dict] = []
     for k in ks:
@@ -253,7 +270,9 @@ def score_grid(cfg: dict, ks: list[int], lambdas: list[float], split: str) -> li
                 "marker_rate": s["marker_rate"],
             }
             if centroid is not None:
+                # stylo_dist retained undirected for reporting; register_fit decides.
                 row["stylo_dist"] = round(distance_to_centroid(agg["mean"], centroid), 4)
+                row["register_fit"] = register_fit(agg["mean"])
             rows.append(row)
     return rows
 
@@ -263,11 +282,11 @@ def recommend(rows: list[dict], adequacy_margin: float) -> dict | None:
     rows = [r for r in rows if not r.get("anchor")]
     if not rows:
         return None
-    if not all("stylo_dist" in r for r in rows):
+    if not all("register_fit" in r for r in rows):
         return max(rows, key=lambda r: (r["chrF"], -r["k"]))
     best_chrf = max(r["chrF"] for r in rows)
     band = [r for r in rows if r["chrF"] >= best_chrf - adequacy_margin]
-    return min(band, key=lambda r: (r["stylo_dist"], -r["chrF"], r["k"]))
+    return min(band, key=lambda r: (r["register_fit"], -r["chrF"], r["k"]))
 
 
 def ranked_cells(rows: list[dict], adequacy_margin: float) -> list[dict]:
@@ -276,12 +295,12 @@ def ranked_cells(rows: list[dict], adequacy_margin: float) -> list[dict]:
     rows = [r for r in rows if not r.get("anchor")]
     if not rows:
         return []
-    if not all("stylo_dist" in r for r in rows):
+    if not all("register_fit" in r for r in rows):
         return sorted(rows, key=lambda r: (-r["chrF"], r["k"]))
     best_chrf = max(r["chrF"] for r in rows)
 
     def fidelity(r: dict) -> tuple:
-        return (r["stylo_dist"], -r["chrF"], r["k"])
+        return (r["register_fit"], -r["chrF"], r["k"])
 
     band = sorted((r for r in rows if r["chrF"] >= best_chrf - adequacy_margin), key=fidelity)
     out_band = sorted((r for r in rows if r["chrF"] < best_chrf - adequacy_margin), key=fidelity)
@@ -290,10 +309,13 @@ def ranked_cells(rows: list[dict], adequacy_margin: float) -> list[dict]:
 
 def _print_table(rows: list[dict], pick: dict | None) -> None:
     cols = ["tag", "k", "lambda", "n", "chrF", "BLEU", "marker_rate"]
+    have_fit = bool(rows) and "register_fit" in rows[0]
     if rows and "stylo_dist" in rows[0]:
         cols.append("stylo_dist")
-    # Best register fidelity first (lower stylo_dist), else best chrF first.
-    key = (lambda r: r["stylo_dist"]) if "stylo_dist" in cols else (lambda r: -r["chrF"])
+    if have_fit:
+        cols.append("register_fit")
+    # Best register fidelity first (lower register_fit), else best chrF first.
+    key = (lambda r: r["register_fit"]) if have_fit else (lambda r: -r["chrF"])
     ordered = sorted(rows, key=key)
     widths = {c: max(len(c), *(len(str(r[c])) for r in ordered)) for c in cols}
     header = "  ".join(c.ljust(widths[c]) for c in cols) + "  <-"
@@ -363,6 +385,7 @@ def main() -> None:
             {
                 "split": split,
                 "adequacy_margin": args.adequacy_margin,
+                "select_target_sigma": float(cfg.get("afsp", {}).get("select_target_sigma", 0.5)),
                 "cells": rows,
                 "recommended": pick,
             },
@@ -376,6 +399,7 @@ def main() -> None:
         print(
             f"\nRecommended: k={pick['k']}, lambda_style={pick['lambda']}  "
             f"(chrF {pick['chrF']}"
+            + (f", register_fit {pick['register_fit']}" if "register_fit" in pick else "")
             + (f", stylo_dist {pick['stylo_dist']}" if "stylo_dist" in pick else "")
             + ")"
         )

@@ -3,10 +3,12 @@ Local open-source generator (HuggingFace ``transformers`` generate), interface
 """
 
 from __future__ import annotations
-
 from dataclasses import dataclass, field
-
 from src.infer.usage import Usage
+from transformers import BitsAndBytesConfig
+from transformers import AutoModelForCausalLM, AutoTokenizer, set_seed
+import torch
+
 
 # Local weights have no per-token price; an empty pricing table keeps cost_usd at 0
 # while token counts are still accumulated for throughput/repro bookkeeping.
@@ -30,8 +32,6 @@ class LocalChatClient:
     _device: object = field(default=None, repr=False)
 
     def __post_init__(self) -> None:
-        import torch
-        from transformers import AutoModelForCausalLM, AutoTokenizer, set_seed
 
         set_seed(self.seed)
         self.usage = Usage(pricing=_PRICING)
@@ -41,7 +41,6 @@ class LocalChatClient:
         torch_dtype = getattr(torch, self.dtype)
         load_kwargs: dict = {"dtype": torch_dtype}
         if self.load_in_4bit:
-            from transformers import BitsAndBytesConfig
 
             load_kwargs["quantization_config"] = BitsAndBytesConfig(
                 load_in_4bit=True,
@@ -62,7 +61,7 @@ class LocalChatClient:
             self._device = self._model.device
 
     def complete(self, system: str, user: str) -> str:
-        import torch
+  
 
         messages = [
             {"role": "system", "content": system},

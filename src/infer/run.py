@@ -30,6 +30,11 @@ from pathlib import Path
 import yaml
 
 from src.eval._io import read_completed_jsonl
+from src.retrieval.retrieve import RetrievalIndex
+from src.retrieval.afsp import AFSPRetriever, load_centroid
+from src.infer.local_client import LocalChatClient
+from src.infer.anthropic_client import AnthropicChatClient
+from src.infer.openai_client import ChatClient
 
 # Demonstration ordering is a controlled experimental flag. Exemplars reach
 ORDERINGS = ("most_similar_last", "most_similar_first", "random")
@@ -59,7 +64,6 @@ def make_client(gen: dict):
     """
     provider = gen.get("provider", "openai")
     if provider == "openai":
-        from src.infer.openai_client import ChatClient
 
         return ChatClient(
             model=gen["model"],
@@ -69,7 +73,6 @@ def make_client(gen: dict):
             reasoning_effort=gen.get("reasoning_effort"),
         )
     if provider == "anthropic":
-        from src.infer.anthropic_client import AnthropicChatClient
 
         return AnthropicChatClient(
             model=gen["model"],
@@ -77,7 +80,7 @@ def make_client(gen: dict):
             thinking=gen.get("thinking", False),
         )
     if provider == "local":
-        from src.infer.local_client import LocalChatClient
+
 
         return LocalChatClient(
             model=gen["model"],
@@ -175,13 +178,8 @@ def _select_random(
 
 def _select_afsp(sources, cfg, retr, index, k, *, rerank):
     """AFSP exemplar selection.
-
-    ``rerank=False`` is the ``afsp_margin`` rung: it forces ``lambda_style = 0``
-    (margin/hub-penalised selection only) and needs no register centroid.
-    ``rerank=True`` is the full method, using the configured ``lambda_style`` and
-    the target-register centroid.
     """
-    from src.retrieval.afsp import AFSPRetriever, load_centroid
+
 
     af = cfg.get("afsp", {})
     retriever = AFSPRetriever(
@@ -234,7 +232,6 @@ def run(condition: str, cfg: dict) -> None:
     if condition == "zeroshot":
         user_msgs = [build_zeroshot_user(s) for s in sources]
     elif condition in ("random_fewshot", "knn_fewshot", "afsp_margin", "afsp_full"):
-        from src.retrieval.retrieve import RetrievalIndex
 
         retr = cfg["retrieval"]
         k = retr["k"]

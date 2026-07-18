@@ -21,6 +21,9 @@ from src.infer.run import (
     make_client,
     order_exemplars,
 )
+from src.retrieval.retrieve import RetrievalIndex
+from src.infer.anthropic_client import _PRICING as AP
+from src.infer.openai_client import _PRICING as OP
 
 # Model registry for the smoke sweep. Keys are the --models names; each maps to a
 # generator block for src.infer.run.make_client. Cheap by default; flagships opt-in.
@@ -68,8 +71,6 @@ _EST_CHARS = {"src": 78, "ex_tgt": 147, "style": 889, "out": 140, "scaffold": 11
 
 def _rates() -> dict[str, tuple[float, float]]:
     """(input, output) USD-per-1M-token rates, pulled from the client pricing tables."""
-    from src.infer.anthropic_client import _PRICING as AP
-    from src.infer.openai_client import _PRICING as OP
 
     return {**OP, **AP}
 
@@ -131,8 +132,6 @@ def _build_user_messages(sources: list[str], n: int, cfg: dict) -> tuple[str, li
     """Return (condition, per-source user messages) for shot count n."""
     if n == 0:
         return "zeroshot", [build_zeroshot_user(s) for s in sources]
-
-    from src.retrieval.retrieve import RetrievalIndex
 
     retr = cfg["retrieval"]
     prompt_cfg = cfg.get("prompt", {})

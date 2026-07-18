@@ -9,15 +9,14 @@ import json
 from pathlib import Path
 
 from src.eval._io import condition_path, load_condition
+from comet import download_model, load_from_checkpoint
 
 DEFAULT_MODEL = "Unbabel/wmt22-comet-da"
 _RESULTS_DIR = Path("results")
 
 
 def load_model(model_name: str = DEFAULT_MODEL):
-    """Download (if needed) and load a COMET checkpoint. Lazy import of ``comet``."""
-    from comet import download_model, load_from_checkpoint
-
+    """Download (if needed) and load a COMET checkpoint."""
     return load_from_checkpoint(download_model(model_name))
 
 
