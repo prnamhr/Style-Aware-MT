@@ -192,6 +192,8 @@ def _select_afsp(sources, cfg, retr, index, k, *, rerank):
         knn_hubness=af.get("knn_hubness", 5),
         pool_mult=af.get("pool_mult", 4),
         lambda_style=af.get("lambda_style", 0.3) if rerank else 0.0,
+        style_objective=af.get("style_objective", "bandpass"),
+        style_target_sigma=af.get("style_target_sigma", 1.0),
     )
     return retriever.select(sources, k=k)
 

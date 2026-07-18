@@ -9,9 +9,16 @@ from pathlib import Path
 
 import numpy as np
 
-from src.eval.stylometrics import features, register_salience
+from src.eval.stylometrics import (
+    distance_to_centroid,
+    features,
+    register_band_distance,
+    register_salience,
+)
 from src.retrieval.embed import embed_queries
 from src.retrieval.retrieve import RetrievalIndex
+
+STYLE_OBJECTIVES = ("bandpass", "proximity", "salience")
 
 
 def load_centroid(path: str | Path) -> dict:
@@ -53,7 +60,13 @@ class AFSPRetriever:
         knn_hubness: int = 5,
         pool_mult: int = 4,
         lambda_style: float = 0.3,
+        style_objective: str = "bandpass",
+        style_target_sigma: float = 1.0,
     ):
+        if style_objective not in STYLE_OBJECTIVES:
+            raise ValueError(
+                f"style_objective must be one of {STYLE_OBJECTIVES}, got {style_objective!r}"
+            )
         self.index = index
         self.centroid = centroid
         self.index_dir = Path(index_dir) if index_dir is not None else None
@@ -61,6 +74,8 @@ class AFSPRetriever:
         self.knn_hubness = int(knn_hubness)
         self.pool_mult = max(1, int(pool_mult))
         self.lambda_style = float(lambda_style)
+        self.style_objective = style_objective
+        self.style_target_sigma = float(style_target_sigma)
 
         n = self.index.embeddings.shape[0]
         self._chub: np.ndarray | None = None
@@ -110,12 +125,19 @@ class AFSPRetriever:
 
     # -- Target-distribution-priority selection (mechanism 2) --------------
 
+    def _register_fit(self, feats: dict[str, float]) -> float:
+        if self.style_objective == "proximity":
+            return -distance_to_centroid(feats, self.centroid)
+        if self.style_objective == "salience":
+            return register_salience(feats, self.centroid)
+        return -register_band_distance(feats, self.centroid, self.style_target_sigma)
+
     def _style_fit(self, indices: np.ndarray) -> np.ndarray:
-        """Register salience of the pooled candidates: the mean standardised deviation"""
+        """Register fit of the pooled candidates under the configured objective."""
         for i in indices:
             if np.isnan(self._style_cache[i]):
                 target = self.index.pairs[i]["output"]
-                self._style_cache[i] = register_salience(features(target), self.centroid)
+                self._style_cache[i] = self._register_fit(features(target))
         return self._style_cache[indices]
 
     # -- Selection ---------------------------------------------------------

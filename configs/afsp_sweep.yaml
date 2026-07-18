@@ -32,7 +32,9 @@ afsp:
   beta: 0.3                
   knn_hubness: 5
   pool_mult: 4
-  lambda_style: 0.0    
+  lambda_style: 0.0
+  style_objective: bandpass    
+  style_target_sigma: 1.0
   centroid_file: results/stylometrics_centroid.json
 
 # --- Data (VAL ONLY; test stays sealed) ---

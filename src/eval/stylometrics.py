@@ -176,11 +176,21 @@ def distance_to_centroid(agg_mean: dict[str, float], centroid: dict) -> float:
 
 
 def register_salience(feats: dict[str, float], centroid: dict) -> float:
-    """Directed register strength: the mean z-score of a segment's register features"""
+    """Register salience: the mean *absolute* z-score of a segment's register features.
+    """
     mean = np.asarray(centroid["mean"], dtype=float)
     std = np.asarray(centroid["std"], dtype=float)
     vec = np.asarray([feats[name] for name in centroid["features"]], dtype=float)
-    return float(np.mean((vec - mean) / std))
+    return float(np.mean(np.abs((vec - mean) / std)))
+
+
+def register_band_distance(feats: dict[str, float], centroid: dict, sigma: float = 1.0) -> float:
+    """Standardized distance of a segment to a band-pass target ``sigma`` std-devs
+    """
+    mean = np.asarray(centroid["mean"], dtype=float)
+    std = np.asarray(centroid["std"], dtype=float)
+    vec = np.asarray([feats[name] for name in centroid["features"]], dtype=float)
+    return float(np.linalg.norm((vec - mean) / std - sigma))
 
 
 def _load_field(path: Path, field: str) -> list[str]:

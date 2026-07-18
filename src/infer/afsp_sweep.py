@@ -12,7 +12,7 @@ from src.eval.quick import score as quick_score
 from src.eval.stylometrics import aggregate, distance_to_centroid
 
 DEFAULT_KS = (1, 2, 4, 8, 16)
-DEFAULT_LAMBDAS = (0.0, 0.25, 0.5, 0.75, 1.0)
+DEFAULT_LAMBDAS = (0.0, 0.1, 0.15, 0.2, 0.25, 0.5, 0.75, 1.0)
 
 ZEROSHOT_TAG = "afsp_zeroshot"
 
@@ -69,6 +69,8 @@ def generate_cells(cfg: dict, cells: list[tuple[int, float]], *, overwrite: bool
         knn_hubness=af.get("knn_hubness", 5),
         pool_mult=af.get("pool_mult", 4),
         lambda_style=0.0,
+        style_objective=af.get("style_objective", "bandpass"),
+        style_target_sigma=af.get("style_target_sigma", 1.0),
     )
 
     sweep_dir = _sweep_dir(cfg)

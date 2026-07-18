@@ -31,6 +31,8 @@ afsp:
   knn_hubness: 5                               # neighbours used to estimate hubness per side
   pool_mult: 4                                 # candidate pool = pool_mult * k, re-ranked by register fit
   lambda_style: 0.75                            # target-distribution-priority weight in [0, 1]
+  style_objective: bandpass                    # register-fit target: bandpass | proximity | salience
+  style_target_sigma: 1.0                      # bandpass target: this many std-devs above the centroid
   centroid_file: results/stylometrics_centroid.json  # built by `stylometrics --build-centroid`
 
 # --- Data ---
