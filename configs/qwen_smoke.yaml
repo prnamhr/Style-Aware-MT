@@ -35,6 +35,11 @@ afsp:
   lambda_style: 0.3
   style_objective: bandpass    # bandpass | proximity | salience
   style_target_sigma: 1.0
+  style_register_direction:    # signed per-axis register direction (corr with distance); omit for isotropic
+    marker_rate: 0.514
+    lex_density: 0.355
+    root_ttr: -0.296
+    ttr: 0.098
   centroid_file: results/stylometrics_centroid.json  # built by `stylometrics --build-centroid`
 
 # --- Data ---

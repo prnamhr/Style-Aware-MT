@@ -194,6 +194,7 @@ def _select_afsp(sources, cfg, retr, index, k, *, rerank):
         lambda_style=af.get("lambda_style", 0.3) if rerank else 0.0,
         style_objective=af.get("style_objective", "bandpass"),
         style_target_sigma=af.get("style_target_sigma", 1.0),
+        style_register_direction=af.get("style_register_direction"),
     )
     return retriever.select(sources, k=k)
 

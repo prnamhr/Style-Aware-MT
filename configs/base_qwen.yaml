@@ -32,7 +32,12 @@ afsp:
   pool_mult: 4                                 # candidate pool = pool_mult * k, re-ranked by register fit
   lambda_style: 0.75                            # target-distribution-priority weight in [0, 1]
   style_objective: bandpass                    # register-fit target: bandpass | proximity | salience
-  style_target_sigma: 1.0                      # bandpass target: this many std-devs above the centroid
+  style_target_sigma: 1.0                      # bandpass: target sits this many std-devs along the register direction
+  style_register_direction:
+    marker_rate: 0.514
+    lex_density: 0.355
+    root_ttr: -0.296
+    ttr: 0.098
   centroid_file: results/stylometrics_centroid.json  # built by `stylometrics --build-centroid`
 
 # --- Data ---

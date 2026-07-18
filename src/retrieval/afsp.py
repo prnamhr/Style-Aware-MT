@@ -47,6 +47,28 @@ def _minmax(x: np.ndarray) -> np.ndarray:
     return (x - lo) / (hi - lo)
 
 
+def _resolve_direction(
+    direction: dict[str, float] | list[float] | None,
+    centroid: dict | None,
+) -> np.ndarray | None:
+    """Resolve a signed register-direction spec to centroid-feature order.
+    """
+    if direction is None or centroid is None:
+        return None
+    feats = centroid["features"]
+    if isinstance(direction, dict):
+        missing = [f for f in feats if f not in direction]
+        if missing:
+            raise ValueError(f"style_register_direction missing entries for {missing}")
+        return np.asarray([float(direction[f]) for f in feats], dtype=float)
+    d = np.asarray(direction, dtype=float)
+    if d.shape != (len(feats),):
+        raise ValueError(
+            f"style_register_direction has {d.shape} entries, expected {len(feats)}"
+        )
+    return d
+
+
 class AFSPRetriever:
     """Adaptive exemplar selection over a shared :class:`RetrievalIndex`."""
 
@@ -62,6 +84,7 @@ class AFSPRetriever:
         lambda_style: float = 0.3,
         style_objective: str = "bandpass",
         style_target_sigma: float = 1.0,
+        style_register_direction: dict[str, float] | list[float] | None = None,
     ):
         if style_objective not in STYLE_OBJECTIVES:
             raise ValueError(
@@ -76,6 +99,7 @@ class AFSPRetriever:
         self.lambda_style = float(lambda_style)
         self.style_objective = style_objective
         self.style_target_sigma = float(style_target_sigma)
+        self._style_direction = _resolve_direction(style_register_direction, centroid)
 
         n = self.index.embeddings.shape[0]
         self._chub: np.ndarray | None = None
@@ -130,7 +154,9 @@ class AFSPRetriever:
             return -distance_to_centroid(feats, self.centroid)
         if self.style_objective == "salience":
             return register_salience(feats, self.centroid)
-        return -register_band_distance(feats, self.centroid, self.style_target_sigma)
+        return -register_band_distance(
+            feats, self.centroid, self.style_target_sigma, self._style_direction
+        )
 
     def _style_fit(self, indices: np.ndarray) -> np.ndarray:
         """Register fit of the pooled candidates under the configured objective."""

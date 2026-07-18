@@ -184,13 +184,30 @@ def register_salience(feats: dict[str, float], centroid: dict) -> float:
     return float(np.mean(np.abs((vec - mean) / std)))
 
 
-def register_band_distance(feats: dict[str, float], centroid: dict, sigma: float = 1.0) -> float:
+def register_band_distance(
+    feats: dict[str, float],
+    centroid: dict,
+    sigma: float = 1.0,
+    direction: np.ndarray | list[float] | None = None,
+) -> float:
     """Standardized distance of a segment to a band-pass target ``sigma`` std-devs
+    into the register direction.
     """
     mean = np.asarray(centroid["mean"], dtype=float)
     std = np.asarray(centroid["std"], dtype=float)
     vec = np.asarray([feats[name] for name in centroid["features"]], dtype=float)
-    return float(np.linalg.norm((vec - mean) / std - sigma))
+    z = (vec - mean) / std
+    if direction is None:
+        return float(np.linalg.norm(z - sigma))
+    d = np.asarray(direction, dtype=float)
+    if d.shape != z.shape:
+        raise ValueError(f"direction has {d.shape} entries, expected {z.shape} register features")
+    w = np.abs(d)
+    wsum = float(w.sum())
+    if wsum <= 0:
+        raise ValueError("register direction must not be all-zero")
+    target = np.sign(d) * sigma
+    return float(np.sqrt(np.sum(w * (z - target) ** 2) / (wsum / len(w))))
 
 
 def _load_field(path: Path, field: str) -> list[str]:
