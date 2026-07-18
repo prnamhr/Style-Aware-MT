@@ -61,7 +61,6 @@ class LocalChatClient:
             self._device = self._model.device
 
     def complete(self, system: str, user: str) -> str:
-  
 
         messages = [
             {"role": "system", "content": system},

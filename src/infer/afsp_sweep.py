@@ -22,8 +22,14 @@ from src.infer.run import build_zeroshot_user, make_client
 from src.retrieval.afsp import _resolve_direction
 
 
-DEFAULT_KS = (1, 2, 4, 8, 16)
-DEFAULT_LAMBDAS = (0.0, 0.1, 0.15, 0.2, 0.25, 0.5, 0.75, 1.0)
+# Previous full grid (5 x 8 = 40 cells). Kept, labelled, for reproducing the
+# earlier sweep with `--ks {PREVIOUS_KS} --lambdas {PREVIOUS_LAMBDAS}`.
+PREVIOUS_KS = (1, 2, 4, 8, 16)
+PREVIOUS_LAMBDAS = (0.0, 0.25, 0.5, 0.75, 1.0)
+
+# New usual default. lambda only reranks inside the top pool_mult*k margin pool,
+DEFAULT_KS = (4, 8, 16)
+DEFAULT_LAMBDAS = (0 0.1 0.25 0.75 1.0)
 
 ZEROSHOT_TAG = "afsp_zeroshot"
 

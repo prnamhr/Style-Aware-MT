@@ -1,0 +1,8 @@
+{
+  "condition": "afsp_full",
+  "model": "Qwen/Qwen2.5-7B-Instruct",
+  "calls": 5,
+  "prompt_tokens": 5458,
+  "completion_tokens": 197,
+  "cost_usd": 0.0
+}

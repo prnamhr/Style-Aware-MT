@@ -1,13 +1,13 @@
 """
 Confirm the AFSP sweep's proxy-picked cells on the full val split with the real
 """
+from __future__ import annotations
 
 from src.eval._io import load_condition
 from src.infer.afsp_sweep import _sweep_dir, generate_cells, ranked_cells
 from src.eval import comet as comet_mod
 from src.infer.run import make_client
 from pathlib import Path
-from __future__ import annotations
 
 import argparse
 import json
