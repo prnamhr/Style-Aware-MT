@@ -29,7 +29,7 @@ PREVIOUS_LAMBDAS = (0.0, 0.25, 0.5, 0.75, 1.0)
 
 # New usual default. lambda only reranks inside the top pool_mult*k margin pool,
 DEFAULT_KS = (4, 8, 16)
-DEFAULT_LAMBDAS = (0.0, 0.1, 0.25, 0.75, 1.0)
+DEFAULT_LAMBDAS = (0.0, 0.1, 0.25, 0.5, 0.75, 1.0)
 
 ZEROSHOT_TAG = "afsp_zeroshot"
 
