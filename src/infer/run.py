@@ -34,6 +34,7 @@ from src.retrieval.retrieve import RetrievalIndex
 from src.retrieval.afsp import AFSPRetriever, load_centroid
 from src.infer.local_client import LocalChatClient
 from src.infer.anthropic_client import AnthropicChatClient
+from src.infer.gemini_client import GeminiChatClient
 from src.infer.openai_client import ChatClient
 
 # Demonstration ordering is a controlled experimental flag. Exemplars reach
@@ -80,6 +81,14 @@ def make_client(gen: dict):
             thinking=gen.get("thinking", False),
             temperature=gen.get("temperature"), 
         )
+    if provider == "gemini":
+
+        return GeminiChatClient(
+            model=gen["model"],
+            max_tokens=gen.get("max_tokens", 1024),
+            temperature=gen.get("temperature"),  # None -> API default
+            thinking_budget=gen.get("thinking_budget", 0),  # 0 disables thinking (2.5 models)
+        )
     if provider == "local":
 
 
@@ -93,7 +102,7 @@ def make_client(gen: dict):
             device_map=gen.get("device_map"),
             load_in_4bit=gen.get("load_in_4bit", False),
         )
-    raise ValueError(f"unknown provider '{provider}' (expected openai|anthropic|local)")
+    raise ValueError(f"unknown provider '{provider}' (expected openai|anthropic|gemini|local)")
 
 
 def _read_jsonl(path: Path, limit: int | None) -> list[dict]:

@@ -1,8 +1,10 @@
 # --- Evaluation-time LLM-as-Judge (register fidelity Φ) ---
 
 judge:
-  provider: anthropic
-  model: claude-sonnet-5
+  provider: gemini
+  model: gemini-2.5-flash  
+  temperature: 0.0       
+  thinking_budget: 0     
   max_tokens: 512
 
 template_file: prompts/judge_eval.txt
