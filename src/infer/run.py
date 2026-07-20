@@ -78,6 +78,7 @@ def make_client(gen: dict):
             model=gen["model"],
             max_tokens=gen.get("max_tokens", 1024),
             thinking=gen.get("thinking", False),
+            temperature=gen.get("temperature"), 
         )
     if provider == "local":
 
