@@ -5,8 +5,6 @@ judge:
   model: claude-haiku-4-5
   temperature: 0.0
   thinking: false
-  max_tokens: 96
-
 
 template_file: prompts/judge_eval.txt
 
