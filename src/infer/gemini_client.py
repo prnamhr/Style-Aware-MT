@@ -17,7 +17,10 @@ _PRICING: dict[str, tuple[float, float]] = {
     "gemini-2.5-flash-lite": (0.0, 0.0),
     "gemini-2.5-pro": (0.0, 0.0),
     "gemini-2.0-flash": (0.0, 0.0),
+    "gemini-3.5-flash": (0.0, 0.0),
+    "gemini-3-flash-preview": (0.0, 0.0),
 }
+_THINKING_PREFIXES = ("gemini-2.5", "gemini-3")
 
 
 @dataclass
@@ -42,8 +45,8 @@ class GeminiChatClient:
         }
         if self.temperature is not None:
             kwargs["temperature"] = self.temperature
-        # thinking_config is only meaningful on 2.5-series models.
-        if self.model.startswith("gemini-2.5"):
+        # thinking_config is only meaningful on 2.5- and 3.x-series models.
+        if self.model.startswith(_THINKING_PREFIXES):
             kwargs["thinking_config"] = types.ThinkingConfig(thinking_budget=self.thinking_budget)
         return types.GenerateContentConfig(**kwargs)
 
