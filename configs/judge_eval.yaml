@@ -2,8 +2,7 @@
 
 judge:
   provider: anthropic
-  model: claude-sonnet-5  
-  temperature: 0.0     
+  model: claude-sonnet-5
   max_tokens: 512
 
 template_file: prompts/judge_eval.txt
