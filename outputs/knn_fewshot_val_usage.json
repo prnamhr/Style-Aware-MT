@@ -1,8 +1,8 @@
 {
   "condition": "knn_fewshot",
   "model": "Qwen/Qwen2.5-7B-Instruct",
-  "calls": 5,
-  "prompt_tokens": 5696,
-  "completion_tokens": 189,
+  "calls": 1318,
+  "prompt_tokens": 2705916,
+  "completion_tokens": 43131,
   "cost_usd": 0.0
 }

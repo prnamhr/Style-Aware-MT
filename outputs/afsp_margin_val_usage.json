@@ -1,0 +1,8 @@
+{
+  "condition": "afsp_margin",
+  "model": "Qwen/Qwen2.5-7B-Instruct",
+  "calls": 1323,
+  "prompt_tokens": 2646699,
+  "completion_tokens": 44306,
+  "cost_usd": 0.0
+}

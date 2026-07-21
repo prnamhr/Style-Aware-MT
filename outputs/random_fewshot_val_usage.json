@@ -1,0 +1,8 @@
+{
+  "condition": "random_fewshot",
+  "model": "Qwen/Qwen2.5-7B-Instruct",
+  "calls": 1184,
+  "prompt_tokens": 1191501,
+  "completion_tokens": 36736,
+  "cost_usd": 0.0
+}
