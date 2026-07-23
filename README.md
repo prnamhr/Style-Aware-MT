@@ -104,10 +104,22 @@ LoRA adapters on the query and value projection layers of each attention block, 
 No parameter updates. At inference time:
 
 1. Embed the source segment with a multilingual sentence-transformer.
-2. Retrieve top-k stylistically relevant exemplars by nearest neighbour over an index built over the **English (target-side)** training partition.
+2. Retrieve top-k relevant exemplars by nearest neighbour over an index built over the **Persian/Arabic (source-side)** training partition, then map each match back to its aligned English target.
 3. Insert them into a fixed prompt template (system role + style instruction + k exemplars + new source).
 
-**`knn_fewshot` is the baseline:** plain top-k cosine retrieval with the above template — a baseline row, not the contribution. It is what `src/retrieval/` currently implements. **AFSP** is the adaptive variant built on top of the same index — margin-based scoring (hub penalisation), target-distribution-priority selection, demonstration ordering, and multi-view word-level weighting (see [`docs/afsp_strategies.md`](docs/afsp_strategies.md)). Reporting both isolates how much of any register shift comes from naive retrieval vs. the adaptive machinery.
+**Ablation ladder.** The prompting conditions form a ladder, each rung adding one component over the previous one so any register shift is attributable to that component:
+
+| Condition | Exemplars | Selection | Isolates |
+|---|---|---|---|
+| `zeroshot` | none | — | instruction only |
+| `random_fewshot` | k | random (seeded) | having examples at all |
+| `knn_fewshot` | k | cosine top-k | relevance-based retrieval |
+| `afsp_margin` | k | margin + hub penalisation | AFSP margin (λ = 0) |
+| `afsp_full` | k | margin + target-register rerank (λ > 0) | full AFSP method |
+
+`knn_fewshot` is the baseline (plain top-k cosine), not the contribution; **AFSP** is the adaptive variant on the same index — margin-based scoring (hub penalisation), target-distribution-priority selection, demonstration ordering, and multi-view word-level weighting (see [`docs/afsp_strategies.md`](docs/afsp_strategies.md)). By construction `β = 0, λ = 0` reduces AFSP to `knn_fewshot`, so the rungs cleanly separate naive retrieval from the adaptive machinery. The register glossary (multi-view word pairs) is a **controlled prompt augmentation** set in the `prompt:` config block and applied uniformly to every few-shot rung, so it augments no single arm and can be toggled to measure its own effect.
+
+The index is built over the **source** side (not the English targets) so that the AFSP margin — query–candidate similarity plus query and candidate hubness — is computed in one comparable space; target-side register is scored separately by the style rerank, from the exemplar text (see `docs/DEVLOG.md`, 2026-07-04).
 
 Shot-count sensitivity on dev over **k ∈ {2, 4, 8}**, subject to base model context limits. Final k is fixed on dev before test inference. Pattern: Tang et al. [AFSP, 2025]; related precedents in Wang et al. style-activation prompting and style-matching exemplar selection.
 
@@ -143,17 +155,19 @@ All four conditions, same held-out test set, same decoding settings (temperature
 - Where budget permits, a **cross-family** confirmation pass with a judge from a different commercial LLM family is performed; judge–judge agreement is reported.
 
 ### Statistics
-- System-level comparisons: paired bootstrap at the segment level, α = 0.05. Primary: each adaptation vs. Reference. Secondary: pairwise among the three adaptation conditions.
+- System-level comparisons: paired bootstrap at the segment level, α = 0.05. Primary: each adaptation vs. the zero-shot base. Secondary: pairwise among the adaptation conditions, and adjacent rungs of the prompting ablation ladder.
 - Evaluation-component agreement (RQ4): pairwise Spearman correlation between COMET, stylometric distance, and LLM-as-Judge, with 95 % bootstrap CIs. Descriptive only.
 
 ### Results table *(filled as conditions complete)*
 
 | Condition | COMET | BLEU | LLM-Judge Φ | Lex. density | TTR | Stylo. dist. | Latency (s/seg) | Trainable params |
 |---|---|---|---|---|---|---|---|---|
-| Reference | — | — | — | — | — | — | — | 0 |
+| Zero-shot | — | — | — | — | — | — | — | 0 |
+| Random few-shot (k = —) | — | — | — | — | — | — | — | 0 |
 | kNN few-shot (baseline, k = —) | — | — | — | — | — | — | — | 0 |
+| AFSP-margin (k = —) | — | — | — | — | — | — | — | 0 |
+| AFSP-full (k = —) | — | — | — | — | — | — | — | 0 |
 | PEFT (LoRA) | — | — | — | — | — | — | — | — |
-| AFSP (k = —) | — | — | — | — | — | — | — | 0 |
 | RLSF (PPO) | — | — | — | — | — | — | — | — |
 
 Detailed per-segment scores and bootstrap CIs land in `results/`.
@@ -190,6 +204,12 @@ python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 
+python -m venv .venv-comet
+source .venv-comet/bin/activate
+pip install torch==2.13.0 --index-url https://download.pytorch.org/whl/cpu  # local/off-GPU; skip on Colab
+pip install -r requirements-comet.txt
+deactivate
+
 # data prep (expects raw TSVs under data/raw/)
 python -m src.data.preprocess
 python -m src.data.split        # writes data/splits/ with hashes
@@ -198,16 +218,19 @@ python -m src.data.split        # writes data/splits/ with hashes
 ### Running a condition
 
 ```bash
-# Reference
-python -m src.infer --condition reference --config configs/reference.yaml
+# Prompting ablation ladder (all share the source-side index)
+python -m src.retrieval.build_index --config configs/base_qwen.yaml
+python manage.py stylometrics --build-centroid          # required by afsp_full
+python -m src.infer.run --condition zeroshot       --config configs/base_qwen.yaml
+python -m src.infer.run --condition random_fewshot --config configs/base_qwen.yaml
+python -m src.infer.run --condition knn_fewshot    --config configs/base_qwen.yaml
+python -m src.infer.run --condition afsp_margin    --config configs/base_qwen.yaml
+python -m src.infer.run --condition afsp_full      --config configs/base_qwen.yaml
+python manage.py afsp_sweep --config configs/afsp_sweep.yaml
 
 # PEFT
 python -m src.peft.train       --config configs/peft.yaml
 python -m src.infer --condition peft --config configs/peft.yaml
-
-# kNN few-shot baseline (and AFSP, once implemented; both share the index)
-python -m src.retrieval.build_index --config configs/base_qwen.yaml
-python -m src.infer.run --condition knn_fewshot --config configs/base_qwen.yaml
 
 # RLSF
 python -m src.rlsf.train       --config configs/rlsf.yaml
@@ -216,12 +239,33 @@ python -m src.infer --condition rlsf --config configs/rlsf.yaml
 
 ### Evaluation
 
+The evaluation backbone scores any set of `<condition>_<split>.jsonl` files. Let
+`CONDS = zeroshot random_fewshot knn_fewshot afsp_margin afsp_full`:
+
 ```bash
-python -m src.eval.run --condition reference knn_fewshot peft afsp rlsf
-python -m src.eval.agreement   # RQ4 pairwise Spearman + plots
+# Surface overlap + register proxy (BLEU, chrF, marker rate)
+python manage.py eval          --conditions $CONDS --split val
+
+# Learned adequacy (COMET wmt22-comet-da) -> results/comet_val.json  (per-segment)
+# NOTE: run this one from the .venv-comet environment (see Setup), not .venv.
+python manage.py comet         --conditions $CONDS --split val
+
+# Register fidelity Φ, evaluation-time LLM-as-Judge -> results/judge_val.json
+python manage.py judge         --conditions $CONDS --split val --config configs/judge_eval.yaml
+
+# Stylometrics vs. the target-register centroid (per-condition feature table)
+python manage.py stylometrics  --conditions $CONDS --split val
+
+# Paired-bootstrap 95% CIs for pairwise differences (α = 0.05), any metric
+python manage.py bootstrap --metric chrf  --conditions $CONDS --split val --adjacent
+python manage.py bootstrap --metric comet --conditions $CONDS --split val --adjacent
+python manage.py bootstrap --metric judge --conditions $CONDS --split val --adjacent
 ```
 
-Outputs land in `results/`.
+`bootstrap` computes chrF/BLEU on the fly from the inference files and reads
+COMET/judge from the JSON their own commands write, so run those first. Each
+non-baseline condition is compared against the ladder floor (`zeroshot`), and
+`--adjacent` adds each consecutive-rung difference. Outputs land in `results/`.
 
 ---
 

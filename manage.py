@@ -17,7 +17,13 @@ COMMANDS = {
     "build_index": "src.retrieval.build_index",
     "infer": "src.infer.run",
     "sweep": "src.infer.sweep",
+    "afsp_sweep": "src.infer.afsp_sweep",
+    "afsp_verify": "src.infer.afsp_verify",
     "eval": "src.eval.quick",
+    "comet": "src.eval.comet",
+    "judge": "src.eval.judge",
+    "human": "src.eval.human",
+    "bootstrap": "src.eval.bootstrap",
     "fertility": "src.eval.fertility",
     "stylometrics": "src.eval.stylometrics",
 }

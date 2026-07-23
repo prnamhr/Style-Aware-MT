@@ -1,0 +1,53 @@
+# LOCAL QWEN LOOP-VALIDATION SMOKE -- validates the local generator end to end,
+
+# --- Generation (local open-source base; decoding LOCKED, matches base_qwen.yaml) ---
+generator:
+  provider: local
+  model: Qwen/Qwen2.5-7B-Instruct
+  max_tokens: 1024
+  temperature: 0.0          # greedy, deterministic
+  top_p: 1.0
+  seed: 42
+  dtype: bfloat16
+  device_map: auto
+  load_in_4bit: false   
+
+# --- Prompting ---
+prompt:
+  style_instruction_file: prompts/style_instruction.txt
+  ordering: most_similar_last   # most_similar_last | most_similar_first | random
+  ordering_seed: 42             # only used when ordering: random
+  word_pairs: true                             # smoke the glossary augmentation too
+  glossary_file: prompts/register_glossary.tsv
+
+# --- Retrieval (unused by the reference condition; kept for knn_fewshot/afsp smokes) ---
+retrieval:
+  embed_model: intfloat/multilingual-e5-large-instruct
+  index_dir: data/knn_index
+  train_file: data/splits/train.jsonl
+  k: 4
+
+# --- AFSP (required by afsp_margin/afsp_full smokes; mirrors base_qwen.yaml) ---
+afsp:
+  beta: 0.3
+  knn_hubness: 5
+  pool_mult: 4
+  lambda_style: 0.3
+  style_objective: bandpass    # bandpass | proximity | salience
+  style_target_sigma: 1.0
+  style_register_direction:    # signed per-axis register direction (corr with distance); omit for isotropic
+    marker_rate: 0.514
+    lex_density: 0.355
+    root_ttr: -0.296
+    ttr: 0.098
+  centroid_file: results/stylometrics_centroid.json  # built by `stylometrics --build-centroid`
+
+# --- Data ---
+# DEV split only. test.jsonl stays sealed until the final evaluation.
+data:
+  eval_file: data/splits/val.jsonl
+  limit: 5  
+
+# --- Output ---
+output:
+  dir: outputs

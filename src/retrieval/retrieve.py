@@ -1,10 +1,5 @@
 """
 Load the retrieval index and fetch top-k exemplars for a source query.
-
-Retrieval is brute-force cosine similarity over L2-normalized embeddings, which
-is exact and instant at this corpus size. The query (Persian/Arabic source) is
-embedded with the same model used to build the index; the instruct query prefix
-is applied on the query side only.
 """
 
 from __future__ import annotations

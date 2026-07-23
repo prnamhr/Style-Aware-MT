@@ -4,12 +4,10 @@ import numpy as np
 import torch
 from sentence_transformers import SentenceTransformer
 
-# It tells the embedding model what kind of retrieval is intended: find English
-# translations that are semantically similar and share Shoghi Effendi’s formal register.
 _QUERY_INSTRUCTION = (
-    "Instruct: Retrieve English translations of Persian or Arabic Bahá'í scriptural "
-    "texts that are semantically similar and share the formal register of "
-    "Shoghi Effendi's translations.\nQuery: "
+    "Instruct: Given a Persian or Arabic Bahá'í scriptural passage, retrieve "
+    "passages from the same corpus that are semantically and stylistically similar.\n"
+    "Query: "
 )
 
 

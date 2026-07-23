@@ -1,0 +1,53 @@
+# --- The real AFSP 
+#
+# --- Generation (local open-source base; identical decoding to base_qwen.yaml) ---
+generator:
+  provider: local
+  model: Qwen/Qwen2.5-7B-Instruct
+  max_tokens: 1024
+  temperature: 0.0          # greedy, deterministic across all cells
+  top_p: 1.0
+  seed: 42
+  dtype: bfloat16
+  device_map: auto      
+  load_in_4bit: false
+
+# --- Prompting (same controlled augmentations as the ablation ladder) ---
+prompt:
+  style_instruction_file: prompts/style_instruction.txt
+  ordering: most_similar_last
+  ordering_seed: 42
+  word_pairs: true
+  glossary_file: prompts/register_glossary.tsv
+
+# --- Retrieval (shared source-side index) ---
+retrieval:
+  embed_model: intfloat/multilingual-e5-large-instruct
+  index_dir: data/knn_index
+  train_file: data/splits/train.jsonl
+  k: 4                      
+
+# --- AFSP ---
+afsp:
+  beta: 0.3                
+  knn_hubness: 5
+  pool_mult: 4
+  lambda_style: 0.0
+  style_objective: bandpass
+  style_target_sigma: 1.0
+  style_register_direction:  
+    marker_rate: 0.514
+    lex_density: 0.355
+    root_ttr: -0.296
+    ttr: 0.098
+  select_target_sigma: 0.5    
+  centroid_file: results/stylometrics_centroid.json
+
+# --- Data (VAL ONLY; test stays sealed) ---
+data:
+  eval_file: data/splits/val.jsonl
+  limit: null               
+
+# --- Output (cells land in <dir>/sweep/) ---
+output:
+  dir: outputs

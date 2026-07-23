@@ -17,6 +17,7 @@ load_dotenv()  # populate os.environ from a .env file if one exists
 _PRICING: dict[str, tuple[float, float]] = {
     "claude-opus-4-8": (5.00, 25.00),
     "claude-opus-4-7": (5.00, 25.00),
+    "claude-sonnet-5": (3.00, 15.00),
     "claude-sonnet-4-6": (3.00, 15.00),
     "claude-haiku-4-5": (1.00, 5.00),
     "claude-fable-5": (10.00, 50.00),
@@ -28,6 +29,7 @@ class AnthropicChatClient:
     model: str
     max_tokens: int = 1024
     thinking: bool = False  # adaptive thinking; off keeps the smoke test fast/cheap
+    temperature: float | None = None  
     usage: Usage = field(default=None)
     _client: Anthropic = field(default=None, repr=False)
 
@@ -45,6 +47,8 @@ class AnthropicChatClient:
         }
         if self.thinking:
             kwargs["thinking"] = {"type": "adaptive"}
+        elif self.temperature is not None:
+            kwargs["temperature"] = self.temperature
 
         resp = self._client.messages.create(**kwargs)
         self.usage.add(self.model, resp.usage.input_tokens, resp.usage.output_tokens)
