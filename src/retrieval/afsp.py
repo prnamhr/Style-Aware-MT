@@ -51,8 +51,7 @@ def _resolve_direction(
     direction: dict[str, float] | list[float] | None,
     centroid: dict | None,
 ) -> np.ndarray | None:
-    """Resolve a signed register-direction spec to centroid-feature order.
-    """
+    """Resolve a signed register-direction spec to centroid-feature order."""
     if direction is None or centroid is None:
         return None
     feats = centroid["features"]
@@ -63,9 +62,7 @@ def _resolve_direction(
         return np.asarray([float(direction[f]) for f in feats], dtype=float)
     d = np.asarray(direction, dtype=float)
     if d.shape != (len(feats),):
-        raise ValueError(
-            f"style_register_direction has {d.shape} entries, expected {len(feats)}"
-        )
+        raise ValueError(f"style_register_direction has {d.shape} entries, expected {len(feats)}")
     return d
 
 

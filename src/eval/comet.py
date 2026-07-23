@@ -8,8 +8,9 @@ import argparse
 import json
 from pathlib import Path
 
-from src.eval._io import condition_path, load_condition
 from comet import download_model, load_from_checkpoint
+
+from src.eval._io import condition_path, load_condition
 
 DEFAULT_MODEL = "Unbabel/wmt22-comet-da"
 _RESULTS_DIR = Path("results")
@@ -41,8 +42,7 @@ def score(
     batch_size: int = 8,
     gpus: int | None = None,
 ) -> dict:
-    """Segment- and system-level COMET for one condition.
-    """
+    """Segment- and system-level COMET for one condition."""
     if model is None:
         model = load_model(model_name)
     data = [{"src": s, "mt": h, "ref": r} for s, h, r in zip(sources, hyps, refs)]

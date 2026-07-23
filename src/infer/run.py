@@ -30,12 +30,12 @@ from pathlib import Path
 import yaml
 
 from src.eval._io import read_completed_jsonl
-from src.retrieval.retrieve import RetrievalIndex
-from src.retrieval.afsp import AFSPRetriever, load_centroid
-from src.infer.local_client import LocalChatClient
 from src.infer.anthropic_client import AnthropicChatClient
 from src.infer.gemini_client import GeminiChatClient
+from src.infer.local_client import LocalChatClient
 from src.infer.openai_client import ChatClient
+from src.retrieval.afsp import AFSPRetriever, load_centroid
+from src.retrieval.retrieve import RetrievalIndex
 
 # Demonstration ordering is a controlled experimental flag. Exemplars reach
 ORDERINGS = ("most_similar_last", "most_similar_first", "random")
@@ -65,7 +65,6 @@ def make_client(gen: dict):
     """
     provider = gen.get("provider", "openai")
     if provider == "openai":
-
         return ChatClient(
             model=gen["model"],
             temperature=gen.get("temperature"),  # None -> omitted (reasoning models reject it)
@@ -74,15 +73,13 @@ def make_client(gen: dict):
             reasoning_effort=gen.get("reasoning_effort"),
         )
     if provider == "anthropic":
-
         return AnthropicChatClient(
             model=gen["model"],
             max_tokens=gen.get("max_tokens", 1024),
             thinking=gen.get("thinking", False),
-            temperature=gen.get("temperature"), 
+            temperature=gen.get("temperature"),
         )
     if provider == "gemini":
-
         return GeminiChatClient(
             model=gen["model"],
             max_tokens=gen.get("max_tokens", 1024),
@@ -90,8 +87,6 @@ def make_client(gen: dict):
             thinking_budget=gen.get("thinking_budget", 0),  # 0 disables thinking (2.5 models)
         )
     if provider == "local":
-
-
         return LocalChatClient(
             model=gen["model"],
             max_tokens=gen.get("max_tokens", 1024),
@@ -187,9 +182,7 @@ def _select_random(
 
 
 def _select_afsp(sources, cfg, retr, index, k, *, rerank):
-    """AFSP exemplar selection.
-    """
-
+    """AFSP exemplar selection."""
 
     af = cfg.get("afsp", {})
     retriever = AFSPRetriever(
@@ -242,7 +235,6 @@ def run(condition: str, cfg: dict) -> None:
     if condition == "zeroshot":
         user_msgs = [build_zeroshot_user(s) for s in sources]
     elif condition in ("random_fewshot", "knn_fewshot", "afsp_margin", "afsp_full"):
-
         retr = cfg["retrieval"]
         k = retr["k"]
         index = RetrievalIndex(retr["index_dir"], embed_model=retr["embed_model"])

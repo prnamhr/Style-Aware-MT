@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 import time
@@ -35,7 +34,7 @@ class GeminiChatClient:
     _client: genai.Client = field(default=None, repr=False)
 
     def __post_init__(self) -> None:
-        self._client = genai.Client() 
+        self._client = genai.Client()
         self.usage = Usage(pricing=_PRICING)
 
     def _config(self, system: str) -> types.GenerateContentConfig:
@@ -64,7 +63,7 @@ class GeminiChatClient:
                     raise
                 if attempt == self.max_retries:
                     raise
-                time.sleep(min(2 ** attempt, 32))  # exponential backoff, capped
+                time.sleep(min(2**attempt, 32))  # exponential backoff, capped
 
         u = resp.usage_metadata
         prompt_tokens = getattr(u, "prompt_token_count", 0) or 0

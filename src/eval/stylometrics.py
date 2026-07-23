@@ -176,8 +176,7 @@ def distance_to_centroid(agg_mean: dict[str, float], centroid: dict) -> float:
 
 
 def register_salience(feats: dict[str, float], centroid: dict) -> float:
-    """Register salience: the mean *absolute* z-score of a segment's register features.
-    """
+    """Register salience: the mean *absolute* z-score of a segment's register features."""
     mean = np.asarray(centroid["mean"], dtype=float)
     std = np.asarray(centroid["std"], dtype=float)
     vec = np.asarray([feats[name] for name in centroid["features"]], dtype=float)

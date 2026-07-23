@@ -13,8 +13,7 @@ def condition_path(out_dir: str | Path, condition: str, split: str) -> Path:
 
 
 def read_completed_jsonl(path: str | Path) -> list[dict]:
-    """Return the complete JSONL records already written to path.
-    """
+    """Return the complete JSONL records already written to path."""
     path = Path(path)
     if not path.exists():
         return []

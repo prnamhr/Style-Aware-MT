@@ -14,6 +14,8 @@ from sacrebleu.metrics import BLEU, CHRF
 
 from src.eval.human import build_records, write_scoring_sheet
 from src.eval.stylometrics import _MARKERS
+from src.infer.anthropic_client import _PRICING as AP
+from src.infer.openai_client import _PRICING as OP
 from src.infer.run import (
     _read_jsonl,
     build_fewshot_user,
@@ -22,8 +24,6 @@ from src.infer.run import (
     order_exemplars,
 )
 from src.retrieval.retrieve import RetrievalIndex
-from src.infer.anthropic_client import _PRICING as AP
-from src.infer.openai_client import _PRICING as OP
 
 # Model registry for the smoke sweep. Keys are the --models names; each maps to a
 # generator block for src.infer.run.make_client. Cheap by default; flagships opt-in.
@@ -220,8 +220,7 @@ def write_human_eval(
     seed: int,
     blind: bool,
 ) -> None:
-    """Emit a sampled, optionally-blind human-judgment sheet for the sweep grid.
-    """
+    """Emit a sampled, optionally-blind human-judgment sheet for the sweep grid."""
     sources = [r["input"] for r in rows]
     refs = [r["output"] for r in rows]
     # Reshape each grid cell into the (sources, preds, refs) triple build_records wants.

@@ -59,8 +59,7 @@ def score_condition(
     *,
     cache_path: Path | None = None,
 ) -> list[int | None]:
-    """Judge each segment; returns one score per segment, in order.
-    """
+    """Judge each segment; returns one score per segment, in order."""
     done = read_completed_jsonl(cache_path) if cache_path is not None else []
     for j, rec in enumerate(done):
         if rec.get("input") != sources[j]:

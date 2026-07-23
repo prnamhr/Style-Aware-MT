@@ -29,7 +29,7 @@ class AnthropicChatClient:
     model: str
     max_tokens: int = 1024
     thinking: bool = False  # adaptive thinking; off keeps the smoke test fast/cheap
-    temperature: float | None = None  
+    temperature: float | None = None
     usage: Usage = field(default=None)
     _client: Anthropic = field(default=None, repr=False)
 

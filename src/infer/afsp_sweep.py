@@ -4,23 +4,22 @@ import argparse
 import json
 import os
 import random as _random
+from pathlib import Path
+
 import yaml
 
 from src.eval._io import load_condition
 from src.eval.quick import score as quick_score
-from pathlib import Path
 from src.eval.stylometrics import aggregate, distance_to_centroid, register_band_distance
 from src.infer.run import (
     _load_configured_glossary,
     build_fewshot_user,
+    build_zeroshot_user,
     make_client,
     order_exemplars,
 )
-from src.retrieval.afsp import AFSPRetriever, load_centroid
+from src.retrieval.afsp import AFSPRetriever, _resolve_direction, load_centroid
 from src.retrieval.retrieve import RetrievalIndex
-from src.infer.run import build_zeroshot_user, make_client
-from src.retrieval.afsp import _resolve_direction
-
 
 # Previous full grid (5 x 8 = 40 cells). Kept, labelled, for reproducing the
 # earlier sweep with `--ks {PREVIOUS_KS} --lambdas {PREVIOUS_LAMBDAS}`.
@@ -44,8 +43,7 @@ def _sweep_dir(cfg: dict) -> Path:
 
 
 def generate_cells(cfg: dict, cells: list[tuple[int, float]], *, overwrite: bool = False) -> str:
-    """Generate predictions for the given (k, lambda) cells with the local Qwen base.
-    """
+    """Generate predictions for the given (k, lambda) cells with the local Qwen base."""
     gen = cfg["generator"]
     prompt_cfg = cfg.get("prompt", {})
     style_instruction = Path(prompt_cfg["style_instruction_file"]).read_text(encoding="utf-8")
@@ -133,8 +131,7 @@ def generate_cells(cfg: dict, cells: list[tuple[int, float]], *, overwrite: bool
 
 
 def generate_zeroshot(cfg: dict, *, overwrite: bool = False) -> str:
-    """Generate the zero-shot reference
-    """
+    """Generate the zero-shot reference"""
 
     gen = cfg["generator"]
     style_instruction = Path(cfg["prompt"]["style_instruction_file"]).read_text(encoding="utf-8")
@@ -233,8 +230,7 @@ def generate_grid(
 
 
 def _register_fit_fn(cfg: dict, centroid: dict | None):
-    """Build the selector's register-fidelity metric: direction-weighted band
-    """
+    """Build the selector's register-fidelity metric: direction-weighted band"""
     if centroid is None:
         return None
 
@@ -296,8 +292,7 @@ def recommend(rows: list[dict], adequacy_margin: float) -> dict | None:
 
 
 def ranked_cells(rows: list[dict], adequacy_margin: float) -> list[dict]:
-    """Cells ordered best-first by the same rule ``recommend`` uses to pick one.
-    """
+    """Cells ordered best-first by the same rule ``recommend`` uses to pick one."""
     rows = [r for r in rows if not r.get("anchor")]
     if not rows:
         return []

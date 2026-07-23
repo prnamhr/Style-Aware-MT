@@ -6,11 +6,13 @@ from __future__ import annotations
 
 import argparse
 import json
+from pathlib import Path
+
 import numpy as np
 
-from pathlib import Path
 from src.eval._io import condition_path, load_condition
 from src.eval.quick import segment_scores
+
 
 def paired_bootstrap(
     a: list[float],
@@ -20,8 +22,7 @@ def paired_bootstrap(
     alpha: float = 0.05,
     seed: int = 42,
 ) -> dict:
-    """Paired bootstrap of ``mean(a) - mean(b)`` over aligned per-segment scores.
-    """
+    """Paired bootstrap of ``mean(a) - mean(b)`` over aligned per-segment scores."""
     arr_a = np.asarray(a, dtype=float)
     arr_b = np.asarray(b, dtype=float)
     if arr_a.shape != arr_b.shape:
@@ -61,11 +62,9 @@ def _nan_segments(raw: list) -> list[float]:
 def _load_segment_scores(
     metric: str, conditions: list[str], out_dir: Path, split: str
 ) -> tuple[dict, dict]:
-    """Return (scores, sources) keyed by condition for the chosen metric.
-    """
+    """Return (scores, sources) keyed by condition for the chosen metric."""
     metric = metric.lower()
     if metric in ("chrf", "bleu"):
-
         scores: dict = {}
         sources: dict = {}
         for cond in conditions:
@@ -90,8 +89,7 @@ def _load_segment_scores(
 
 
 def _assert_aligned(present: list[str], sources: dict) -> None:
-    """Fail if conditions' per-segment sources don't line up index-for-index.
-    """
+    """Fail if conditions' per-segment sources don't line up index-for-index."""
     ref_cond = present[0]
     ref_src = sources.get(ref_cond)
     if ref_src is None:

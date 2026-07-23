@@ -31,8 +31,7 @@ def _flat(text: str) -> str:
 def write_scoring_sheet(
     records: list[dict], results_dir: str | Path, split: str, *, filename_tag: str = ""
 ) -> tuple[Path, Path]:
-    """Write a blind-scoring TSV and a segment-grouped Markdown digest.
-    """
+    """Write a blind-scoring TSV and a segment-grouped Markdown digest."""
     results_dir = Path(results_dir)
     results_dir.mkdir(parents=True, exist_ok=True)
     tag = f"_{filename_tag}" if filename_tag else ""
@@ -89,8 +88,7 @@ def build_records(
     blind: bool,
     seed: int,
 ) -> tuple[list[dict], dict[str, str]]:
-    """Assemble sampled (segment, system) records; optionally blind the labels.
-    """
+    """Assemble sampled (segment, system) records; optionally blind the labels."""
     ref_sources, _, ref_refs = data[systems[0]]
 
     key: dict[str, str] = {}
