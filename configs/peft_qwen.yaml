@@ -23,7 +23,7 @@ peft:
     r: 16                               # rank (dev-tuned)
     alpha: 32
     dropout: 0.05
-    target_modules: [q_proj, v_proj]    # query/value projections, per methodology
+    target_modules: all-linear          # LoRA on all linear layers (matches peft_sweep.yaml)
   train:
     seed: 42
     max_seq_len: 1024

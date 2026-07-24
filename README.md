@@ -98,7 +98,7 @@ Unicode NFC, diacritic handling, whitespace and punctuation normalization, remov
 Base model, minimal style instruction (see `prompts/style_instruction.txt`), no exemplars, no fine-tuning. Provides the lower bound and the H1 comparison anchor.
 
 ### PEFT (LoRA)
-LoRA adapters on the query and value projection layers of each attention block, base weights frozen. Trained with token-level MLE on the training partition. Rank, LR, and step count tuned on dev. QLoRA is the memory-pressure fallback. The resulting checkpoint also serves as the **RLSF initialization**.
+LoRA adapters on all linear layers of the transformer, base weights frozen. Trained with token-level MLE on the training partition. Rank, LR, and epoch count tuned on dev over a four-cell sweep (see [`configs/peft_sweep.yaml`](configs/peft_sweep.yaml)); the sweep regime is byte-identical to the reported/inference regime so the selected hyperparameters transfer. QLoRA is the memory-pressure fallback. The resulting checkpoint also serves as the **RLSF initialization**.
 
 ### kNN few-shot (baseline) and AFSP (retrieval-based ICL)
 No parameter updates. At inference time:
