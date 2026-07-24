@@ -15,6 +15,7 @@ COMMANDS = {
     "preprocess": "src.data.preprocess",
     "split": "src.data.split",
     "build_index": "src.retrieval.build_index",
+    "peft": "src.peft.train",
     "infer": "src.infer.run",
     "sweep": "src.infer.sweep",
     "afsp_sweep": "src.infer.afsp_sweep",

@@ -1,0 +1,49 @@
+# --- Generation ---
+generator:
+  provider: local
+  model: Qwen/Qwen2.5-7B-Instruct   # single source of truth for the locked base
+  adapter_path: outputs/peft/adapter   # LoRA adapter loaded at inference; null = base only
+  max_tokens: 1024
+  temperature: 0.0          # greedy, deterministic (locked decoding)
+  top_p: 1.0
+  seed: 42
+  dtype: bfloat16
+  device_map: auto
+  load_in_4bit: false
+
+# --- Prompting ---
+prompt:
+  style_instruction_file: prompts/style_instruction.txt
+
+# --- PEFT / LoRA ---
+peft:
+  output_dir: outputs/peft/adapter      # adapter + tokenizer saved here (git-ignored)
+  load_in_4bit: false                   # QLoRA memory-pressure fallback (<=8GB VRAM)
+  lora:
+    r: 16                               # rank (dev-tuned)
+    alpha: 32
+    dropout: 0.05
+    target_modules: [q_proj, v_proj]    # query/value projections, per methodology
+  train:
+    seed: 42
+    max_seq_len: 1024
+    per_device_train_batch_size: 1
+    per_device_eval_batch_size: 1
+    gradient_accumulation_steps: 16     # effective batch = 16
+    learning_rate: 2.0e-4               # dev-tuned
+    num_train_epochs: 3                 # dev-tuned; set max_steps to override
+    max_steps: -1
+    weight_decay: 0.0
+    warmup_ratio: 0.03
+    lr_scheduler_type: cosine
+    gradient_checkpointing: true
+    logging_steps: 10
+    eval_strategy: epoch
+    save_strategy: epoch
+    save_total_limit: 1
+
+# --- Data ---
+data:
+  train_file: data/splits/train.jsonl   # parameter updates only
+  eval_file: data/splits/val.jsonl      # dev: eval_loss for model selection
+  limit: null                           # full splits
