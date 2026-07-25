@@ -148,6 +148,11 @@ def train(cfg: dict) -> None:
         tokenizer, model=model, padding="longest", label_pad_token_id=-100
     )
 
+    # When load_best_model_at_end is false (the sweep's fixed-epoch regime), every
+    # epoch checkpoint is kept (set save_total_limit: null) so selection can treat
+    # epoch as a tuned axis over (r, lr, epoch); eval_loss then only pre-filters
+    # which checkpoints get generated, never picks the reported adapter.
+    load_best = tcfg.get("load_best_model_at_end", True)
     args = TrainingArguments(
         output_dir=output_dir,
         per_device_train_batch_size=tcfg.get("per_device_train_batch_size", 1),
@@ -165,9 +170,9 @@ def train(cfg: dict) -> None:
         eval_strategy=tcfg.get("eval_strategy", "epoch"),
         save_strategy=tcfg.get("save_strategy", "epoch"),
         save_total_limit=tcfg.get("save_total_limit", 1),
-        load_best_model_at_end=True,
-        metric_for_best_model="eval_loss",
-        greater_is_better=False,
+        load_best_model_at_end=load_best,
+        metric_for_best_model="eval_loss" if load_best else None,
+        greater_is_better=False if load_best else None,
         seed=seed,
         report_to="none",
     )
@@ -194,6 +199,30 @@ def train(cfg: dict) -> None:
         encoding="utf-8",
     )
     print(f"Saved LoRA adapter to {out}/ ; final dev metrics: {metrics}")
+
+    # Fixed-epoch regime: record every kept epoch checkpoint with its dev eval_loss
+    # so the sweep can enumerate (r, lr, epoch) candidates. eval_loss here is a
+    # generation pre-filter only -- the reported adapter is picked on COMET/Phi.
+    if not load_best:
+        manifest = []
+        for entry in trainer.state.log_history:
+            if "eval_loss" not in entry or "epoch" not in entry:
+                continue
+            step = int(entry.get("step", 0))
+            ckpt = out / f"checkpoint-{step}"
+            manifest.append(
+                {
+                    "epoch": int(round(entry["epoch"])),
+                    "step": step,
+                    "eval_loss": float(entry["eval_loss"]),
+                    "checkpoint": str(ckpt) if ckpt.exists() else None,
+                }
+            )
+        (out / "epoch_checkpoints.json").write_text(
+            json.dumps(manifest, indent=2), encoding="utf-8"
+        )
+        kept = [m for m in manifest if m["checkpoint"]]
+        print(f"Recorded {len(kept)} epoch checkpoint(s) -> {out / 'epoch_checkpoints.json'}")
 
 
 def main() -> None:
