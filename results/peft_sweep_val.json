@@ -1,0 +1,41 @@
+{
+  "split": "val",
+  "adequacy_margin": 1.0,
+  "epochs_keep": null,
+  "select_target_sigma": 0.5,
+  "selection_note": "candidates are (r, lr, epoch); eval_loss is a generation pre-filter only. Ranked on chrF adequacy band + register_fit (Phi). Confirm on COMET/judge via src.peft.verify before freezing.",
+  "cells": [
+    {
+      "tag": "peft_r16_lr2e-4_e1",
+      "r": 16,
+      "alpha": 32,
+      "lr": 0.0002,
+      "epoch": 1,
+      "checkpoint": "models/peft_lora_r16_lr2e-4/checkpoint-2",
+      "eval_loss": 2.072543144226074,
+      "anchor": true,
+      "n": 32,
+      "chrF": 43.15,
+      "BLEU": 14.31,
+      "marker_rate": 1.56,
+      "stylo_dist": 1.1898,
+      "register_fit": 1.6298
+    }
+  ],
+  "recommended": {
+    "tag": "peft_r16_lr2e-4_e1",
+    "r": 16,
+    "alpha": 32,
+    "lr": 0.0002,
+    "epoch": 1,
+    "checkpoint": "models/peft_lora_r16_lr2e-4/checkpoint-2",
+    "eval_loss": 2.072543144226074,
+    "anchor": true,
+    "n": 32,
+    "chrF": 43.15,
+    "BLEU": 14.31,
+    "marker_rate": 1.56,
+    "stylo_dist": 1.1898,
+    "register_fit": 1.6298
+  }
+}
