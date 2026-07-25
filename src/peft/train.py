@@ -134,6 +134,8 @@ def train(cfg: dict) -> None:
         task_type="CAUSAL_LM",
     )
     model = get_peft_model(model, lora)
+    if tcfg.get("gradient_checkpointing", True):
+        model.enable_input_require_grads()
     model.print_trainable_parameters()
     model.config.use_cache = False  # incompatible with gradient checkpointing
 
