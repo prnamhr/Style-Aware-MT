@@ -20,7 +20,7 @@ peft:
   load_in_4bit: false
   lora:
     r: 16                                 # overridden per cell (grid)
-    alpha: 32
+    alpha: 32                             # overridden per cell: default alpha=2r (grid)
     dropout: 0.05
     target_modules: all-linear            # LoRA on all linear layers (Phase 2)
   train:
@@ -67,7 +67,7 @@ register:
 sweep:
   output_base: models                    # adapters land in <output_base>/peft_lora_r{r}_lr{lr}/
   grid:
-    - {r: 16, lr: 2.0e-4, anchor: true}
-    - {r: 8,  lr: 2.0e-4}
-    - {r: 32, lr: 2.0e-4}
-    - {r: 16, lr: 1.0e-4}
+    - {r: 16, alpha: 32, lr: 2.0e-4, anchor: true}   # alpha/r = 2
+    - {r: 8,  alpha: 16, lr: 2.0e-4}                  # alpha/r = 2
+    - {r: 32, alpha: 64, lr: 2.0e-4}                  # alpha/r = 2
+    - {r: 16, alpha: 32, lr: 1.0e-4}                  # alpha/r = 2

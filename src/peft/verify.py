@@ -181,7 +181,10 @@ def main() -> None:
 
     print(f"\nPEFT verification ({val_split}, {len(top)} candidates) -- reported metrics")
     have_judge = bool(judge_by_tag)
-    header = f"{'tag':<24}  {'r':>3}  {'lr':>7}  {'ep':>2}  {'chrF':>6}  {'stylo':>7}  {'COMET':>7}"
+    header = (
+        f"{'tag':<24}  {'r':>3}  {'a':>3}  {'lr':>7}  {'ep':>2}  "
+        f"{'chrF':>6}  {'stylo':>7}  {'COMET':>7}"
+    )
     if have_judge:
         header += f"  {'Phi':>5}"
     print(header)
@@ -190,13 +193,16 @@ def main() -> None:
         tag = r["tag"]
         stylo = r.get("stylo_dist", "-")
         line = (
-            f"{tag:<24}  {r['r']:>3}  {r['lr']:>7g}  {str(r.get('epoch', '-')):>2}  "
-            f"{r.get('chrF', '-'):>6}  {stylo:>7}  {comet_by_tag[tag]:>7.4f}"
+            f"{tag:<24}  {r['r']:>3}  {r.get('alpha', '-'):>3}  {r['lr']:>7g}  "
+            f"{str(r.get('epoch', '-')):>2}  {r.get('chrF', '-'):>6}  {stylo:>7}  "
+            f"{comet_by_tag[tag]:>7.4f}"
         )
         if have_judge:
             mean = judge_by_tag.get(tag, {}).get("mean")
             line += f"  {mean:>5.3f}" if mean is not None else f"  {'n/a':>5}"
         marks = []
+        if r.get("anchor"):
+            marks.append("anchor")
         if tag == proxy_tag:
             marks.append("proxy pick")
         if tag == freeze_tag:
@@ -233,6 +239,7 @@ def main() -> None:
                     {
                         "tag": r["tag"],
                         "r": r["r"],
+                        "alpha": r.get("alpha"),
                         "lr": r["lr"],
                         "epoch": r.get("epoch"),
                         "checkpoint": r["checkpoint"],
@@ -254,7 +261,6 @@ def main() -> None:
     print(f"\nWrote {out_path}")
     print("Freeze before touching test.jsonl -- set in configs/peft_qwen.yaml:")
     print(f"    generator.adapter_path : {freeze['checkpoint']}")
-
 
 
 if __name__ == "__main__":

@@ -56,13 +56,20 @@ def _sweep_dir(cfg: dict) -> Path:
     return Path(cfg["output"]["dir"]) / "peft_sweep"
 
 
+def _cell_alpha(cell: dict, r: int) -> int:
+    """lora_alpha for a cell. Default alpha = 2r holds the effective LoRA scale.\
+    """
+    return int(cell.get("alpha", 2 * r))
+
+
 def build_cell_config(base_cfg: dict, cell: dict, output_base: str) -> tuple[dict, Path]:
-    """Copy base_cfg and apply this cell's r / lr / output_dir overrides."""
+    """Copy base_cfg and apply this cell's r / alpha / lr / output_dir overrides."""
     cfg = copy.deepcopy(base_cfg)
     r = int(cell["r"])
     lr = float(cell["lr"])
     out_dir = _cell_dir(output_base, r, lr)
     cfg["peft"]["lora"]["r"] = r
+    cfg["peft"]["lora"]["alpha"] = _cell_alpha(cell, r)
     cfg["peft"]["train"]["learning_rate"] = lr
     cfg["peft"]["output_dir"] = str(out_dir)
     return cfg, out_dir
@@ -87,6 +94,7 @@ def enumerate_candidates(cfg: dict, output_base: str) -> list[dict]:
     candidates: list[dict] = []
     for cell in cfg["sweep"]["grid"]:
         r, lr = int(cell["r"]), float(cell["lr"])
+        alpha = _cell_alpha(cell, r)
         cell_dir = _cell_dir(output_base, r, lr)
         anchor = bool(cell.get("anchor", False))
         manifest_path = cell_dir / "epoch_checkpoints.json"
@@ -99,6 +107,7 @@ def enumerate_candidates(cfg: dict, output_base: str) -> list[dict]:
                     {
                         "tag": candidate_tag(r, lr, m["epoch"]),
                         "r": r,
+                        "alpha": alpha,
                         "lr": lr,
                         "epoch": m["epoch"],
                         "checkpoint": m["checkpoint"],
@@ -112,6 +121,7 @@ def enumerate_candidates(cfg: dict, output_base: str) -> list[dict]:
                 {
                     "tag": candidate_tag(r, lr, None),
                     "r": r,
+                    "alpha": alpha,
                     "lr": lr,
                     "epoch": None,
                     "checkpoint": str(cell_dir),
@@ -136,7 +146,7 @@ def prune_by_eval_loss(candidates: list[dict], keep: int | None) -> list[dict]:
     for c in candidates:
         by_cell.setdefault((c["r"], c["lr"]), []).append(c)
     kept: list[dict] = []
-    for (r, lr), cs in by_cell.items():
+    for cs in by_cell.values():
         # Missing eval_loss sorts last so a checkpoint we can't rank is dropped first.
         ranked = sorted(cs, key=lambda c: (c["eval_loss"] is None, c["eval_loss"] or 0.0))
         kept.extend(ranked[:keep])
@@ -256,8 +266,9 @@ def score_candidates(cfg: dict, candidates: list[dict], split: str) -> list[dict
         s = quick_score(tag, sweep_dir, split)
         _, preds, _ = load_condition(sweep_dir, tag, split)
         agg = aggregate(preds)
+        keys = ("tag", "r", "alpha", "lr", "epoch", "checkpoint", "eval_loss", "anchor")
         row = {
-            **{k: c[k] for k in ("tag", "r", "lr", "epoch", "checkpoint", "eval_loss", "anchor")},
+            **{k: c[k] for k in keys},
             "n": s["n"],
             "chrF": s["chrF"],
             "BLEU": s["BLEU"],
@@ -273,12 +284,12 @@ def score_candidates(cfg: dict, candidates: list[dict], split: str) -> list[dict
 def ranked_cells(rows: list[dict], adequacy_margin: float) -> list[dict]:
     """Candidates best-first by the rule AFSP uses: chrF adequacy band, then Phi.
 
-    register_fit (lower = closer to the target band) decides within `adequacy_margin`
-    chrF of the best candidate; candidates outside the band trail, same key. Ties
-    break toward smaller r, fewer epochs, larger lr (parsimony). Named `ranked_cells`
-    for continuity with src.infer.afsp_sweep; a "cell" is an (r, lr, epoch) candidate.
+    Unlike src.infer.afsp_sweep, the `anchor` flag here is a COSMETIC label for the
+    documented-default cell (r=16, lr=2e-4), not an exclusion: it is a first-class
+    (r, lr, epoch) candidate and can be selected. (AFSP's anchor is the zero-shot
+    reference, a different condition, so it is filtered there; PEFT has no such
+    non-candidate reference in the grid.)
     """
-    rows = [r for r in rows if not r.get("anchor")]
     if not rows:
         return []
 
@@ -302,7 +313,7 @@ def _fmt(v: object) -> str:
 
 
 def _print_table(rows: list[dict], pick: dict | None) -> None:
-    cols = ["tag", "r", "lr", "epoch", "n", "chrF", "BLEU", "marker_rate"]
+    cols = ["tag", "r", "alpha", "lr", "epoch", "n", "chrF", "BLEU", "marker_rate"]
     have_fit = bool(rows) and "register_fit" in rows[0]
     if rows and "stylo_dist" in rows[0]:
         cols.append("stylo_dist")
@@ -310,25 +321,33 @@ def _print_table(rows: list[dict], pick: dict | None) -> None:
         cols.append("register_fit")
     cols.append("eval_loss")
     key = (lambda r: r["register_fit"]) if have_fit else (lambda r: -r["chrF"])
-    ordered = sorted((r for r in rows if not r.get("anchor")), key=key)
+    ordered = sorted(rows, key=key)  # anchor included: it is a selectable candidate
     widths = {c: max(len(c), *(len(_fmt(r.get(c))) for r in ordered)) for c in cols}
     header = "  ".join(c.ljust(widths[c]) for c in cols) + "  <-"
     print(header)
     print("-" * len(header))
     for r in ordered:
-        mark = "  <== proxy pick" if pick and r["tag"] == pick["tag"] else ""
-        print("  ".join(_fmt(r.get(c)).ljust(widths[c]) for c in cols) + mark)
+        marks = []
+        if r.get("anchor"):
+            marks.append("(anchor)")
+        if pick and r["tag"] == pick["tag"]:
+            marks.append("<== proxy pick")
+        line = "  ".join(_fmt(r.get(c)).ljust(widths[c]) for c in cols)
+        print(line + ("  " + " ".join(marks) if marks else ""))
 
 
 def _print_plan(cells: list[dict], output_base: str, epochs: int) -> None:
     print(f"\nPEFT sweep: {len(cells)} cell(s) x {epochs} epoch(s) kept = candidate grid\n")
-    header = f"{'cell':<6}{'r':>4}{'lr':>10}   output_dir (checkpoints: epoch 1..{epochs})"
+    header = (
+        f"{'cell':<6}{'r':>4}{'alpha':>7}{'lr':>10}   output_dir (checkpoints: epoch 1..{epochs})"
+    )
     print(header)
     print("-" * (len(header) + 6))
     for i, cell in enumerate(cells, 1):
         r, lr = int(cell["r"]), float(cell["lr"])
         tag = " (anchor)" if cell.get("anchor") else ""
-        print(f"{i:<6}{r:>4}{_lr_tag(lr):>10}   {_cell_dir(output_base, r, lr)}{tag}")
+        alpha = _cell_alpha(cell, r)
+        print(f"{i:<6}{r:>4}{alpha:>7}{_lr_tag(lr):>10}   {_cell_dir(output_base, r, lr)}{tag}")
     print()
 
 
@@ -398,7 +417,13 @@ def main() -> None:
         candidates = prune_by_eval_loss(enumerate_candidates(cfg, output_base), keep)
         for c in candidates:
             generate_cell(
-                cfg, Path(c["checkpoint"]), c["tag"], sweep_dir, split, rows_val, style,
+                cfg,
+                Path(c["checkpoint"]),
+                c["tag"],
+                sweep_dir,
+                split,
+                rows_val,
+                style,
                 overwrite=args.overwrite,
             )
             _free_gpu()
@@ -441,8 +466,8 @@ def main() -> None:
     print(f"\nWrote {out_path}")
     if pick:
         print(
-            f"\nProxy pick: r={pick['r']}, lr={_lr_tag(pick['lr'])}, epoch={pick['epoch']}  "
-            f"(chrF {pick['chrF']}"
+            f"\nProxy pick: r={pick['r']}, alpha={pick['alpha']}, lr={_lr_tag(pick['lr'])}, "
+            f"epoch={pick['epoch']}  (chrF {pick['chrF']}"
             + (f", register_fit {pick['register_fit']}" if "register_fit" in pick else "")
             + f")  -> {pick['checkpoint']}"
         )

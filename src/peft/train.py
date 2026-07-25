@@ -128,8 +128,7 @@ def train(cfg: dict) -> None:
         r=lora_cfg.get("r", 16),
         lora_alpha=lora_cfg.get("alpha", 32),
         lora_dropout=lora_cfg.get("dropout", 0.05),
-        # README: LoRA on the query and value projections of each attention block.
-        target_modules=lora_cfg.get("target_modules", ["q_proj", "v_proj"]),
+        target_modules=lora_cfg.get("target_modules", "all-linear"),
         bias="none",
         task_type="CAUSAL_LM",
     )
