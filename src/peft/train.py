@@ -63,10 +63,19 @@ class SFTDataset:
     """Minimal map-style dataset of pre-tokenized, completion-masked examples."""
 
     def __init__(self, rows: list[dict], tokenizer, style_instruction: str, max_seq_len: int):
-        self.examples = [
-            build_example(tokenizer, style_instruction, r["input"], r["output"], max_seq_len)
-            for r in rows
-        ]
+        self.examples: list[dict] = []
+        dropped = 0
+        for r in rows:
+            ex = build_example(tokenizer, style_instruction, r["input"], r["output"], max_seq_len)
+            if all(label == -100 for label in ex["labels"]):
+                dropped += 1
+                continue
+            self.examples.append(ex)
+        if dropped:
+            print(
+                f"WARNING: dropped {dropped}/{len(rows)} example(s) with no supervised target "
+                f"tokens (prompt >= max_seq_len={max_seq_len}); zero-gradient / NaN-at-bs1."
+            )
 
     def __len__(self) -> int:
         return len(self.examples)
@@ -194,6 +203,7 @@ def train(cfg: dict) -> None:
     out.mkdir(parents=True, exist_ok=True)
     model.save_pretrained(out)
     tokenizer.save_pretrained(out)
+    epoch_history = list(trainer.state.log_history)
     metrics = trainer.evaluate()
     (out / "train_metrics.json").write_text(
         json.dumps({"base_model": base_model, "seed": seed, **metrics}, indent=2),
@@ -206,10 +216,14 @@ def train(cfg: dict) -> None:
     # generation pre-filter only -- the reported adapter is picked on COMET/Phi.
     if not load_best:
         manifest = []
-        for entry in trainer.state.log_history:
+        seen_steps: set[int] = set()  # one entry per checkpoint step, defensively
+        for entry in epoch_history:
             if "eval_loss" not in entry or "epoch" not in entry:
                 continue
             step = int(entry.get("step", 0))
+            if step in seen_steps:
+                continue
+            seen_steps.add(step)
             ckpt = out / f"checkpoint-{step}"
             manifest.append(
                 {
