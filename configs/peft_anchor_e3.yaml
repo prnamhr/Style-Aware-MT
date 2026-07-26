@@ -1,0 +1,68 @@
+generator:
+  provider: local
+  model: Qwen/Qwen2.5-7B-Instruct
+  max_tokens: 1024
+  temperature: 0.0
+  top_p: 1.0
+  seed: 42
+  dtype: bfloat16
+  device_map: auto
+  load_in_4bit: false
+prompt:
+  style_instruction_file: prompts/style_instruction.txt
+peft:
+  output_dir: models/peft_lora_r16_lr2e-4
+  load_in_4bit: false
+  lora:
+    r: 16
+    alpha: 32
+    dropout: 0.05
+    target_modules: all-linear
+  train:
+    seed: 42
+    max_seq_len: 1024
+    per_device_train_batch_size: 1
+    per_device_eval_batch_size: 1
+    gradient_accumulation_steps: 16
+    learning_rate: 0.0002
+    num_train_epochs: 3
+    max_steps: -1
+    weight_decay: 0.0
+    warmup_ratio: 0.03
+    lr_scheduler_type: cosine
+    gradient_checkpointing: true
+    logging_steps: 10
+    eval_strategy: epoch
+    save_strategy: epoch
+    save_total_limit: null
+    load_best_model_at_end: false
+data:
+  train_file: data/splits/train.jsonl
+  eval_file: data/splits/val.jsonl
+  limit: null
+output:
+  dir: outputs
+register:
+  centroid_file: results/stylometrics_centroid.json
+  select_target_sigma: 0.5
+  style_register_direction:
+    marker_rate: 0.514
+    lex_density: 0.355
+    root_ttr: -0.296
+    ttr: 0.098
+sweep:
+  output_base: models
+  grid:
+  - r: 16
+    alpha: 32
+    lr: 0.0002
+    anchor: true
+  - r: 8
+    alpha: 16
+    lr: 0.0002
+  - r: 32
+    alpha: 64
+    lr: 0.0002
+  - r: 16
+    alpha: 32
+    lr: 0.0001
