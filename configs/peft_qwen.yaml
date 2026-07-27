@@ -47,3 +47,7 @@ data:
   train_file: data/splits/train.jsonl   # parameter updates only
   eval_file: data/splits/val.jsonl      # dev: eval_loss for model selection
   limit: null                           # full splits
+
+# --- Output ---
+output:
+  dir: outputs                  
