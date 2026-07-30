@@ -1,0 +1,8 @@
+{
+  "condition": "peft",
+  "model": "Qwen/Qwen2.5-7B-Instruct",
+  "calls": 1323,
+  "prompt_tokens": 339773,
+  "completion_tokens": 44899,
+  "cost_usd": 0.0
+}
