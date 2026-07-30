@@ -2,7 +2,7 @@
 generator:
   provider: local
   model: Qwen/Qwen2.5-7B-Instruct   # single source of truth for the locked base
-  adapter_path: outputs/peft/adapter   # LoRA adapter loaded at inference; null = base only
+  adapter_path: models/peft_lora_r32_lr2e-4/checkpoint-1358   # LoRA adapter loaded at inference; null = base only
   max_tokens: 1024
   temperature: 0.0          # greedy, deterministic (locked decoding)
   top_p: 1.0
@@ -20,8 +20,8 @@ peft:
   output_dir: outputs/peft/adapter      # adapter + tokenizer saved here (git-ignored)
   load_in_4bit: false                   # QLoRA memory-pressure fallback (<=8GB VRAM)
   lora:
-    r: 16                               # rank (dev-tuned)
-    alpha: 32
+    r: 32                               # rank (dev-tuned)
+    alpha: 64
     dropout: 0.05
     target_modules: all-linear          # LoRA on all linear layers (matches peft_sweep.yaml)
   train:
@@ -30,7 +30,7 @@ peft:
     per_device_train_batch_size: 1
     per_device_eval_batch_size: 1
     gradient_accumulation_steps: 16     # effective batch = 16
-    learning_rate: 2.0e-4               # dev-tuned
+    learning_rate: 0.0002               # dev-tuned
     num_train_epochs: 3                 # dev-tuned; set max_steps to override
     max_steps: -1
     weight_decay: 0.0
