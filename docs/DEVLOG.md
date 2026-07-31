@@ -10,6 +10,498 @@ Each entry documents four points: what changed, why the change was made, how the
 * Code references should use the format `path:line`.
 * Commands should be recorded as exact command-line invocations.
 * When a pipeline stage writes data, the entry should identify the artifact paths and describe how integrity was verified, for example through hashes or manifests.
+* The four entries dated 2026-07-18 through 2026-07-31 were written **retrospectively on
+  2026-07-31**, reconstructed from committed artifacts, configs, and git history rather
+  than at the time of each change. Where a rationale was not recorded in the repository
+  it is marked as unrecorded rather than inferred.
+
+---
+
+## 2026-07-31 — PEFT frozen and run; six-condition val evaluation complete
+
+### Summary
+
+The PEFT condition was trained, tuned, confirmed, and generated on the full val
+split, which completes the **val** evaluation for all six implemented conditions
+— the five prompting rungs plus PEFT. For the first time the project has COMET
+and LLM-as-Judge Φ numbers for every condition on the same 1,323-segment split,
+so the README results table is no longer empty.
+
+The frozen PEFT configuration is **r = 32, α = 64, lr = 2e-4, 2 epochs**, LoRA on
+all linear layers, adapter `models/peft_lora_r32_lr2e-4/checkpoint-1358`
+(80,740,352 trainable parameters across 392 adapter tensors, ≈1.06 % of the 7.62 B
+base). It was selected by `src.peft.sweep` and confirmed by `src.peft.verify`
+(2026-07-25 entry), and is frozen into `configs/peft_qwen.yaml` as
+`generator.adapter_path`.
+
+**These are val results. The test split remains sealed** — `data/splits/test.jsonl`
+(1,322 segments) has not been generated on by any condition.
+
+| Condition | COMET | chrF | BLEU | Judge Φ | lex_density | TTR | stylo_dist |
+|---|---|---|---|---|---|---|---|
+| `zeroshot` | 0.6480 | 36.42 | 10.27 | 2.546 | 0.4025 | 0.8434 | 0.6518 |
+| `random_fewshot` | 0.6644 | 37.52 | 11.64 | 2.633 | 0.4103 | 0.8444 | 0.4736 |
+| `knn_fewshot` | 0.6839 | 39.82 | 13.99 | 2.748 | 0.4034 | 0.8367 | 0.4005 |
+| `afsp_margin` | 0.6824 | 39.68 | 13.69 | 2.763 | 0.4060 | 0.8387 | 0.3910 |
+| `afsp_full` | 0.6853 | 39.99 | 14.52 | **2.791** | 0.4105 | 0.8421 | 0.3698 |
+| `peft` | **0.6986** | **41.58** | **16.90** | 2.744 | 0.4088 | 0.8515 | **0.2886** |
+
+Three observations, all descriptive and none yet significance-tested:
+
+1. The prompting ladder is monotone on COMET and chrF from `zeroshot` to
+   `knn_fewshot`, and `stylo_dist` falls monotonically across the whole ladder
+   (0.652 → 0.370) — each rung sits closer to the target-register centroid than
+   the one below it.
+2. **PEFT and AFSP disagree about which is more in-register.** PEFT wins every
+   surface and adequacy metric (COMET +0.013, chrF +1.6, BLEU +2.4 over
+   `afsp_full`) and has the smallest stylometric distance (0.289 vs 0.370), but
+   `afsp_full` scores highest on judge Φ (2.791 vs 2.744). The objective and
+   subjective register measures rank the two adaptation families oppositely. This
+   is exactly the RQ4 agreement/disagreement question and should be reported as
+   such, not resolved by picking the flattering metric.
+3. `afsp_margin` does **not** beat `knn_fewshot` on COMET (0.6824 vs 0.6839) —
+   the margin/hub rung is flat-to-slightly-negative on adequacy — while the
+   register rerank rung (`afsp_full`) adds both adequacy and Φ over it. On this
+   split the gain attributable to AFSP comes from the register rerank, not from
+   margin/hub penalisation.
+
+### What changed
+
+No source changes. This entry records generation and scoring artifacts:
+
+* `outputs/peft_val.jsonl` (1,323 rows) + `outputs/peft_val_usage.json` — the
+  frozen adapter generated on full val under the locked decoding contract
+  (greedy, `temperature 0.0`, `seed 42`, `max_new_tokens 1024`, bf16, **not**
+  quantized).
+* `results/comet_val.json` — per-segment `Unbabel/wmt22-comet-da` for all six
+  conditions, `n = 1323` each, with the shared `sources` list persisted so the
+  paired bootstrap can verify segment alignment.
+* `results/judge_val.json` + `results/judge_val_segments/*.jsonl` — evaluation-time
+  judge Φ for all six conditions. Coverage is 1.0 everywhere except
+  `knn_fewshot` (0.9992 — one segment unparseable and dropped).
+* `results/peft_sweep_val.json`, `results/peft_verify_val.json` — the selection
+  and confirmation records (see the 2026-07-25 entry).
+* `configs/peft_qwen.yaml` — `adapter_path`, `r: 32`, `alpha: 64`,
+  `learning_rate: 0.0002` frozen to the confirmed cell.
+
+The run was executed on Colab across three phases recorded in
+`notebooks/peft_full_run_colab.ipynb` (train/sweep, verify, final generation);
+the 8 GB development GPU cannot hold the bf16 base, unchanged from Stage 0.
+
+### Verification
+
+The surface and stylometric numbers in the table above were **recomputed locally
+on 2026-07-31** from the committed inference files and match the sweep/verify
+records cell-for-cell (e.g. `peft` chrF 41.58 = the `peft_r32_lr2e-4_e2` sweep
+cell; `afsp_full` chrF 39.99 = the frozen `afsp_k8_l0.75` cell), confirming that
+the shipped `peft`/`afsp_full` outputs were generated from the frozen configs and
+not from some other cell:
+
+```bash
+python manage.py eval          --conditions zeroshot random_fewshot knn_fewshot afsp_margin afsp_full peft --split val
+python manage.py stylometrics  --conditions zeroshot random_fewshot knn_fewshot afsp_margin afsp_full peft --split val
+```
+
+COMET and Φ were read from the committed JSON, not re-run. The adapter parameter
+count was read from the safetensors header of
+`models/peft_lora_r32_lr2e-4/checkpoint-1358/adapter_model.safetensors`; its
+`adapter_config.json` confirms `r: 32`, `lora_alpha: 64`, and all seven linear
+projections (`q,k,v,o,gate,up,down`) as targets.
+
+### Reproduction
+
+```bash
+# Selection and confirmation (Colab-class GPU; see the 2026-07-25 entry)
+python manage.py peft_sweep  --config configs/peft_sweep.yaml
+python manage.py peft_verify --config configs/peft_sweep.yaml --top 3 \
+    --judge-config configs/judge_eval.yaml
+
+# Final generation with the frozen adapter
+python manage.py infer --condition peft --config configs/peft_qwen.yaml
+
+# Scoring (COMET from the .venv-comet environment)
+CONDS="zeroshot random_fewshot knn_fewshot afsp_margin afsp_full peft"
+python manage.py eval         --conditions $CONDS --split val
+python manage.py comet        --conditions $CONDS --split val
+python manage.py judge        --conditions $CONDS --split val --config configs/judge_eval.yaml
+python manage.py stylometrics --conditions $CONDS --split val
+```
+
+### Limitations and risks
+
+**No significance testing has been run.** `manage.py bootstrap` exists and the
+per-segment COMET/Φ vectors it needs are persisted, but no `results/bootstrap_*`
+artifact exists. Every ordering above — including the 0.047 Φ gap between
+`afsp_full` and `peft` and the 0.0015 COMET gap between `knn_fewshot` and
+`afsp_margin` — is currently an unqualified point estimate. None of them may be
+described as a difference until the paired bootstrap is run.
+
+The judge is `claude-haiku-4-5` at `temperature 0.0`, a single model from a single
+family with no seed control (see the 2026-07-23 entry). Φ differences on the order
+of 0.05 are plausibly within judge noise, and the cross-family confirmation pass
+the methodology calls for has not been run. Φ is also the *primary* stylistic
+metric for the thesis, which makes this the weakest link in the current results.
+
+Cost and latency are not instrumented. `outputs/*_usage.json` records token counts
+only (`cost_usd` is 0 for local weights), and the `calls` field is below `n = 1323`
+for the resumed runs (1,184–1,318), so it counts API calls actually issued, not
+segments — it cannot be used as a per-condition cost measure. The README's latency
+column has no data behind it.
+
+RLSF remains unimplemented (`src/rlsf/` holds only an empty `__init__.py`), so the
+four-way comparison of RQ1 is a three-way comparison today.
+
+---
+
+## 2026-07-25 — PEFT tuning as a first-class sweep (`src/peft/sweep.py`, `src/peft/verify.py`)
+
+### Summary
+
+The 2026-07-23 entry left the LoRA hyperparameters as placeholder defaults with an
+explicit warning that they had to be dev-tuned before the reported run. That tuning
+was implemented as a two-stage driver that mirrors the AFSP `sweep → verify → freeze`
+pattern, so **both adaptation arms are selected under the same rule on the same
+axis**. Without this, PEFT would have been selected on `eval_loss` and AFSP on
+register fidelity, and a PEFT-vs-AFSP comparison would have confounded the
+adaptation method with the selection criterion.
+
+The consequential design decision is that **`eval_loss` is not the selector**. It
+is demoted to a free pre-filter that decides which checkpoints are worth generating
+with; the reported adapter is picked on chrF adequacy band + register fidelity, then
+confirmed on COMET + Φ.
+
+### What changed
+
+`src/peft/sweep.py` (new, `manage.py peft_sweep`). Trains the grid in
+`configs/peft_sweep.yaml` — four (r, lr) cells: (16, 2e-4) as the labelled anchor,
+(8, 2e-4), (32, 2e-4), (16, 1e-4), all with α = 2r — for the full three-epoch budget.
+`enumerate_candidates` then treats **every saved epoch checkpoint as its own
+candidate**, so a candidate is an (r, lr, epoch) triple, not a cell.
+`prune_by_eval_loss(candidates, keep)` keeps the `keep` lowest-`eval_loss`
+checkpoints per cell (default 2, `--epochs-keep -1` disables) purely to bound
+generation cost, and logs every pruned candidate so the cap is never silent.
+Surviving candidates are generated on val and scored on the AFSP-matched proxy axis
+(chrF via `src.eval.quick`, `register_fit` via `src.infer.afsp_sweep._register_fit_fn`),
+then ranked into `results/peft_sweep_val.json`.
+
+Making epoch a tuned axis required regime changes in `configs/peft_sweep.yaml`:
+`save_total_limit: null` (keep every epoch checkpoint) and
+`load_best_model_at_end: false` (do not collapse the run to the `eval_loss`-best
+epoch). A per-cell `epoch_checkpoints.json` manifest maps epoch → checkpoint path.
+
+`src/peft/verify.py` (new, `manage.py peft_verify`). The analogue of
+`src/infer/afsp_verify.py`: regenerates the top-N proxy candidates on full val,
+scores them with COMET and — only when `--judge-config` is supplied — the judge,
+and applies the identical freeze rule (keep cells within `--comet-adequacy` of the
+best COMET, pick the highest Φ among them). Writes `results/peft_verify_val.json`
+with per-segment COMET and the shared source list.
+
+`src/peft/train.py`: LoRA `target_modules` moved from `[q_proj, v_proj]` to
+`all-linear`, matching the README's stated design and `peft_sweep.yaml`. A
+`enable_input_require_grads()` call was added on the bf16 path — with LoRA plus
+gradient checkpointing and a frozen base, the checkpointed inputs carry no
+`requires_grad`, so backward produced no gradients and training silently did
+nothing until this was fixed (`1de6059`). Further config-plumbing fixes landed in
+`d2452be` / `c0efb67`.
+
+New configs: `configs/peft_sweep.yaml` (grid + `register:` block carrying
+`select_target_sigma: 0.5` and the register direction), `configs/peft_smoke.yaml`
+(loop validation), `configs/peft_anchor_e3.yaml` (three-epoch anchor cell).
+
+### Why `eval_loss` is not the selector — and what the sweep showed
+
+Completion-only MLE loss falls as the adapter fits target tokens; the thesis
+objective is register fidelity in generated text. On this grid the two ordered
+**oppositely**:
+
+| Candidate | eval_loss | chrF | register_fit (lower = better) |
+|---|---|---|---|
+| `peft_r16_lr2e-4_e1` (anchor) | **1.5312** (best) | 41.96 | **1.0829** (worst) |
+| `peft_r8_lr2e-4_e1` | 1.5336 | 41.40 | 1.0776 |
+| `peft_r16_lr1e-4_e1` | 1.5379 | 41.10 | 1.1015 |
+| `peft_r32_lr2e-4_e1` | 1.5398 | 42.18 | 1.0736 |
+| `peft_r16_lr1e-4_e2` | 1.5553 | 41.66 | 1.0449 |
+| `peft_r8_lr2e-4_e2` | 1.5583 | 41.57 | 1.0616 |
+| `peft_r16_lr2e-4_e2` | 1.5601 | 41.73 | 1.0386 |
+| `peft_r32_lr2e-4_e2` | **1.5733** (worst) | 41.58 | **1.0265** (best) |
+
+Every epoch-2 checkpoint has a worse `eval_loss` and a better `register_fit` than
+its epoch-1 counterpart, and the selected candidate is the single worst cell by
+`eval_loss`. Selecting on `eval_loss`, as the placeholder config implied, would
+have frozen the *least* in-register adapter of the eight. All eight sit inside a
+1.1-point chrF band (41.10–42.18), so adequacy does not discriminate between them
+and the register axis decides.
+
+`src.peft.verify` then confirmed the proxy pick on the reported metrics
+(`results/peft_verify_val.json`, `proxy_pick_held: true`):
+
+| Candidate | COMET | Φ |
+|---|---|---|
+| `peft_r32_lr2e-4_e2` **(frozen)** | 0.6986 | **2.741** |
+| `peft_r16_lr2e-4_e2` | **0.7016** | 2.732 |
+| `peft_r16_lr1e-4_e2` | 0.6978 | 2.697 |
+
+The three sit within 0.004 COMET — inside the 0.01 adequacy band — so the freeze
+fell to Φ, which kept the proxy pick.
+
+### Verification
+
+Two Colab smoke runs preceded the real sweep: a first sweep smoke on 2026-07-25
+(32-segment cell, retained under `archive/peft-smoke/`) and a multi-epoch smoke on
+2026-07-26 (`notebooks/peft_multiepoch_smoke_colab.ipynb`). Per project findings
+discipline these are loop validation and produce no thesis numbers. The real sweep
+and verify runs are recorded in `notebooks/peft_full_run_colab.ipynb`.
+
+### Reproduction
+
+```bash
+python manage.py peft_sweep  --config configs/peft_sweep.yaml --dry-run     # grid plan, trains nothing
+python manage.py peft_sweep  --config configs/peft_sweep.yaml               # train + generate + rank
+python manage.py peft_sweep  --config configs/peft_sweep.yaml --score-only  # re-rank, no GPU
+python manage.py peft_verify --config configs/peft_sweep.yaml --top 3 \
+    --judge-config configs/judge_eval.yaml
+```
+
+### Limitations and risks
+
+The grid is small and not a cross-product: four (r, lr) cells with α tied to 2r, so
+α/r is never varied independently and the (8, 1e-4) and (32, 1e-4) corners are
+unexplored. Epoch 3 checkpoints were trained and remain on disk
+(`checkpoint-2037`) but were pruned from selection by the default
+`--epochs-keep 2`; since `register_fit` improved monotonically from epoch 1 to
+epoch 2 in every cell, a third epoch might have improved it further and was never
+generated with. That pruning is an `eval_loss`-driven cost cap on an axis the entry
+above argues `eval_loss` should not govern — it is logged, but it is the one place
+`eval_loss` still constrains the outcome.
+
+Each cell was trained once at `seed: 42`; there is no seed replication, so
+`register_fit` gaps of ~0.01 between adjacent cells are not distinguishable from
+training noise. The COMET spread across the three verified candidates (0.004) is
+likewise well inside the paired-bootstrap noise floor that has not yet been
+computed, so "r = 32 at 2 epochs is the best adapter" is a selection decision, not
+a demonstrated result.
+
+---
+
+## 2026-07-23 — AFSP run end to end on val: sweep → verify → freeze (k = 8, λ = 0.75)
+
+### Summary
+
+The AFSP sweep and confirmation described as *not run* in the 2026-07-06 and
+2026-07-16 entries were executed on Colab, and the resulting (k, λ) was frozen.
+The proxy sweep ranked the grid, `afsp_verify` confirmed the top three cells on
+full val under COMET and the judge, the proxy pick held, and **k = 8,
+λ_style = 0.75** was frozen into `configs/base_qwen.yaml`. All five prompting
+rungs were then generated on the full val split. The evaluation-time judge was
+also changed to a different provider during this period (below), which supersedes
+a decision recorded in the 2026-07-04 entry.
+
+### The sweep
+
+`results/afsp_sweep_val.json` — 19 rows: the k ∈ {4, 8, 16} × λ ∈ {0, 0.1, 0.25,
+0.5, 0.75, 1.0} grid (18 cells) plus a `afsp_zeroshot` reference row, each on all
+1,323 val segments, β fixed at 0.3.
+
+Selection ran the documented rule — keep cells within `adequacy_margin` 1.0 chrF
+of the grid best (40.44), then take the best `register_fit` — and recommended
+`afsp_k8_l0.75` (chrF 39.99, `register_fit` 0.9611, `stylo_dist` 0.3709).
+
+Two things in the table are worth recording:
+
+* **The zero-shot row has a better `register_fit` (0.9555) than every AFSP cell.**
+  It is excluded only by the chrF adequacy band (36.42 vs 40.44). The register
+  objective alone would have selected no exemplars at all; the adequacy band is
+  what makes the selection meaningful, so its width is load-bearing, not cosmetic.
+* **k and λ trade off against each other.** k = 16 dominates on chrF (up to 40.44)
+  but has the worst `register_fit` at low λ (1.069 at λ = 0.1); k = 4 has good
+  `register_fit` (0.922 at λ = 1.0) but the worst chrF (38.81). k = 8 at λ = 0.75
+  wins by sitting inside the adequacy band with the best fidelity available there.
+
+### The confirmation
+
+`results/afsp_verify_val.json` regenerated the top three proxy cells on full val
+and scored them with COMET and the judge (`proxy_pick_held: true`):
+
+| Cell | chrF | COMET | Φ | coverage |
+|---|---|---|---|---|
+| `afsp_k8_l0.75` **(frozen)** | 39.99 | 0.6853 | **2.797** | 1.0 |
+| `afsp_k8_l1` | 39.76 | 0.6824 | 2.763 | 1.0 |
+| `afsp_k16_l0.75` | 40.44 | **0.6871** | 2.778 | 1.0 |
+
+All three lie within 0.005 COMET — inside the 0.01 band — so the freeze fell to Φ
+and kept the proxy pick, even though `afsp_k16_l0.75` is nominally better on both
+chrF and COMET.
+
+`configs/base_qwen.yaml` was frozen to `retrieval.k: 8`, `afsp.lambda_style: 0.75`
+(commit `6ae191a`), and the five ladder rungs were generated on full val into
+`outputs/{zeroshot,random_fewshot,knn_fewshot,afsp_margin,afsp_full}_val.jsonl`.
+
+### Judge provider change (supersedes the 2026-07-04 decision)
+
+`configs/judge_eval.yaml` was changed repeatedly on 2026-07-20 and settled on
+`provider: anthropic`, `model: claude-haiku-4-5`, `temperature: 0.0`,
+`thinking: false`, having passed through Gemini Flash variants from the originally
+documented OpenAI judge. **No rationale for the switch is recorded in the
+repository**; only the config history shows it.
+
+This directly contradicts the Stage 4 entry (2026-07-04), which chose an OpenAI
+judge specifically because `temperature=0` + `seed` gave a reproducible primary,
+and stated that "the Anthropic cross-family judge is non-deterministic (no
+temperature control in the client) and should be treated as a confirmation pass,
+not a reproducible primary." The Anthropic judge is now the primary. Every Φ in
+`results/judge_val.json` comes from it. This should be resolved deliberately —
+either by re-establishing a reproducible primary or by documenting and defending
+the non-reproducible one in the methodology — rather than left as an undocumented
+drift.
+
+### 4-bit flag (transient, did not affect reported runs)
+
+On 2026-07-18 `load_in_4bit` was flipped to `true` in `base_qwen.yaml` and
+`afsp_sweep.yaml`, and a `configs/base_qwen_t4_test.yaml` was added, to fit the
+base on a T4. This would have violated the frozen-unquantized-base contract of the
+Stage 0 entry. It was reverted the same day (`446eca8`), the T4 config no longer
+exists in the tree, and every commit from 2026-07-19 onward carries
+`load_in_4bit: false`. The sweep, verify, and ladder generations all postdate the
+revert, and the run notebooks contain no 4-bit override, so **the reported AFSP
+outputs are bf16 on the unquantized base.**
+
+### Housekeeping
+
+`4812465` archived the pre-band-pass sweep outputs to
+`archive/pre-band-pass-fix/` (26 stale cells from the old k ∈ {1, 2, 4, 8, 16}
+grid plus the notebook that produced them) with a README marking them
+non-canonical. `9fbc249` restored `ruff` lint/format compliance across `src`.
+
+### Reproduction
+
+```bash
+python manage.py build_index   --config configs/base_qwen.yaml
+python manage.py stylometrics  --build-centroid
+python manage.py afsp_sweep    --config configs/afsp_sweep.yaml
+python manage.py afsp_verify   --config configs/afsp_sweep.yaml --top 3 \
+    --judge-config configs/judge_eval.yaml
+# then freeze retrieval.k / afsp.lambda_style into configs/base_qwen.yaml
+for c in zeroshot random_fewshot knn_fewshot afsp_margin afsp_full; do
+    python manage.py infer --condition "$c" --config configs/base_qwen.yaml
+done
+```
+
+### Limitations and risks
+
+The freeze between `afsp_k8_l0.75` and `afsp_k16_l0.75` rests on a Φ gap of 0.019
+from a single judge with no seed control, inside a COMET spread of 0.005. That is
+almost certainly below the noise floor of both metrics; the pick is defensible as a
+pre-registered rule mechanically applied, but it is not evidence that k = 8 beats
+k = 16.
+
+β was held at 0.3 throughout and is still unswept, so β × (k, λ) interactions
+remain unseen. The sweep's own zero-shot row shows the register objective is
+satisfiable by degenerate means, which is a standing argument for reporting the
+adequacy band alongside any register claim.
+
+---
+
+## 2026-07-18 — AFSP register objective: band-pass target replaces unbounded salience
+
+### Summary
+
+The register-fit term that drives AFSP's λ rerank was changed from **salience**
+(mean absolute z-score, unbounded) to a **band-pass** objective: the distance to a
+target point sitting σ standard deviations along a *signed* register direction.
+The sweep's ranking axis changed with it, from the undirected `stylo_dist` to the
+new directional `register_fit`. The k × λ grid was simultaneously re-cut. All
+sweep outputs produced before this change were invalidated and later archived.
+
+### Why
+
+The 2026-07-04 entry adopted salience precisely to fix the opposite error —
+toward-centroid reranking had been selecting the register-*bland* corpus average —
+and flagged in its own limitations that salience "is unbounded and length-sensitive
+in isolation", safe only because the candidate pool bounds it. Two problems remain
+with it as a *ranking* axis:
+
+* Salience is the mean **absolute** z-score, so it is direction-blind: an exemplar
+  that deviates from the centroid the wrong way scores as well as one that deviates
+  the right way.
+* Being unbounded, "more" is always "better", so a λ sweep pushes monotonically
+  toward the extreme rather than toward a target register.
+
+Band-pass fixes both: the target is an explicit point, not an extremum, and the
+direction is signed.
+
+### What changed
+
+`src/eval/stylometrics.py` gained `register_band_distance(feats, centroid, sigma,
+direction)`. It z-scores the segment's centroid features, forms the target
+`sign(d) · σ`, and returns the direction-magnitude-weighted standardized distance
+to it — `sqrt(Σ wᵢ(zᵢ − targetᵢ)² / (Σw / n))` with `w = |d|`, so features that load
+weakly on the register direction contribute proportionally less. `distance_to_centroid`
+and `register_salience` are retained: the former undirected for reporting, both
+still selectable.
+
+`src/retrieval/afsp.py` gained `STYLE_OBJECTIVES = ("bandpass", "proximity",
+"salience")` with **`bandpass` as the default**, plus `style_target_sigma`,
+`style_register_direction`, and `_resolve_direction` (which accepts a dict keyed by
+centroid feature name — order-independent and validated against the centroid's own
+feature list, raising on a missing or mis-sized spec). `_register_fit` dispatches on
+the objective; `proximity` reproduces the pre-2026-07-04 behaviour and `salience`
+the 2026-07-04 behaviour, so all three are still reachable for ablation.
+
+`src/infer/afsp_sweep.py` now computes a per-cell `register_fit` via
+`_register_fit_fn` and **ranks on it instead of `stylo_dist`** (`446eca8`):
+`recommend` takes `min(register_fit)` within the chrF band, ties broken toward
+higher chrF then smaller k; `stylo_dist` is retained in the table for reporting
+only. `src/infer/run.py` passes the same three settings through to the retriever.
+
+`configs/base_qwen.yaml` set the objective and the direction:
+
+```yaml
+style_objective: bandpass
+style_target_sigma: 1.0
+style_register_direction:
+  marker_rate: 0.514
+  lex_density: 0.355
+  root_ttr: -0.296
+  ttr: 0.098
+```
+
+Read out: the register direction is dominated by archaic-marker rate and lexical
+density, with **`root_ttr` loading negatively** — on this corpus the target register
+is *less* lexically varied per unit length, not more. This is why a direction-blind
+objective mismeasures it: salience rewards deviation in `root_ttr` in either
+direction, while the corpus says only one direction is register-bearing.
+
+The grid was re-cut in the same window: from k ∈ {1, 2, 3, 4} × λ ∈ {0, 0.25, 0.5,
+0.75, 1.0} to k ∈ {4, 8, 16} (`97c1744`, dropping k = 1/2 as too few exemplars and
+adding k = 16) with λ densified at the low end by adding 0.1 (`6169de9`), giving
+the 18-cell grid the 2026-07-23 run used.
+
+### Verification
+
+Not separately verified at the time beyond the static checks; the objective's
+effect is visible in the sweep table recorded in the 2026-07-23 entry, where
+`register_fit` and the undirected `stylo_dist` rank cells differently (e.g.
+`afsp_k16_l1` has the second-best `stylo_dist` of the grid at 0.3808 but only the
+seventh-best `register_fit` at 0.9811).
+
+### Limitations and risks
+
+**The provenance of `style_register_direction` is not recorded anywhere in the
+repository.** The four coefficients are hard-coded in `configs/base_qwen.yaml` and
+duplicated in `configs/peft_sweep.yaml`; no script derives them and no entry
+explains how they were obtained. They look like a normalized loading vector, and
+their signs agree with the correlations reported in the 2026-07-04 entry
+(distance–marker +0.51, distance–lex +0.36), but that is inference, not a record.
+Since this vector defines what the project *means* by "the target register", it
+needs a derivation script or a documented source before it appears in the thesis.
+
+`style_target_sigma` is 1.0 in `base_qwen.yaml` but **0.5** in
+`configs/peft_sweep.yaml` (`select_target_sigma`), so the AFSP arm and the PEFT arm
+target register points at different distances along the same direction. The
+2026-07-25 entry frames PEFT selection as running on the "matched" AFSP axis; it is
+matched in form but not in σ. Whether that is deliberate is not recorded.
+
+The duplicated direction vector in two configs will drift silently if one is edited.
 
 ---
 

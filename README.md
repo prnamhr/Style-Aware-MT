@@ -4,7 +4,8 @@ Style-aware neural machine translation of Persian and mixed Persian/Arabic Bahá
 
 Undergraduate thesis project — BIHE, Department of Computer Engineering. Supervisor: Dr. Fares Hedayati.
 
-> **Status:** in progress. This README tracks the current experimental plan; results tables fill in as conditions are run.
+> **Status:** in progress (last updated 2026-07-31).
+> Six of seven conditions — the five prompting rungs and PEFT — are implemented, tuned, frozen, and scored on the **validation** split; their numbers are in [Results](#results-validation-split). RLSF is not yet implemented. The test split is sealed and untouched. No testing has been run yet, so all reported differences are point estimates.
 
 ---
 
@@ -24,6 +25,8 @@ Plus a fourth condition — the **unadapted base model** — as reference.
 
 All four are evaluated on the same held-out test set with COMET, BLEU, objective stylometric features, and LLM-as-Judge scoring.
 
+**Implementation status:** PEFT and the AFSP/prompting ladder are complete and scored on validation; RLSF is not yet implemented. The current comparison is therefore three-way (base, prompting ladder, PEFT).
+
 ---
 
 ## Research questions
@@ -33,7 +36,7 @@ All four are evaluated on the same held-out test set with COMET, BLEU, objective
 - **RQ3.** How sensitive is RLSF to the reward weights (ω₁, ω₂, ω₃) on COMET / BLEU / style?
 - **RQ4.** When applied to the same outputs, where do COMET, stylometric features, and LLM-as-Judge agree and disagree?
 
-Full hypotheses (H1–H4) and support criteria are in [`docs/methodology.md`](docs/methodology.md). The project does **not** pre-commit to a ranking of the three adaptation methods.
+Full hypotheses (H1–H4) and support criteria live in the thesis proposal ([`docs/proposal.pdf`](docs/proposal.pdf)); a long-form `docs/methodology.md` is **not yet written**. The project does **not** pre-commit to a ranking of the three adaptation methods.
 
 ---
 
@@ -58,13 +61,17 @@ Full hypotheses (H1–H4) and support criteria are in [`docs/methodology.md`](do
 │   ├── style_instruction.txt
 │   ├── judge_train.txt        ← judge template used inside RLSF reward
 │   └── judge_eval.txt         ← separate judge template for final evaluation
+├── models/                    ← trained LoRA adapters, one dir per sweep cell (+ epoch checkpoints)
 ├── outputs/                   ← <condition>_<split>.jsonl per run (split tag, e.g. _val)
-├── results/                   ← metrics_<condition>.json, tables, plots
+│   ├── sweep/                 ← AFSP k × λ sweep cells
+│   └── peft_sweep/            ← PEFT (r, lr, epoch) candidate
+├── results/                   ← comet_<split>.json, judge_<split>.json, *_sweep/_verify records
+├── archive/                  
 ├── docs/
-│   ├── proposal.pdf           ← thesis proposal
-│   ├── methodology.md         ← long-form methodology, H1–H4 support criteria
-│   └── budget.md              ← declared compute and API caps (§10.3)
-└── notebooks/                 ← analysis, agreement plots, qualitative inspection
+│   ├── proposal.pdf           ← thesis proposal (H1–H4 live here)
+│   ├── DEVLOG.md              ← engineering and decision log
+│   └── afsp_strategies.md     ← AFSP mechanism specification
+└── notebooks/                 ← Colab runbooks for the GPU stages (sweeps, training, inference)
 ```
 
 ---
@@ -98,7 +105,11 @@ Unicode NFC, diacritic handling, whitespace and punctuation normalization, remov
 Base model, minimal style instruction (see `prompts/style_instruction.txt`), no exemplars, no fine-tuning. Provides the lower bound and the H1 comparison anchor.
 
 ### PEFT (LoRA)
-LoRA adapters on all linear layers of the transformer, base weights frozen. Trained with token-level MLE on the training partition. Rank, LR, and epoch count tuned on dev over a four-cell sweep (see [`configs/peft_sweep.yaml`](configs/peft_sweep.yaml)); the sweep regime is byte-identical to the reported/inference regime so the selected hyperparameters transfer. QLoRA is the memory-pressure fallback. The resulting checkpoint also serves as the **RLSF initialization**.
+LoRA adapters on all linear layers of the transformer (`q,k,v,o,gate,up,down`), base weights frozen. Trained with token-level MLE, completion-only loss, on the training partition. QLoRA is the memory-pressure fallback. The resulting checkpoint also serves as the **RLSF initialization**.
+
+Rank, LR, and epoch count were tuned on dev (see [`configs/peft_sweep.yaml`](configs/peft_sweep.yaml)) over a four-cell (r, lr) grid — (16, 2e-4), (8, 2e-4), (32, 2e-4), (16, 1e-4), with α = 2r — trained for three epochs with **every epoch checkpoint kept**, so a candidate is an (r, lr, epoch) triple. `eval_loss` is used only as a pre-filter on which checkpoints are worth generating with; selection runs on the same axis as AFSP (chrF adequacy band, then register fidelity), confirmed on COMET + judge Φ. The sweep regime is byte-identical to the reported/inference regime so the selected hyperparameters transfer.
+
+**Frozen configuration:** r = 32, α = 64, lr = 2e-4, **2 epochs** — adapter `models/peft_lora_r32_lr2e-4/checkpoint-1358`, 80.7 M trainable parameters (≈1.06 % of the base). Selecting on `eval_loss` instead would have picked a different and measurably less in-register adapter; see [`docs/DEVLOG.md`](docs/DEVLOG.md), 2026-07-25.
 
 ### kNN few-shot (baseline) and AFSP (retrieval-based ICL)
 No parameter updates. At inference time:
@@ -121,7 +132,9 @@ No parameter updates. At inference time:
 
 The index is built over the **source** side (not the English targets) so that the AFSP margin — query–candidate similarity plus query and candidate hubness — is computed in one comparable space; target-side register is scored separately by the style rerank, from the exemplar text (see `docs/DEVLOG.md`, 2026-07-04).
 
-Shot-count sensitivity on dev over **k ∈ {2, 4, 8}**, subject to base model context limits. Final k is fixed on dev before test inference. Pattern: Tang et al. [AFSP, 2025]; related precedents in Wang et al. style-activation prompting and style-matching exemplar selection.
+**Register-fit objective.** The λ rerank scores an exemplar by a **band-pass** target: the distance to a point σ standard deviations along a *signed* register direction, rather than proximity to the corpus centroid (which selects register-bland text) or unbounded salience (which is direction-blind and has no target). The direction is dominated by archaic-marker rate and lexical density, with `root_ttr` loading negatively. `proximity` and `salience` remain selectable via `afsp.style_objective` for ablation. See [`docs/DEVLOG.md`](docs/DEVLOG.md), 2026-07-18.
+
+**Sweep and freeze.** k × λ_style was swept on the full val split over **k ∈ {4, 8, 16} × λ ∈ {0, 0.1, 0.25, 0.5, 0.75, 1.0}** (18 cells, β fixed at 0.3), ranked on a chrF adequacy band then register fidelity, and the top three cells were re-confirmed on COMET and judge Φ before freezing. **Frozen: k = 8, λ_style = 0.75, β = 0.3, σ = 1.0.** Pattern: Tang et al. [AFSP, 2025]; related precedents in Wang et al. style-activation prompting and style-matching exemplar selection.
 
 ### RLSF (PPO)
 - **Init:** PEFT checkpoint.
@@ -131,7 +144,7 @@ Shot-count sensitivity on dev over **k ∈ {2, 4, 8}**, subject to base model co
   r(y) = ω₁ · COMET(x, y, y*) + ω₂ · BLEU(y, y*) + ω₃ · Φ(y, S_T)
   ```
   with `Φ` an LLM-as-Judge style score using the **training-time** judge template. Weights are dev-tuned over a small grid that intentionally varies ω₃ relative to (ω₁, ω₂).
-- **Bounded:** PPO step cap, batch cap, and judge API spend cap declared in `docs/budget.md` before training starts.
+- **Bounded:** PPO step cap, batch cap, and judge API spend cap to be declared in `docs/budget.md` (not yet written) before training starts.
 - **Fallback:** if PPO does not converge under budget, RLSF is reported using **best-of-N reranking** of PEFT-checkpoint samples, scored with the same reward.
 
 ---
@@ -154,23 +167,54 @@ All four conditions, same held-out test set, same decoding settings (temperature
 - Test partition is unseen during RLSF.
 - Where budget permits, a **cross-family** confirmation pass with a judge from a different commercial LLM family is performed; judge–judge agreement is reported.
 
+> **Open issue.** The evaluation-time judge is currently `claude-haiku-4-5`
+> ([`configs/judge_eval.yaml`](configs/judge_eval.yaml)), which offers no seed control, so
+> Φ is not byte-reproducible; and the cross-family confirmation pass has not been run. Φ is
+> the *primary* stylistic metric, so this is the weakest link in the current results — Φ gaps
+> on the order of 0.05 should not be treated as real until it is addressed. See
+> [`docs/DEVLOG.md`](docs/DEVLOG.md), 2026-07-23.
+
 ### Statistics
 - System-level comparisons: paired bootstrap at the segment level, α = 0.05. Primary: each adaptation vs. the zero-shot base. Secondary: pairwise among the adaptation conditions, and adjacent rungs of the prompting ablation ladder.
 - Evaluation-component agreement (RQ4): pairwise Spearman correlation between COMET, stylometric distance, and LLM-as-Judge, with 95 % bootstrap CIs. Descriptive only.
 
-### Results table *(filled as conditions complete)*
+### Results *(validation split)*
 
-| Condition | COMET | BLEU | LLM-Judge Φ | Lex. density | TTR | Stylo. dist. | Latency (s/seg) | Trainable params |
+All figures below are on the **validation** split (n = 1,323), same locked decoding
+(greedy, seed 42, bf16, unquantized base), same evaluation files. **The test split is
+sealed and has not been generated on.** Judge Φ is a 1–5 rubric scored by
+`claude-haiku-4-5` at temperature 0.
+
+| Condition | COMET | chrF | BLEU | Judge Φ | Lex. density | TTR | Stylo. dist. | Trainable params |
 |---|---|---|---|---|---|---|---|---|
-| Zero-shot | — | — | — | — | — | — | — | 0 |
-| Random few-shot (k = —) | — | — | — | — | — | — | — | 0 |
-| kNN few-shot (baseline, k = —) | — | — | — | — | — | — | — | 0 |
-| AFSP-margin (k = —) | — | — | — | — | — | — | — | 0 |
-| AFSP-full (k = —) | — | — | — | — | — | — | — | 0 |
-| PEFT (LoRA) | — | — | — | — | — | — | — | — |
+| Zero-shot | 0.6480 | 36.42 | 10.27 | 2.546 | 0.4025 | 0.8434 | 0.6518 | 0 |
+| Random few-shot (k = 8) | 0.6644 | 37.52 | 11.64 | 2.633 | 0.4103 | 0.8444 | 0.4736 | 0 |
+| kNN few-shot (baseline, k = 8) | 0.6839 | 39.82 | 13.99 | 2.748 | 0.4034 | 0.8367 | 0.4005 | 0 |
+| AFSP-margin (k = 8, λ = 0) | 0.6824 | 39.68 | 13.69 | 2.763 | 0.4060 | 0.8387 | 0.3910 | 0 |
+| AFSP-full (k = 8, λ = 0.75) | 0.6853 | 39.99 | 14.52 | **2.791** | 0.4105 | 0.8421 | 0.3698 | 0 |
+| PEFT (LoRA, r = 32, 2 ep.) | **0.6986** | **41.58** | **16.90** | 2.744 | 0.4088 | 0.8515 | **0.2886** | 80.7 M (1.06 %) |
 | RLSF (PPO) | — | — | — | — | — | — | — | — |
 
-Detailed per-segment scores and bootstrap CIs land in `results/`.
+Lower `Stylo. dist.` is better (standardized distance to the target-register centroid).
+Latency is not instrumented; `outputs/*_usage.json` records token counts only.
+
+**Read with care — none of these differences has been significance-tested.** The paired
+bootstrap (`manage.py bootstrap`) has not been run, so every ordering here is an
+unqualified point estimate. Three observations worth carrying into that analysis:
+
+- The ladder is monotone in `Stylo. dist.` across all five prompting rungs
+  (0.652 → 0.370): each rung sits closer to the target register than the one below it.
+- **PEFT and AFSP-full disagree.** PEFT leads on COMET, chrF, BLEU, and stylometric
+  distance, but AFSP-full leads on judge Φ. The objective and subjective register
+  measures rank the two adaptation families oppositely — this is the RQ4 question, and
+  is to be reported rather than resolved by metric choice.
+- AFSP-margin does not improve on kNN few-shot in COMET (0.6824 vs 0.6839). On this
+  split the AFSP gain comes from the register rerank rung, not from margin/hub
+  penalisation.
+
+Per-segment scores are in `results/comet_val.json` and `results/judge_val.json`
+(with per-condition segment caches under `results/judge_val_segments/`); selection and
+freeze records are in `results/{afsp,peft}_{sweep,verify}_val.json`.
 
 ---
 
@@ -179,20 +223,20 @@ Detailed per-segment scores and bootstrap CIs land in `results/`.
 - Fixed random seeds at every stochastic stage (split, PEFT training, AFSP tie-breaking, PPO rollouts, judge sampling).
 - Pinned library versions (`transformers`, `peft`, `trl`, `unbabel-comet`, `sacrebleu`, `sentence-transformers`, `faiss`).
 - Logged per run: base model + revision, all prompts (system, user, judge × 2), decoding params, LoRA config, PPO config, reward weight grid and selected point, file hashes for splits and test outputs.
+- Generation is greedy and deterministic, so a condition reproduces byte-for-byte given the same adapter and prompt. **The judge does not:** `claude-haiku-4-5` exposes no seed, so Φ is re-sampled on every run.
+- Known gaps: LoRA cells are trained once (no seed replication), and the AFSP register direction is hard-coded in two configs with no derivation script (see [`docs/DEVLOG.md`](docs/DEVLOG.md), 2026-07-18).
 
 ---
 
 ## Constraints
 
-- **Compute:** Colab for training. LoRA default; QLoRA fallback.
-- **API budget:** RLSF judge calls are the dominant cost. Hard cap declared in `docs/budget.md`; if approached, switch to best-of-N reranking.
+- **Compute:** Colab for every GPU stage (sweeps, training, full-split inference) — the 8 GB development GPU cannot hold `Qwen2.5-7B-Instruct` in bf16, and quantizing it would change the frozen-base definition. LoRA default; QLoRA fallback.
+- **API budget:** judge calls are the only paid component so far; RLSF judge calls will dominate once implemented. The declared cap lives in the proposal (`docs/budget.md` is not yet written); if approached, switch to best-of-N reranking.
 - **Scope:** the project does not claim to fully capture literary or sacred style. It documents trade-offs across three adaptation families on one specific corpus and language combination not previously addressed in published LLM-MT work.
 
 ---
 
 ## Setup
-
-> Setup commands are placeholders for now; they’re finalized once the base model is selected.
 
 ```bash
 # clone
@@ -219,28 +263,39 @@ python -m src.data.split        # writes data/splits/ with hashes
 
 ```bash
 # Prompting ablation ladder (all share the source-side index)
-python -m src.retrieval.build_index --config configs/base_qwen.yaml
+python manage.py build_index --config configs/base_qwen.yaml
 python manage.py stylometrics --build-centroid          # required by afsp_full
-python -m src.infer.run --condition zeroshot       --config configs/base_qwen.yaml
-python -m src.infer.run --condition random_fewshot --config configs/base_qwen.yaml
-python -m src.infer.run --condition knn_fewshot    --config configs/base_qwen.yaml
-python -m src.infer.run --condition afsp_margin    --config configs/base_qwen.yaml
-python -m src.infer.run --condition afsp_full      --config configs/base_qwen.yaml
-python manage.py afsp_sweep --config configs/afsp_sweep.yaml
+python manage.py infer --condition zeroshot       --config configs/base_qwen.yaml
+python manage.py infer --condition random_fewshot --config configs/base_qwen.yaml
+python manage.py infer --condition knn_fewshot    --config configs/base_qwen.yaml
+python manage.py infer --condition afsp_margin    --config configs/base_qwen.yaml
+python manage.py infer --condition afsp_full      --config configs/base_qwen.yaml
 
-# PEFT
-python -m src.peft.train       --config configs/peft.yaml
-python -m src.infer --condition peft --config configs/peft.yaml
+# AFSP hyperparameter selection (run BEFORE the ladder; freeze k/λ into base_qwen.yaml)
+python manage.py afsp_sweep  --config configs/afsp_sweep.yaml               # proxy rank the grid
+python manage.py afsp_verify --config configs/afsp_sweep.yaml --top 3 \
+    --judge-config configs/judge_eval.yaml                                  # confirm on COMET + Φ
 
-# RLSF
-python -m src.rlsf.train       --config configs/rlsf.yaml
-python -m src.infer --condition rlsf --config configs/rlsf.yaml
+# PEFT: sweep -> verify -> freeze adapter_path -> generate
+python manage.py peft_sweep  --config configs/peft_sweep.yaml               # train grid, rank candidates
+python manage.py peft_verify --config configs/peft_sweep.yaml --top 3 \
+    --judge-config configs/judge_eval.yaml
+python manage.py infer --condition peft --config configs/peft_qwen.yaml
+# (`manage.py peft --config configs/peft_qwen.yaml` trains a single adapter without the sweep)
+
+# RLSF — not yet implemented; neither the `rlsf` command nor configs/rlsf.yaml exists yet
+# python manage.py rlsf  --config configs/rlsf.yaml
+# python manage.py infer --condition rlsf --config configs/rlsf.yaml
 ```
+
+The GPU stages (sweeps, training, full-split inference) do not fit an 8 GB development
+GPU with the base unquantized; they are run on Colab from the runbooks in
+[`notebooks/`](notebooks/).
 
 ### Evaluation
 
 The evaluation backbone scores any set of `<condition>_<split>.jsonl` files. Let
-`CONDS = zeroshot random_fewshot knn_fewshot afsp_margin afsp_full`:
+`CONDS = zeroshot random_fewshot knn_fewshot afsp_margin afsp_full peft`:
 
 ```bash
 # Surface overlap + register proxy (BLEU, chrF, marker rate)
@@ -267,13 +322,18 @@ COMET/judge from the JSON their own commands write, so run those first. Each
 non-baseline condition is compared against the ladder floor (`zeroshot`), and
 `--adjacent` adds each consecutive-rung difference. Outputs land in `results/`.
 
+> **The bootstrap step has not been run yet.** The per-segment COMET and Φ vectors it
+> needs are persisted, so it is the immediate next step — until it is done, no
+> difference in the results table may be reported as a difference.
+
 ---
 
 ## Proposal and methodology
 
-- Full thesis proposal: [`docs/proposal.pdf`](docs/proposal.pdf)
-- Long-form methodology with H1–H4 support criteria: [`docs/methodology.md`](docs/methodology.md)
-- Declared compute and API budget: [`docs/budget.md`](docs/budget.md)
+- Full thesis proposal: [`docs/proposal.pdf`](docs/proposal.pdf) — H1–H4 and support criteria
+- Engineering and decision log: [`docs/DEVLOG.md`](docs/DEVLOG.md) — what was built, why, and how to reproduce it
+- AFSP mechanism specification: [`docs/afsp_strategies.md`](docs/afsp_strategies.md)
+- Not yet written: `docs/methodology.md` (long-form methodology) and `docs/budget.md` (declared compute and API caps)
 
 ---
 
