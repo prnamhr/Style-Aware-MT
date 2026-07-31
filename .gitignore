@@ -26,3 +26,5 @@ env/
 # Generated artifacts
 data/knn_index/
 __pycache__/
+
+models/

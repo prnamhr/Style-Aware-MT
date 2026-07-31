@@ -27,6 +27,7 @@ class LocalChatClient:
     dtype: str = "bfloat16"
     device_map: str | None = None
     load_in_4bit: bool = False
+    adapter_path: str | None = None
     usage: Usage = field(default=None)
     _tokenizer: object = field(default=None, repr=False)
     _model: object = field(default=None, repr=False)
@@ -51,6 +52,12 @@ class LocalChatClient:
             load_kwargs["device_map"] = self.device_map
 
         self._model = AutoModelForCausalLM.from_pretrained(self.model, **load_kwargs)
+
+        if self.adapter_path:
+            # Lazy import: only the PEFT condition needs the peft dependency.
+            from peft import PeftModel
+
+            self._model = PeftModel.from_pretrained(self._model, self.adapter_path)
         self._model.eval()
 
         if self.device_map is None and not self.load_in_4bit:

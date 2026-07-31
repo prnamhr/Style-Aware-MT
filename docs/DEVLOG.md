@@ -13,6 +13,72 @@ Each entry documents four points: what changed, why the change was made, how the
 
 ---
 
+## 2026-07-23 — PEFT (LoRA) condition: supervised fine-tuning implemented (NOT run)
+
+### Summary
+
+The PEFT condition — the last unbuilt adaptation strategy of the four-way
+comparison — was implemented. `src/peft/` had held only an empty `__init__.py`;
+it now contains `src/peft/train.py`, a LoRA supervised fine-tuning entry point
+wired into `manage.py` as the `peft` command and paired with a new inference
+condition `peft` in `src/infer/run.py`. This entry records the implementation and
+its static verification only. **No training was run**: the frozen thesis base is
+`Qwen2.5-7B-Instruct`, which does not fit on the 8 GB development GPU (RTX 4060
+Laptop) in bf16, so training — like the AFSP sweep — is deferred to a
+larger-memory environment (Colab) to keep the base unquantized. Nothing here is a
+thesis finding; the PEFT results row stays empty.
+
+### What changed
+
+`src/peft/train.py` implements LoRA SFT on the locked base. LoRA adapters are
+applied to the query/value projections (`target_modules: [q_proj, v_proj]`,
+`src/peft/train.py:142`), base weights frozen, trained with token-level MLE on
+`data/splits/train.jsonl`. The training prompt is byte-identical to the `peft`
+inference condition: the locked style instruction as system, the zero-shot
+translate directive as user (`_ZEROSHOT_USER`, `src/peft/train.py:34`, replicated
+from `run.build_zeroshot_user` to avoid pulling the commercial-API client imports
+into training), and the reference translation as the assistant turn. Loss is
+**completion-only** — the prompt prefix is tokenized separately and its tokens
+masked to `-100` (`build_example`, `src/peft/train.py:43`) — so only the target
+tokens are supervised. Model selection is by `eval_loss` on `val.jsonl`
+(`load_best_model_at_end`, `metric_for_best_model="eval_loss"`); the best adapter
++ tokenizer and a `train_metrics.json` are saved to `outputs/peft/adapter`
+(git-ignored). QLoRA is the memory-pressure fallback (`load_in_4bit` →
+`BitsAndBytesConfig` + `prepare_model_for_kbit_training`). The saved adapter is
+also the intended RLSF initialization.
+
+Inference wiring: `LocalChatClient` gained an optional `adapter_path`
+(`src/infer/local_client.py`); when set, the LoRA adapter is layered onto the
+frozen base via `PeftModel.from_pretrained` (lazy import). `make_client` passes
+`generator.adapter_path` through, and `run.py` adds `peft` to `CONDITIONS` — it
+reuses the zero-shot prompt (no exemplars; the register lives in the weights) and
+raises if `adapter_path` is unset. Decoding stays locked (greedy, seed 42,
+max_new_tokens 1024). Config: `configs/peft_qwen.yaml`. Dependency `peft==0.18.0`
+added to `requirements.txt`.
+
+### Reproduction
+
+    python manage.py peft  --config configs/peft_qwen.yaml            # train (Colab / A100)
+    python manage.py infer --condition peft --config configs/peft_qwen.yaml  # generate on val
+
+### Verification (static only — no model load, no network)
+
+`ruff check src`, `ruff format --check src`, `python -m compileall -q src` all
+pass. The completion-masking arithmetic in `build_example` was checked offline
+against a stub tokenizer with synthetic data: only the assistant/target tokens
+are supervised, the prompt is fully masked, and truncation below the prompt
+length degrades to an all-masked example without crashing.
+
+### Limitations / risks to monitor
+
+LoRA rank, learning rate, and epoch/step count in `configs/peft_qwen.yaml` are
+placeholder defaults (r=16, lr=2e-4, 3 epochs) — they must be **dev-tuned** on
+`eval_loss` before the frozen PEFT run, exactly as `k`/`λ` were swept for AFSP.
+The completion mask relies on the prompt-only chat-template render being a strict
+token prefix of the full render; this holds for the Qwen2.5 template (clean
+`<|im_start|>assistant\n` boundary) but should be re-checked if the base or
+template changes.
+
 ## 2026-07-16 — Stage 5b hardening: judge-gating the freeze, persisting per-segment COMET
 
 ### Summary

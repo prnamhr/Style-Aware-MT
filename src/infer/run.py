@@ -41,7 +41,7 @@ from src.retrieval.retrieve import RetrievalIndex
 ORDERINGS = ("most_similar_last", "most_similar_first", "random")
 
 # Ablation ladder: each rung adds one component over the previous one.
-CONDITIONS = ("zeroshot", "random_fewshot", "knn_fewshot", "afsp_margin", "afsp_full")
+CONDITIONS = ("zeroshot", "random_fewshot", "knn_fewshot", "afsp_margin", "afsp_full", "peft")
 
 
 def order_exemplars(
@@ -96,6 +96,7 @@ def make_client(gen: dict):
             dtype=gen.get("dtype", "bfloat16"),
             device_map=gen.get("device_map"),
             load_in_4bit=gen.get("load_in_4bit", False),
+            adapter_path=gen.get("adapter_path"),  # LoRA adapter for the peft condition
         )
     raise ValueError(f"unknown provider '{provider}' (expected openai|anthropic|gemini|local)")
 
@@ -232,7 +233,14 @@ def run(condition: str, cfg: dict) -> None:
     glossary = _load_configured_glossary(cfg)
 
     # Build the per-segment user messages for the chosen ablation rung.
-    if condition == "zeroshot":
+    # `peft` shares the zero-shot prompt: no exemplars, the register is carried by
+    # the LoRA adapter weights (loaded via generator.adapter_path in make_client).
+    if condition in ("zeroshot", "peft"):
+        if condition == "peft" and not gen.get("adapter_path"):
+            raise ValueError(
+                "condition 'peft' requires generator.adapter_path in the config "
+                "(the trained LoRA adapter); see configs/peft_qwen.yaml"
+            )
         user_msgs = [build_zeroshot_user(s) for s in sources]
     elif condition in ("random_fewshot", "knn_fewshot", "afsp_margin", "afsp_full"):
         retr = cfg["retrieval"]

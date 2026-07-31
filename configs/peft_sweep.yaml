@@ -1,0 +1,73 @@
+# --- Generation (locked open-source base; matches base_qwen.yaml decoding) ---
+generator:
+  provider: local
+  model: Qwen/Qwen2.5-7B-Instruct   # single source of truth for the locked base
+  max_tokens: 1024
+  temperature: 0.0
+  top_p: 1.0
+  seed: 42
+  dtype: bfloat16
+  device_map: auto
+  load_in_4bit: false
+
+# --- Prompting ---
+prompt:
+  style_instruction_file: prompts/style_instruction.txt
+
+# --- PEFT / LoRA (shared hyperparameters; r + lr come from the grid) ---
+peft:
+  output_dir: models/peft_lora           # overridden per cell by the sweep driver
+  load_in_4bit: false
+  lora:
+    r: 16                                 # overridden per cell (grid)
+    alpha: 32                             # overridden per cell: default alpha=2r (grid)
+    dropout: 0.05
+    target_modules: all-linear            # LoRA on all linear layers (Phase 2)
+  train:
+    seed: 42
+    max_seq_len: 1024
+    per_device_train_batch_size: 1
+    per_device_eval_batch_size: 1
+    gradient_accumulation_steps: 16       # effective batch = 16
+    learning_rate: 2.0e-4                 # overridden per cell (grid)
+    num_train_epochs: 3
+    max_steps: -1
+    weight_decay: 0.0
+    warmup_ratio: 0.03
+    lr_scheduler_type: cosine
+    gradient_checkpointing: true
+    logging_steps: 10
+    eval_strategy: epoch                   # logs dev eval_loss per epoch (pre-filter only)
+    save_strategy: epoch                   # save an adapter checkpoint every epoch
+    save_total_limit: null                 # keep ALL epoch checkpoints (epoch is a tuned axis)
+    load_best_model_at_end: false          # do NOT collapse to the eval_loss-best epoch
+
+# --- Data ---
+data:
+  train_file: data/splits/train.jsonl    # 10,860 pairs
+  eval_file: data/splits/val.jsonl       # dev split; cells generate + score on this
+  limit: null
+
+# --- Output  ---
+output:
+  dir: outputs
+
+# --- Register-fit target (Phi proxy axis) ---
+
+register:
+  centroid_file: results/stylometrics_centroid.json
+  select_target_sigma: 0.5
+  style_register_direction:
+    marker_rate: 0.514
+    lex_density: 0.355
+    root_ttr: -0.296
+    ttr: 0.098
+
+# --- Sweep grid ---
+sweep:
+  output_base: models                    # adapters land in <output_base>/peft_lora_r{r}_lr{lr}/
+  grid:
+    - {r: 16, alpha: 32, lr: 2.0e-4, anchor: true}   # alpha/r = 2
+    - {r: 8,  alpha: 16, lr: 2.0e-4}                  # alpha/r = 2
+    - {r: 32, alpha: 64, lr: 2.0e-4}                  # alpha/r = 2
+    - {r: 16, alpha: 32, lr: 1.0e-4}                  # alpha/r = 2
