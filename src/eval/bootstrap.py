@@ -108,13 +108,39 @@ def _assert_aligned(present: list[str], sources: dict) -> None:
             )
 
 
-def _pairs(conditions: list[str], baseline: str, adjacent: bool) -> list[tuple[str, str]]:
-    """Comparison pairs as ``(a, b)`` reporting ``mean(a) - mean(b)``."""
+def _parse_extra_pairs(specs: list[str] | None, present: list[str]) -> list[tuple[str, str]]:
+    """Parse ``a:b`` comparison specs, rejecting unknown or unscored conditions."""
+    out: list[tuple[str, str]] = []
+    for spec in specs or []:
+        a, sep, b = spec.partition(":")
+        if not sep or not a or not b:
+            raise ValueError(f"bad --pairs entry '{spec}': expected 'condition_a:condition_b'")
+        for cond in (a, b):
+            if cond not in present:
+                raise ValueError(f"--pairs names '{cond}', which has no scores for this metric")
+        if a == b:
+            raise ValueError(
+                f"bad --pairs entry '{spec}': a condition cannot be compared to itself"
+            )
+        out.append((a, b))
+    return out
+
+
+def _pairs(
+    conditions: list[str],
+    baseline: str,
+    adjacent: bool,
+    extra: list[tuple[str, str]] | None = None,
+) -> list[tuple[str, str]]:
+    """Comparison pairs as ``(a, b)`` reporting ``mean(a) - mean(b)``, deduplicated."""
     out = [(c, baseline) for c in conditions if c != baseline]
     if adjacent:
         for lo, hi in zip(conditions, conditions[1:]):
             if (hi, lo) not in out:
                 out.append((hi, lo))
+    for pair in extra or []:
+        if pair not in out:
+            out.append(pair)
     return out
 
 
@@ -127,6 +153,22 @@ def main() -> None:
     parser.add_argument("--baseline", default=None, help="reference condition (default: first)")
     parser.add_argument(
         "--adjacent", action="store_true", help="also compare each consecutive ladder pair"
+    )
+    parser.add_argument(
+        "--pairs",
+        nargs="+",
+        default=None,
+        metavar="A:B",
+        help="extra comparisons as 'a:b', reporting mean(a) - mean(b)",
+    )
+    parser.add_argument(
+        "--out",
+        nargs="?",
+        const="",
+        default=None,
+        metavar="PATH",
+        help="write the comparison table as JSON; bare --out uses "
+        "results/bootstrap_<metric>_<split>.json",
     )
     parser.add_argument("--n_resamples", type=int, default=10000)
     parser.add_argument("--alpha", type=float, default=0.05)
@@ -151,11 +193,15 @@ def main() -> None:
     if baseline not in scores:
         raise ValueError(f"baseline '{baseline}' has no scores")
 
+    extra = _parse_extra_pairs(args.pairs, present)
+
     rows = []
-    for a, b in _pairs(present, baseline, args.adjacent):
+    records = []
+    for a, b in _pairs(present, baseline, args.adjacent, extra):
         res = paired_bootstrap(
             scores[a], scores[b], n_resamples=args.n_resamples, alpha=args.alpha, seed=args.seed
         )
+        records.append({"a": a, "b": b, **res})
         rows.append(
             {
                 "comparison": f"{a} - {b}",
@@ -166,6 +212,27 @@ def main() -> None:
                 "sig": "*" if res["significant"] else "",
             }
         )
+
+    if args.out is not None:
+        out_path = (
+            Path(args.out)
+            if args.out
+            else Path("results") / (f"bootstrap_{args.metric}_{args.split}.json")
+        )
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "metric": args.metric,
+            "split": args.split,
+            "conditions": present,
+            "baseline": baseline,
+            "adjacent": bool(args.adjacent),
+            "n_resamples": args.n_resamples,
+            "alpha": args.alpha,
+            "seed": args.seed,
+            "comparisons": records,
+        }
+        out_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+        print(f"wrote {out_path}")
 
     cols = list(rows[0].keys())
     widths = {c: max(len(c), *(len(str(r[c])) for r in rows)) for c in cols}

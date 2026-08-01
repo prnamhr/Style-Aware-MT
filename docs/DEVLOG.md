@@ -75,12 +75,136 @@ absence is deliberate rather than an oversight; none has a recorded rationale.
 * The judge provider switch of 2026-07-20 has no recorded rationale; this is noted in
   the 2026-07-23 entry.
 
+These gaps were open as of the audit. Nothing in this list has been closed since.
+
 ### Audit
 
 This log was audited for internal consistency against the committed artifacts, configs,
 and git history on **2026-08-01**. Corrections made in that pass are marked inline as
 *Correction (2026-08-01)*; they amend the claims of earlier entries but do not restate
 their history.
+
+---
+
+## 2026-08-01 — Paired bootstrap run: AFSP does not separate from its baseline on val
+
+### Summary
+
+The paired bootstrap that every entry since 2026-07-05 has deferred was run on all
+six conditions and all four metrics. It is the gate the 2026-07-31 entry named: until
+it ran, no ordering in the results table could be called a difference. Two of the
+three observations that entry recorded do not survive it.
+
+**The contribution does not separate from its own baseline.** On no metric does
+`afsp_full` beat `knn_fewshot` at α = 0.05:
+
+| Comparison | COMET | Φ | chrF | BLEU |
+|---|---|---|---|---|
+| `afsp_full` − `knn_fewshot` | +0.001 (p = .43) | +0.043 (p = .078) | +0.20 (p = .41) | +0.45 (p = .065) |
+| `afsp_margin` − `knn_fewshot` | −0.002 (p = .25) | +0.016 (p = .42) | −0.07 (p = .70) | −0.13 (p = .49) |
+| `afsp_full` − `afsp_margin` | +0.003 (p = .077) | +0.028 (p = .23) | +0.27 (p = .23) | **+0.58 (p = .010)** |
+| `afsp_full` − `peft` | −0.013 (p < .001) | +0.047 (p = .12) | −1.06 (p = .003) | −2.13 (p < .001) |
+
+**The PEFT/AFSP "disagreement" was an artifact of reading point estimates.** The
+2026-07-31 entry framed it as the objective and subjective register measures ranking
+the two adaptation families oppositely, and called it the RQ4 question. The COMET half
+is significant; the Φ half is not (+0.047, 95% CI [−0.012, 0.105], p = 0.12). One
+measure separates the families and the other fails to — which is a null result on the
+Φ side, not a disagreement between measures. RQ4 must be answered by the agreement
+analysis the README specifies (pairwise correlation across metrics), not by this pair.
+
+**The prompting ladder's floor is solid.** `zeroshot` → `random_fewshot` →
+`knn_fewshot` is significant on all four metrics (Φ +0.087 [0.037, 0.137] and
++0.115 [0.066, 0.163]; COMET +0.016 and +0.020, both p < .001). Retrieval works; the
+adaptive layer over it is what remains unshown.
+
+**Detection floor for RLSF.** The Φ CI half-width against `peft` at n = 1,323 is
+≈0.058 and the COMET half-width ≈0.005. Since RLSF initializes from the PEFT adapter,
+those are the margins an RL gain must clear to be reportable. For scale, the whole
+prompting ladder moves Φ by 0.245, so RLSF needs roughly a quarter of the ladder's
+total effect to register. Judge test–retest spread (≈0.002, measured in the
+2026-07-31 entry) is an order of magnitude below the sampling interval, so sampling
+noise, not judge noise, is the binding constraint.
+
+### What changed
+
+`src/eval/bootstrap.py` gained three things needed to make the run reproducible
+rather than a terminal session:
+
+* `--out [PATH]` writes the comparison table as JSON — bare `--out` uses
+  `results/bootstrap_<metric>_<split>.json`. Each file records the metric, split,
+  conditions, baseline, `n_resamples`, `alpha`, `seed`, and per-comparison `n`,
+  `mean_a`, `mean_b`, `diff`, `ci_low`, `ci_high`, `p_value`, `significant`. Before
+  this the command printed and exited, which is why no `results/bootstrap_*` artifact
+  existed despite the command having shipped on 2026-07-05.
+* `--pairs A:B` adds arbitrary comparisons to the baseline and `--adjacent` sets.
+  The comparison this project exists to make — `afsp_full` against `knn_fewshot` — is
+  neither a comparison against the ladder floor nor an adjacent-rung pair, so it was
+  unreachable from the CLI as shipped. `_parse_extra_pairs` rejects unknown
+  conditions and self-comparisons.
+* `_pairs` now deduplicates, so a pair reachable two ways is resampled once.
+
+No scoring code changed; `paired_bootstrap` is untouched.
+
+### Verification
+
+`ruff check src`, `ruff format --check src`, and `python -m compileall -q src` pass.
+The four artifacts were written in one pass per metric from the same command; the
+`comet`/`judge` runs read the persisted per-segment vectors and the `chrf`/`bleu` runs
+recompute from the inference files. Alignment is enforced by the existing
+`_assert_aligned` guard, which compares the stored `sources` lists index for index —
+it passed for all six conditions, confirming the paired assumption holds.
+
+`n = 1,322` rather than 1,323 on judge pairs involving `knn_fewshot` is the single
+unparseable judge segment recorded in the 2026-07-31 entry; `paired_bootstrap` drops
+the pair rather than imputing it.
+
+### Reproduction
+
+```bash
+CONDS="zeroshot random_fewshot knn_fewshot afsp_margin afsp_full peft"
+EXTRA="afsp_full:knn_fewshot afsp_margin:peft afsp_full:peft knn_fewshot:peft random_fewshot:peft"
+for m in comet judge chrf bleu; do
+    python manage.py bootstrap --metric "$m" --conditions $CONDS --split val \
+        --baseline zeroshot --adjacent --pairs $EXTRA --out
+done
+```
+
+Deterministic at `seed 42`: the resample indices come from
+`np.random.default_rng(seed)`, so re-running reproduces every interval exactly.
+
+### Limitations and risks
+
+**The p-values are uncorrected.** The canonical run makes 14 comparisons per metric
+over four metrics, 56 tests in total, at α = 0.05 each. The lone significant AFSP
+result — `afsp_full` − `afsp_margin` on BLEU, p = .010 — would not survive
+Holm–Bonferroni over that family, and BLEU is the weakest of the four metrics. It is
+a lead worth powering up, not a finding. A pre-registered comparison family should be
+declared before the test-split run so the correction is decided in advance rather than
+after seeing which comparisons came close.
+
+Two near misses (Φ p = .078 and BLEU p = .065 for `afsp_full` − `knn_fewshot`) mean
+the null result is a failure to detect, not a demonstration of no effect. At this
+effect size the val split is underpowered; the honest options are to report the
+intervals as they stand, or to increase power by a route that does not touch the
+sealed test split — repeated judge passes to average down judge variance, or a
+larger exemplar-selection effect.
+
+The chrF and BLEU intervals resample **sentence-level** scores, whereas the results
+table reports corpus-level chrF and BLEU. The two are not the same statistic, so a
+CI here does not bound the corpus figure in the table. COMET and Φ have no such gap:
+both are means over per-segment scores in both places.
+
+`stylo_dist` is not bootstrappable through this CLI. It is a distance between a
+condition's *mean* feature vector and the centroid, not a mean of per-segment scores,
+so the monotone ladder in the results table (0.652 → 0.370) is still descriptive
+only. Reporting it as an ordering requires either a per-segment formulation or a
+bootstrap over the feature-vector statistic itself.
+
+The judge remains a single non-reproducible model. These intervals quantify sampling
+uncertainty at fixed judge output; they do not include the judge's own re-sampling
+variance, so the true uncertainty on any Φ difference is wider than the interval
+printed here.
 
 ---
 
@@ -119,7 +243,9 @@ Three observations, all descriptive and none yet significance-tested:
    `knn_fewshot`, and `stylo_dist` falls monotonically across the whole ladder
    (0.652 → 0.370) — each rung sits closer to the target-register centroid than
    the one below it.
-2. **PEFT and AFSP disagree about which is more in-register.** PEFT wins every
+2. **PEFT and AFSP disagree about which is more in-register.** *(Not supported by
+   the bootstrap of 2026-08-01: the Φ half of this comparison is non-significant,
+   p = 0.12.)* PEFT wins every
    surface and adequacy metric (COMET +0.013, chrF +1.6, BLEU +2.4 over
    `afsp_full`) and has the smallest stylometric distance (0.289 vs 0.370), but
    `afsp_full` scores highest on judge Φ (2.791 vs 2.744). The objective and
@@ -130,7 +256,9 @@ Three observations, all descriptive and none yet significance-tested:
    the margin/hub rung is flat-to-slightly-negative on adequacy — while the
    register rerank rung (`afsp_full`) adds both adequacy and Φ over it. On this
    split the gain attributable to AFSP comes from the register rerank, not from
-   margin/hub penalization.
+   margin/hub penalization. *(Not supported by the bootstrap of 2026-08-01: neither
+   AFSP rung separates from the rung below it, and `afsp_full` does not separate from
+   `knn_fewshot` on any metric.)*
 
 ### What changed
 
@@ -224,6 +352,12 @@ artifact exists. Every ordering above — including the 0.047 Φ gap between
 `afsp_full` and `peft` and the 0.0015 COMET gap between `knn_fewshot` and
 `afsp_margin` — is currently an unqualified point estimate. None of them may be
 described as a difference until the paired bootstrap is run.
+
+*Superseded (2026-08-01): the bootstrap has now been run; see that entry. Both gaps
+named here are non-significant, and observations 2 and 3 of this entry's summary do
+not survive it. The observations are left standing as written, because they record
+what the point estimates showed on 2026-07-31 and why the bootstrap was the next
+step — not as claims that may be cited.*
 
 The judge is `claude-haiku-4-5` at `temperature 0.0`, a single model from a single
 family with no seed control (see the 2026-07-23 entry). Φ differences on the order

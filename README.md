@@ -198,19 +198,48 @@ sealed and has not been generated on.** Judge Φ is a 1–5 rubric scored by
 Lower `Stylo. dist.` is better (standardized distance to the target-register centroid).
 Latency is not instrumented; `outputs/*_usage.json` records token counts only.
 
-**Read with care — none of these differences has been significance-tested.** The paired
-bootstrap (`manage.py bootstrap`) has not been run, so every ordering here is an
-unqualified point estimate. Three observations worth carrying into that analysis:
+### What the paired bootstrap says
 
-- The ladder is monotone in `Stylo. dist.` across all five prompting rungs
-  (0.652 → 0.370): each rung sits closer to the target register than the one below it.
-- **PEFT and AFSP-full disagree.** PEFT leads on COMET, chrF, BLEU, and stylometric
-  distance, but AFSP-full leads on judge Φ. The objective and subjective register
-  measures rank the two adaptation families oppositely — this is the RQ4 question, and
-  is to be reported rather than resolved by metric choice.
-- AFSP-margin does not improve on kNN few-shot in COMET (0.6824 vs 0.6839). On this
-  split the AFSP gain comes from the register rerank rung, not from margin/hub
-  penalisation.
+Segment-level paired bootstrap, 10,000 resamples, α = 0.05, seed 42, on the same
+1,323 segments (1,322 for pairs involving `knn_fewshot`, whose judge coverage drops
+one segment). Full tables in `results/bootstrap_{comet,judge,chrf,bleu}_val.json`.
+
+**Significant.** Every rung of the retrieval ladder floor separates: zero-shot →
+random few-shot → kNN few-shot is significant on all four metrics (Φ +0.087 and
++0.115; COMET +0.016 and +0.020). PEFT beats AFSP-full on COMET (+0.013,
+95% CI [0.009, 0.018]), chrF (+1.06 [0.36, 1.77]) and BLEU (+2.13 [1.44, 2.84]).
+
+**Not significant.** The comparisons the contribution rests on:
+
+| Comparison | COMET | Judge Φ | chrF | BLEU |
+|---|---|---|---|---|
+| AFSP-full − kNN few-shot | +0.001 (p = .43) | +0.043 (p = .078) | +0.20 (p = .41) | +0.45 (p = .065) |
+| AFSP-margin − kNN few-shot | −0.002 (p = .25) | +0.016 (p = .42) | −0.07 (p = .70) | −0.13 (p = .49) |
+| AFSP-full − AFSP-margin | +0.003 (p = .077) | +0.028 (p = .23) | +0.27 (p = .23) | **+0.58 (p = .010)** |
+| AFSP-full − PEFT | −0.013 (p < .001) | +0.047 (p = .12) | −1.06 (p = .003) | −2.13 (p < .001) |
+
+Read against these intervals, three earlier readings of the table do not hold:
+
+- **AFSP does not separate from its own baseline.** On no metric does AFSP-full beat
+  `knn_fewshot` at α = 0.05. Φ (p = .078) and BLEU (p = .065) are near misses; COMET
+  and chrF are flat. The adaptive layer is not yet demonstrated on val.
+- **PEFT and AFSP-full do not "disagree".** PEFT's lead on COMET/chrF/BLEU is
+  significant; AFSP-full's +0.047 Φ lead is not (95% CI [−0.012, 0.105]). This is one
+  measure separating the families and the other failing to, not two measures ranking
+  them oppositely. RQ4 needs the agreement analysis, not this pair.
+- **The one place the register rerank separates is BLEU** (+0.58 over AFSP-margin,
+  p = .010) — uncorrected across 56 tests, so it would not survive Holm–Bonferroni,
+  and it is the weakest of the four metrics. Treat it as a lead to power up, not a
+  result.
+
+The `Stylo. dist.` monotonicity across the ladder (0.652 → 0.370) is descriptive and
+was not bootstrapped; it is a distance between mean feature vectors, not a per-segment
+score, so the CLI cannot resample it as it stands.
+
+**Detection floor for the RLSF arm.** The Φ CI half-width against PEFT at n = 1,323 is
+≈0.058, and the COMET half-width ≈0.005. RLSF must clear those margins over its own
+PEFT initialization to be reportable. For scale, the entire prompting ladder from
+zero-shot to AFSP-full moves Φ by 0.245.
 
 Per-segment scores are in `results/comet_val.json` and `results/judge_val.json`
 (with per-condition segment caches under `results/judge_val_segments/`); selection and
@@ -224,7 +253,8 @@ freeze records are in `results/{afsp,peft}_{sweep,verify}_val.json`.
 - Pinned library versions (`transformers`, `peft`, `trl`, `unbabel-comet`, `sacrebleu`, `sentence-transformers`, `faiss`).
 - Logged per run: base model + revision, all prompts (system, user, judge × 2), decoding params, LoRA config, PPO config, reward weight grid and selected point, file hashes for splits and test outputs.
 - Generation is greedy and deterministic, so a condition reproduces byte-for-byte given the same adapter and prompt. **The judge does not:** `claude-haiku-4-5` exposes no seed, so Φ is re-sampled on every run.
-- Known gaps: LoRA cells are trained once (no seed replication), and the AFSP register direction is hard-coded in two configs with no derivation script (see [`docs/DEVLOG.md`](docs/DEVLOG.md), 2026-07-18).
+- Known gaps: LoRA cells are trained once (no seed replication), and the AFSP register direction is hard-coded in six configs with no derivation script (see [`docs/DEVLOG.md`](docs/DEVLOG.md), 2026-07-18).
+- Greedy decoding reproduces byte-for-byte *within* a session but did not across sessions: two resumed runs (`zeroshot`, `afsp_full`) differ from their swept cells in 2 and 5 of 1,323 segments (see [`docs/DEVLOG.md`](docs/DEVLOG.md), 2026-07-31).
 
 ---
 
@@ -319,12 +349,22 @@ python manage.py bootstrap --metric judge --conditions $CONDS --split val --adja
 
 `bootstrap` computes chrF/BLEU on the fly from the inference files and reads
 COMET/judge from the JSON their own commands write, so run those first. Each
-non-baseline condition is compared against the ladder floor (`zeroshot`), and
-`--adjacent` adds each consecutive-rung difference. Outputs land in `results/`.
+non-baseline condition is compared against the ladder floor (`zeroshot`),
+`--adjacent` adds each consecutive-rung difference, `--pairs a:b` adds arbitrary
+comparisons, and `--out` writes the table to
+`results/bootstrap_<metric>_<split>.json`. The canonical run behind the results
+section above is:
 
-> **The bootstrap step has not been run yet.** The per-segment COMET and Φ vectors it
-> needs are persisted, so it is the immediate next step — until it is done, no
-> difference in the results table may be reported as a difference.
+```bash
+python manage.py bootstrap --metric $M --conditions $CONDS --split val --adjacent \
+    --baseline zeroshot --out \
+    --pairs afsp_full:knn_fewshot afsp_margin:peft afsp_full:peft \
+            knn_fewshot:peft random_fewshot:peft
+```
+
+> **p-values are uncorrected.** The canonical run makes 14 comparisons per metric
+> across four metrics. Any single result near α = 0.05 should be read against a
+> family-wise correction before it is reported as a finding.
 
 ---
 
