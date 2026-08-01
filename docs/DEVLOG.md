@@ -1,19 +1,86 @@
 # Engineering and Decision Log
 
-This document records the main pipeline stages, architectural decisions, implementation changes, and rationale for the Style-Aware Machine Translation project. Entries are ordered in reverse chronological order, with the most recent decision first.
+This document records the pipeline stages, architectural decisions, implementation
+changes, and rationale for the Style-Aware Machine Translation project. Entries are
+ordered in reverse chronological order, most recent first.
 
-Each entry documents four points: what changed, why the change was made, how the result can be reproduced, and what limitations or risks should be monitored. This log serves as the authoritative record for explaining why the dataset, pipeline, and generated artifacts have their current form.
+Each entry answers four questions: what changed, why the change was made, how the
+result can be reproduced, and what limitations or risks should be monitored. This log
+is the authoritative record of why the dataset, pipeline, and generated artifacts have
+their current form. It is an engineering record, not a results document: numbers appear
+here to support decisions, and the reported figures for the thesis are those in
+`README.md` and the files under `results/`.
 
 ## Conventions
 
-* Dates are written in absolute form: `YYYY-MM-DD`.
-* Code references should use the format `path:line`.
-* Commands should be recorded as exact command-line invocations.
-* When a pipeline stage writes data, the entry should identify the artifact paths and describe how integrity was verified, for example through hashes or manifests.
-* The four entries dated 2026-07-18 through 2026-07-31 were written **retrospectively on
-  2026-07-31**, reconstructed from committed artifacts, configs, and git history rather
-  than at the time of each change. Where a rationale was not recorded in the repository
-  it is marked as unrecorded rather than inferred.
+* Dates are written in absolute form: `YYYY-MM-DD`. An entry's date is the date of the
+  work it records, taken from the git history of the commits it cites. Where an entry
+  covers a range of days, the range is stated in the entry.
+* Entries are ordered strictly by that date, most recent first.
+* Section headings are drawn from a fixed set: **Summary**, **What changed**,
+  **Rationale**, **Verification**, **Reproduction**, **Limitations and risks**. Entries
+  may add descriptive headings for sub-analyses, and early entries may omit sections
+  that did not apply.
+* Code references use the format `path:line`. Line numbers are valid as of the entry's
+  date and are not updated when later commits move the code.
+* Commands are recorded as exact command-line invocations. Fenced blocks that list
+  files or artifact paths rather than commands are not shell input.
+* When a pipeline stage writes data, the entry identifies the artifact paths and
+  describes how integrity was verified, for example through hashes or manifests.
+
+### Notation
+
+* **Φ** is the evaluation-time LLM-as-Judge register-fidelity score: the mean over
+  segments of a 1–5 rubric rating of a candidate translation against the authorized
+  reference (`prompts/judge_eval.txt`; see the 2026-07-05 entry). Higher is better.
+  It is distinct from the training-time reward judge used by RLSF.
+* **`stylo_dist`** is the undirected standardized Euclidean distance from a condition's
+  mean feature vector to the target-register centroid; **`register_fit`** is the
+  directional band-pass distance introduced on 2026-07-18. Lower is better for both.
+* **`eval_loss`** is completion-only token-level cross-entropy on `val.jsonl`.
+
+### Stage and phase labels
+
+Two labelling schemes appear in the titles. Entries of 2026-06-12 use *Phase N*;
+entries from 2026-07-03 onward use *Stage N*; the 2026-06-08 entries and several later
+ones use neither. The schemes are historical artifacts of the project and are not one
+numbering — *Phase 2* (stylometrics) and *Stage 2* are unrelated. **Stage 2 has no
+entry**: the demonstration-ordering flag (commit `4e7647d`, 2026-07-04, PR #4
+`feat/afsp-stage2-fixes`) is referenced only in passing by the Stage 3 entry.
+
+### Provenance of these entries
+
+The four entries dated 2026-07-18, 2026-07-23, 2026-07-25, and 2026-07-31 were written
+**retrospectively on 2026-07-31**, reconstructed from committed artifacts, configs, and
+git history rather than at the time of each change. The 2026-07-24 PEFT-implementation
+entry and all entries before 2026-07-18 were written at the time of the change. Where a
+rationale was not recorded in the repository it is marked as unrecorded rather than
+inferred.
+
+### Known documentation gaps
+
+Changes visible in the git history that no entry records. They are listed here so the
+absence is deliberate rather than an oversight; none has a recorded rationale.
+
+* `270b96c` (2026-07-16) re-cut the sweep grid to k ∈ {1, 2, 4, 8, 16} and added the
+  zero-shot anchor row. The 2026-07-18 entry describes the grid it replaced, not this
+  intermediate grid.
+* `568ba73` (2026-07-19) restored λ = 0.5 to `DEFAULT_LAMBDAS`, completing the six-value
+  λ axis that the 2026-07-23 run used.
+* `446eca8` (2026-07-18) removed the lazy `comet` import from `src/eval/comet.py`,
+  which the 2026-07-13 entry had relied on. See that entry's limitations.
+* The trained adapter's output location moved from `outputs/peft/adapter`
+  (2026-07-24 entry) to `models/peft_lora_r{r}_lr{lr}/checkpoint-{step}`
+  (`configs/peft_sweep.yaml`, `sweep.output_base`). No entry records the move.
+* The judge provider switch of 2026-07-20 has no recorded rationale; this is noted in
+  the 2026-07-23 entry.
+
+### Audit
+
+This log was audited for internal consistency against the committed artifacts, configs,
+and git history on **2026-08-01**. Corrections made in that pass are marked inline as
+*Correction (2026-08-01)*; they amend the claims of earlier entries but do not restate
+their history.
 
 ---
 
@@ -29,7 +96,7 @@ so the README results table is no longer empty.
 
 The frozen PEFT configuration is **r = 32, α = 64, lr = 2e-4, 2 epochs**, LoRA on
 all linear layers, adapter `models/peft_lora_r32_lr2e-4/checkpoint-1358`
-(80,740,352 trainable parameters across 392 adapter tensors, ≈1.06 % of the 7.62 B
+(80,740,352 trainable parameters across 392 adapter tensors, ≈1.06% of the 7.62 B
 base). It was selected by `src.peft.sweep` and confirmed by `src.peft.verify`
 (2026-07-25 entry), and is frozen into `configs/peft_qwen.yaml` as
 `generator.adapter_path`.
@@ -63,7 +130,7 @@ Three observations, all descriptive and none yet significance-tested:
    the margin/hub rung is flat-to-slightly-negative on adequacy — while the
    register rerank rung (`afsp_full`) adds both adequacy and Φ over it. On this
    split the gain attributable to AFSP comes from the register rerank, not from
-   margin/hub penalisation.
+   margin/hub penalization.
 
 ### What changed
 
@@ -74,7 +141,7 @@ No source changes. This entry records generation and scoring artifacts:
   (greedy, `temperature 0.0`, `seed 42`, `max_new_tokens 1024`, bf16, **not**
   quantized).
 * `results/comet_val.json` — per-segment `Unbabel/wmt22-comet-da` for all six
-  conditions, `n = 1323` each, with the shared `sources` list persisted so the
+  conditions, `n = 1,323` each, with the shared `sources` list persisted so the
   paired bootstrap can verify segment alignment.
 * `results/judge_val.json` + `results/judge_val_segments/*.jsonl` — evaluation-time
   judge Φ for all six conditions. Coverage is 1.0 everywhere except
@@ -91,11 +158,11 @@ the 8 GB development GPU cannot hold the bf16 base, unchanged from Stage 0.
 ### Verification
 
 The surface and stylometric numbers in the table above were **recomputed locally
-on 2026-07-31** from the committed inference files and match the sweep/verify
-records cell-for-cell (e.g. `peft` chrF 41.58 = the `peft_r32_lr2e-4_e2` sweep
-cell; `afsp_full` chrF 39.99 = the frozen `afsp_k8_l0.75` cell), confirming that
-the shipped `peft`/`afsp_full` outputs were generated from the frozen configs and
-not from some other cell:
+on 2026-07-31** from the committed inference files. chrF matches the sweep/verify
+records cell for cell (`peft` 41.58 = the `peft_r32_lr2e-4_e2` sweep cell;
+`afsp_full` 39.99 = the frozen `afsp_k8_l0.75` cell), confirming that the shipped
+`peft`/`afsp_full` outputs were generated from the frozen configs and not from
+some other cell:
 
 ```bash
 python manage.py eval          --conditions zeroshot random_fewshot knn_fewshot afsp_margin afsp_full peft --split val
@@ -107,6 +174,28 @@ count was read from the safetensors header of
 `models/peft_lora_r32_lr2e-4/checkpoint-1358/adapter_model.safetensors`; its
 `adapter_config.json` confirms `r: 32`, `lora_alpha: 64`, and all seven linear
 projections (`q,k,v,o,gate,up,down`) as targets.
+
+**Correction (2026-08-01): `stylo_dist` does not match cell for cell, because two
+of the four comparable runs are not byte-identical to their swept cell.** Comparing
+`outputs/sweep/*.jsonl` against the shipped ladder files segment by segment:
+
+| Shipped run | Swept cell | Differing segments | `stylo_dist` (cell → shipped) |
+|---|---|---:|---|
+| `afsp_margin` | `afsp_k8_l0` | 0 / 1,323 | 0.3910 → 0.3910 |
+| `peft` | `peft_r32_lr2e-4_e2` | 0 / 1,323 | 0.2886 → 0.2886 |
+| `zeroshot` | `afsp_zeroshot` | 2 / 1,323 | 0.6515 → 0.6518 |
+| `afsp_full` | `afsp_k8_l0.75` | 5 / 1,323 | 0.3709 → 0.3698 |
+
+The seven differing segments are whole-sentence divergences, not token-level jitter.
+The split tracks the usage records exactly: the two runs that differ are the two that
+were resumed across sessions (`zeroshot` 1,303 calls, `afsp_full` 1,318, against
+`n = 1,323`), and the two that match byte for byte each record the full 1,323 calls.
+That is consistent with divergence **across** generation sessions rather than within
+one, so the locked greedy contract of the 2026-07-03 Stage 0 entry buys byte-for-byte
+reproducibility within a session but has not held across sessions on this hardware. The reported figures are the shipped ladder files, which are the ones
+COMET and the judge scored; the discrepancy affects `stylo_dist` in the fourth
+decimal and changes no ordering, but the decoding contract should be restated to
+claim only within-session determinism.
 
 ### Reproduction
 
@@ -142,22 +231,44 @@ of 0.05 are plausibly within judge noise, and the cross-family confirmation pass
 the methodology calls for has not been run. Φ is also the *primary* stylistic
 metric for the thesis, which makes this the weakest link in the current results.
 
-Cost and latency are not instrumented. `outputs/*_usage.json` records token counts
-only (`cost_usd` is 0 for local weights), and the `calls` field is below `n = 1323`
-for the resumed runs (1,184–1,318), so it counts API calls actually issued, not
-segments — it cannot be used as a per-condition cost measure. The README's latency
-column has no data behind it.
+**The size of that judge noise is now measurable, and it is not negligible.** Two
+conditions were scored twice by the same judge on the same 1,323 segments — once
+during confirmation and once in the final evaluation pass — and the two passes
+disagree: `afsp_full` scores 2.797 in `results/afsp_verify_val.json` against 2.791
+in `results/judge_val.json`, and `peft` scores 2.741 in
+`results/peft_verify_val.json` against 2.744 in `results/judge_val.json`. For
+`afsp_full` the shipped file also differs from the confirmed cell in 5 segments, so
+that pair is not a pure re-scoring; the `peft` pair is, and it moves by 0.002 on
+identical inputs. Test–retest spread of that order sits inside the 0.047 Φ gap this
+entry reports between `afsp_full` and `peft`, and the freeze decisions of the
+2026-07-23 and 2026-07-25 entries turned on Φ gaps of 0.019 and 0.009. Repeated
+judge passes, not only a cross-family pass, are needed before any Φ ordering is
+reported.
 
-RLSF remains unimplemented (`src/rlsf/` holds only an empty `__init__.py`), so the
-four-way comparison of RQ1 is a three-way comparison today.
+Cost and latency are not instrumented. `outputs/*_usage.json` records token counts
+only (`cost_usd` is 0 for local weights), and the `calls` field is below
+`n = 1,323` for the resumed runs (1,184–1,318), so it counts generation calls
+actually issued, not segments — it cannot be used as a per-condition cost measure.
+The README reports trainable parameters but leaves inference latency unmeasured,
+which is one of the three components its cost row promises.
+
+RLSF remains unimplemented (`src/rlsf/` holds only an empty `__init__.py`). RQ1
+compares four conditions — the prompting baseline, AFSP, PEFT, and RLSF — so it is
+a three-condition comparison today.
 
 ---
 
 ## 2026-07-25 — PEFT tuning as a first-class sweep (`src/peft/sweep.py`, `src/peft/verify.py`)
 
+*Scope: the sweep and verify drivers were written on 2026-07-24 and 2026-07-25
+(`de81c23`, `d813146`, `deb4298`, `1de6059`, `d2452be`, `c0efb67`); the smoke runs
+that validated them ran on 2026-07-25 and 2026-07-26, and the sweep and verify runs
+whose results this entry reports ran on 2026-07-27 to 2026-07-30. The entry is dated
+to the driver work and reports the run it selected.*
+
 ### Summary
 
-The 2026-07-23 entry left the LoRA hyperparameters as placeholder defaults with an
+The 2026-07-24 entry left the LoRA hyperparameters as placeholder defaults with an
 explicit warning that they had to be dev-tuned before the reported run. That tuning
 was implemented as a two-stage driver that mirrors the AFSP `sweep → verify → freeze`
 pattern, so **both adaptation arms are selected under the same rule on the same
@@ -283,7 +394,87 @@ a demonstrated result.
 
 ---
 
+## 2026-07-24 — PEFT (LoRA) condition: supervised fine-tuning implemented (not run)
+
+*Date corrected on 2026-08-01: this entry was filed under 2026-07-23; the commit it
+records, `fcb0834` "feat: implement PEFT (LoRA) fine-tuning condition", is dated
+2026-07-24, and the entry has been moved to its position in the ordering.*
+
+### Summary
+
+The PEFT condition — the third of the four conditions to be built, leaving only
+RLSF unimplemented — was implemented. `src/peft/` had held only an
+empty `__init__.py`;
+it now contains `src/peft/train.py`, a LoRA supervised fine-tuning entry point
+wired into `manage.py` as the `peft` command and paired with a new inference
+condition `peft` in `src/infer/run.py`. This entry records the implementation and
+its static verification only. **No training was run**: the frozen thesis base is
+`Qwen2.5-7B-Instruct`, which does not fit on the 8 GB development GPU (RTX 4060
+Laptop) in bf16, so training — like the AFSP sweep — is deferred to a
+larger-memory environment (Colab) to keep the base unquantized. Nothing here is a
+thesis finding; the PEFT results row stays empty.
+
+### What changed
+
+`src/peft/train.py` implements LoRA SFT on the locked base. LoRA adapters are
+applied to the query/value projections (`target_modules: [q_proj, v_proj]`,
+`src/peft/train.py:142`), base weights frozen, trained with token-level MLE on
+`data/splits/train.jsonl`. The training prompt is byte-identical to the `peft`
+inference condition: the locked style instruction as system, the zero-shot
+translate directive as user (`_ZEROSHOT_USER`, `src/peft/train.py:34`, replicated
+from `run.build_zeroshot_user` to avoid pulling the commercial-API client imports
+into training), and the reference translation as the assistant turn. Loss is
+**completion-only** — the prompt prefix is tokenized separately and its tokens
+masked to `-100` (`build_example`, `src/peft/train.py:43`) — so only the target
+tokens are supervised. Model selection is by `eval_loss` on `val.jsonl`
+(`load_best_model_at_end`, `metric_for_best_model="eval_loss"`); the best adapter
++ tokenizer and a `train_metrics.json` are saved to `outputs/peft/adapter`
+(git-ignored). QLoRA is the memory-pressure fallback (`load_in_4bit` →
+`BitsAndBytesConfig` + `prepare_model_for_kbit_training`). The saved adapter is
+also the intended RLSF initialization.
+
+Inference wiring: `LocalChatClient` gained an optional `adapter_path`
+(`src/infer/local_client.py`); when set, the LoRA adapter is layered onto the
+frozen base via `PeftModel.from_pretrained` (lazy import). `make_client` passes
+`generator.adapter_path` through, and `run.py` adds `peft` to `CONDITIONS` — it
+reuses the zero-shot prompt (no exemplars; the register lives in the weights) and
+raises if `adapter_path` is unset. Decoding stays locked (greedy, seed 42,
+max_new_tokens 1024). Config: `configs/peft_qwen.yaml`. Dependency `peft==0.18.0`
+added to `requirements.txt`.
+
+### Reproduction
+
+    python manage.py peft  --config configs/peft_qwen.yaml            # train (Colab / A100)
+    python manage.py infer --condition peft --config configs/peft_qwen.yaml  # generate on val
+
+### Verification (static only — no model load, no network)
+
+`ruff check src`, `ruff format --check src`, `python -m compileall -q src` all
+pass. The completion-masking arithmetic in `build_example` was checked offline
+against a stub tokenizer with synthetic data: only the assistant/target tokens
+are supervised, the prompt is fully masked, and truncation below the prompt
+length degrades to an all-masked example without crashing.
+
+### Limitations and risks
+
+LoRA rank, learning rate, and epoch/step count in `configs/peft_qwen.yaml` are
+placeholder defaults (r=16, lr=2e-4, 3 epochs) — they must be **dev-tuned** on
+`eval_loss` before the frozen PEFT run, exactly as `k`/`λ` were swept for AFSP.
+*(The 2026-07-25 entry carried out that tuning and rejected the `eval_loss`
+criterion proposed here: on this grid `eval_loss` ranks candidates in the opposite
+order to register fidelity.)*
+The completion mask relies on the prompt-only chat-template render being a strict
+token prefix of the full render; this holds for the Qwen2.5 template (clean
+`<|im_start|>assistant\n` boundary) but should be re-checked if the base or
+template changes.
+
+---
+
 ## 2026-07-23 — AFSP run end to end on val: sweep → verify → freeze (k = 8, λ = 0.75)
+
+*Scope: the sweep, the confirmation, the judge-provider change, and the ladder
+generation span 2026-07-19 to 2026-07-23. The entry is dated to the last of them
+(`93906ab`, `7230065`, `4812465`, `9fbc249`).*
 
 ### Summary
 
@@ -294,7 +485,7 @@ full val under COMET and the judge, the proxy pick held, and **k = 8,
 λ_style = 0.75** was frozen into `configs/base_qwen.yaml`. All five prompting
 rungs were then generated on the full val split. The evaluation-time judge was
 also changed to a different provider during this period (below), which supersedes
-a decision recorded in the 2026-07-04 entry.
+a decision recorded in the 2026-07-05 entry.
 
 ### The sweep
 
@@ -308,10 +499,16 @@ of the grid best (40.44), then take the best `register_fit` — and recommended
 
 Two things in the table are worth recording:
 
-* **The zero-shot row has a better `register_fit` (0.9555) than every AFSP cell.**
-  It is excluded only by the chrF adequacy band (36.42 vs 40.44). The register
+* **The zero-shot row has a better `register_fit` (0.9555) than every AFSP cell
+  inside the adequacy band**, the best of which is the selected `afsp_k8_l0.75`
+  at 0.9611. It is excluded only by that band (chrF 36.42 vs 40.44). The register
   objective alone would have selected no exemplars at all; the adequacy band is
   what makes the selection meaningful, so its width is load-bearing, not cosmetic.
+  *Correction (2026-08-01): the original entry claimed zero-shot beat every AFSP
+  cell in the grid. It does not. `afsp_k4_l1` (0.9217) and `afsp_k4_l0.75`
+  (0.9273) both score better, and both fall outside the band — which strengthens
+  rather than weakens the point, since the two cells with the best register
+  fidelity in the whole grid are also the two the adequacy band has to reject.*
 * **k and λ trade off against each other.** k = 16 dominates on chrF (up to 40.44)
   but has the worst `register_fit` at low λ (1.069 at λ = 0.1); k = 4 has good
   `register_fit` (0.922 at λ = 1.0) but the worst chrF (38.81). k = 8 at λ = 0.75
@@ -332,11 +529,25 @@ All three lie within 0.005 COMET — inside the 0.01 band — so the freeze fell
 and kept the proxy pick, even though `afsp_k16_l0.75` is nominally better on both
 chrF and COMET.
 
-`configs/base_qwen.yaml` was frozen to `retrieval.k: 8`, `afsp.lambda_style: 0.75`
-(commit `6ae191a`), and the five ladder rungs were generated on full val into
+`configs/base_qwen.yaml` was frozen to `retrieval.k: 8`, `afsp.lambda_style: 0.75`,
+and the five ladder rungs were generated on full val into
 `outputs/{zeroshot,random_fewshot,knn_fewshot,afsp_margin,afsp_full}_val.jsonl`.
 
-### Judge provider change (supersedes the 2026-07-04 decision)
+*Correction (2026-08-01): the original entry attributed the freeze to commit
+`6ae191a`. That commit is dated 2026-07-17, its diff touches `.gitignore` only, and
+it predates both the band-pass objective and the grid re-cut of 2026-07-18 — so it
+cannot be the freeze that this sweep produced, despite its message. The commit that
+actually wrote `retrieval.k: 8` and `afsp.lambda_style: 0.75` into
+`configs/base_qwen.yaml` is `220bba2` (2026-07-17, message "fix: add new req"), and
+no later commit touches either line. **The frozen (k, λ) therefore entered the
+config before the sweep this entry reports, and was never rewritten in response to
+it.** The values coincide with the post-band-pass recommendation, but the config is
+not evidence of that recommendation having been applied; the sweep confirms the
+setting rather than having produced it. This should be stated that way in the
+methodology, or the freeze should be re-applied from
+`results/afsp_verify_val.json` in a commit that says so.*
+
+### Judge provider change (supersedes the 2026-07-05 decision)
 
 `configs/judge_eval.yaml` was changed repeatedly on 2026-07-20 and settled on
 `provider: anthropic`, `model: claude-haiku-4-5`, `temperature: 0.0`,
@@ -344,15 +555,25 @@ chrF and COMET.
 documented OpenAI judge. **No rationale for the switch is recorded in the
 repository**; only the config history shows it.
 
-This directly contradicts the Stage 4 entry (2026-07-04), which chose an OpenAI
+This directly contradicts the Stage 4 entry (2026-07-05), which chose an OpenAI
 judge specifically because `temperature=0` + `seed` gave a reproducible primary,
 and stated that "the Anthropic cross-family judge is non-deterministic (no
 temperature control in the client) and should be treated as a confirmation pass,
 not a reproducible primary." The Anthropic judge is now the primary. Every Φ in
-`results/judge_val.json` comes from it. This should be resolved deliberately —
-either by re-establishing a reproducible primary or by documenting and defending
-the non-reproducible one in the methodology — rather than left as an undocumented
-drift.
+`results/judge_val.json` comes from it.
+
+Half of that objection was addressed in the same window, though no entry says so:
+commit `b0fb732` (2026-07-20) added temperature plumbing to
+`src/infer/anthropic_client.py`, which now forwards `temperature` to
+`messages.create` whenever `thinking` is off — the configuration
+`configs/judge_eval.yaml` uses. So the Stage 4 statement was accurate when written
+and is now outdated on temperature. **It remains accurate on determinism**: the
+Anthropic client exposes no seed, so the primary judge is temperature-0 but not
+reproducible, and the 2026-07-31 entry measures the resulting test–retest spread at
+about 0.002 Φ on identical inputs. The methodology must therefore either
+re-establish a seeded primary or defend a non-reproducible one with repeated-pass
+variance reported alongside every Φ; leaving the choice undocumented is not an
+option, since the switch itself has no recorded rationale.
 
 ### 4-bit flag (transient, did not affect reported runs)
 
@@ -412,9 +633,9 @@ The sweep's ranking axis changed with it, from the undirected `stylo_dist` to th
 new directional `register_fit`. The k × λ grid was simultaneously re-cut. All
 sweep outputs produced before this change were invalidated and later archived.
 
-### Why
+### Rationale
 
-The 2026-07-04 entry adopted salience precisely to fix the opposite error —
+The 2026-07-04 Stage 1 entry adopted salience precisely to fix the opposite error —
 toward-centroid reranking had been selecting the register-*bland* corpus average —
 and flagged in its own limitations that salience "is unbounded and length-sensitive
 in isolation", safe only because the candidate pool bounds it. Two problems remain
@@ -444,8 +665,8 @@ still selectable.
 `style_register_direction`, and `_resolve_direction` (which accepts a dict keyed by
 centroid feature name — order-independent and validated against the centroid's own
 feature list, raising on a missing or mis-sized spec). `_register_fit` dispatches on
-the objective; `proximity` reproduces the pre-2026-07-04 behaviour and `salience`
-the 2026-07-04 behaviour, so all three are still reachable for ablation.
+the objective; `proximity` reproduces the pre-Stage 1 behaviour and `salience` the
+Stage 1 (2026-07-04) behaviour, so all three are still reachable for ablation.
 
 `src/infer/afsp_sweep.py` now computes a per-cell `register_fit` via
 `_register_fit_fn` and **ranks on it instead of `stylo_dist`** (`446eca8`):
@@ -471,18 +692,34 @@ is *less* lexically varied per unit length, not more. This is why a direction-bl
 objective mismeasures it: salience rewards deviation in `root_ttr` in either
 direction, while the corpus says only one direction is register-bearing.
 
-The grid was re-cut in the same window: from k ∈ {1, 2, 3, 4} × λ ∈ {0, 0.25, 0.5,
-0.75, 1.0} to k ∈ {4, 8, 16} (`97c1744`, dropping k = 1/2 as too few exemplars and
-adding k = 16) with λ densified at the low end by adding 0.1 (`6169de9`), giving
-the 18-cell grid the 2026-07-23 run used.
+The grid was re-cut in the same window. `97c1744` cut the default k axis to
+{4, 8, 16}, dropping k = 1 and k = 2 as too few exemplars, and `6169de9` densified λ
+at the low end by adding 0.1.
+
+*Correction (2026-08-01): the original entry described the grid being replaced as
+k ∈ {1, 2, 3, 4} × λ ∈ {0, 0.25, 0.5, 0.75, 1.0}. That was the Stage 5 grid of
+2026-07-06. The grid actually in force on 2026-07-18 was k ∈ {1, 2, 4, 8, 16}
+(`PREVIOUS_KS` in `src/infer/afsp_sweep.py`), set by `270b96c` on 2026-07-16 along
+with the zero-shot anchor row — a change no entry records. So k = 16 was not added
+here, and the re-cut narrowed an existing five-value k axis to three rather than
+widening a four-value one. The 26 cells archived by `4812465` (25 grid cells plus
+the anchor) are from that intermediate grid, as the housekeeping note of the
+2026-07-23 entry correctly states. The λ axis also did not reach its final form
+here: `843fe38`
+repaired a malformed `DEFAULT_LAMBDAS` tuple later the same day, leaving five
+values, and λ = 0.5 was restored only on 2026-07-19 by `568ba73`. The 18-cell
+grid the 2026-07-23 run used dates from that commit, not from this one.*
 
 ### Verification
 
 Not separately verified at the time beyond the static checks; the objective's
 effect is visible in the sweep table recorded in the 2026-07-23 entry, where
-`register_fit` and the undirected `stylo_dist` rank cells differently (e.g.
-`afsp_k16_l1` has the second-best `stylo_dist` of the grid at 0.3808 but only the
-seventh-best `register_fit` at 0.9811).
+`register_fit` and the undirected `stylo_dist` rank cells differently.
+`afsp_k16_l1` has the second-best `stylo_dist` of the 18 cells at 0.3808 but only
+the tenth-best `register_fit` at 0.9811 — the clearest single case that the two
+axes disagree. *(Correction, 2026-08-01: the original entry called this the
+seventh-best `register_fit`; recounted against `results/afsp_sweep_val.json` it is
+tenth of 18.)*
 
 ### Limitations and risks
 
@@ -490,86 +727,34 @@ seventh-best `register_fit` at 0.9811).
 repository.** The four coefficients are hard-coded in `configs/base_qwen.yaml` and
 duplicated in `configs/peft_sweep.yaml`; no script derives them and no entry
 explains how they were obtained. They look like a normalized loading vector, and
-their signs agree with the correlations reported in the 2026-07-04 entry
+their signs agree with the correlations reported in the 2026-07-04 Stage 1 entry
 (distance–marker +0.51, distance–lex +0.36), but that is inference, not a record.
 Since this vector defines what the project *means* by "the target register", it
 needs a derivation script or a documented source before it appears in the thesis.
 
-`style_target_sigma` is 1.0 in `base_qwen.yaml` but **0.5** in
-`configs/peft_sweep.yaml` (`select_target_sigma`), so the AFSP arm and the PEFT arm
-target register points at different distances along the same direction. The
-2026-07-25 entry frames PEFT selection as running on the "matched" AFSP axis; it is
-matched in form but not in σ. Whether that is deliberate is not recorded.
+*Correction (2026-08-01): the original entry stated that `style_target_sigma` is 1.0
+in `base_qwen.yaml` but 0.5 in `configs/peft_sweep.yaml`, and concluded that the AFSP
+and PEFT arms target register points at different distances. They do not — the two
+values are different parameters, not two settings of one. `style_target_sigma`
+(1.0) is the σ the **retriever** uses when reranking exemplars during generation;
+`select_target_sigma` (0.5) is the σ the **selection metric** uses when scoring a
+finished cell's `register_fit`. `configs/afsp_sweep.yaml` carries both, at 1.0 and
+0.5 respectively, and `configs/peft_sweep.yaml` carries only the latter, also at 0.5.
+The PEFT arm is therefore selected on exactly the AFSP selection axis, σ included,
+and the 2026-07-25 entry's "matched axis" claim holds.*
 
-The duplicated direction vector in two configs will drift silently if one is edited.
+The real σ mismatch is **inside** the AFSP arm: exemplars are reranked toward a
+target 1.0 σ along the register direction while cells are scored against a target at
+0.5 σ, so the objective the retrieval optimizes is not the objective the sweep ranks
+on. That is defensible — reranking and evaluation need not share a target — but it
+is undocumented, and the 0.5/1.0 split appears to be inherited rather than chosen.
+
+The direction vector is duplicated verbatim in **six** configs — `base_qwen.yaml`,
+`afsp_sweep.yaml`, `qwen_smoke.yaml`, `peft_sweep.yaml`, `peft_anchor_e3.yaml`, and
+`peft_smoke.yaml` — with no single source. Editing one will silently desynchronize
+the arms.
 
 ---
-
-## 2026-07-23 — PEFT (LoRA) condition: supervised fine-tuning implemented (NOT run)
-
-### Summary
-
-The PEFT condition — the last unbuilt adaptation strategy of the four-way
-comparison — was implemented. `src/peft/` had held only an empty `__init__.py`;
-it now contains `src/peft/train.py`, a LoRA supervised fine-tuning entry point
-wired into `manage.py` as the `peft` command and paired with a new inference
-condition `peft` in `src/infer/run.py`. This entry records the implementation and
-its static verification only. **No training was run**: the frozen thesis base is
-`Qwen2.5-7B-Instruct`, which does not fit on the 8 GB development GPU (RTX 4060
-Laptop) in bf16, so training — like the AFSP sweep — is deferred to a
-larger-memory environment (Colab) to keep the base unquantized. Nothing here is a
-thesis finding; the PEFT results row stays empty.
-
-### What changed
-
-`src/peft/train.py` implements LoRA SFT on the locked base. LoRA adapters are
-applied to the query/value projections (`target_modules: [q_proj, v_proj]`,
-`src/peft/train.py:142`), base weights frozen, trained with token-level MLE on
-`data/splits/train.jsonl`. The training prompt is byte-identical to the `peft`
-inference condition: the locked style instruction as system, the zero-shot
-translate directive as user (`_ZEROSHOT_USER`, `src/peft/train.py:34`, replicated
-from `run.build_zeroshot_user` to avoid pulling the commercial-API client imports
-into training), and the reference translation as the assistant turn. Loss is
-**completion-only** — the prompt prefix is tokenized separately and its tokens
-masked to `-100` (`build_example`, `src/peft/train.py:43`) — so only the target
-tokens are supervised. Model selection is by `eval_loss` on `val.jsonl`
-(`load_best_model_at_end`, `metric_for_best_model="eval_loss"`); the best adapter
-+ tokenizer and a `train_metrics.json` are saved to `outputs/peft/adapter`
-(git-ignored). QLoRA is the memory-pressure fallback (`load_in_4bit` →
-`BitsAndBytesConfig` + `prepare_model_for_kbit_training`). The saved adapter is
-also the intended RLSF initialization.
-
-Inference wiring: `LocalChatClient` gained an optional `adapter_path`
-(`src/infer/local_client.py`); when set, the LoRA adapter is layered onto the
-frozen base via `PeftModel.from_pretrained` (lazy import). `make_client` passes
-`generator.adapter_path` through, and `run.py` adds `peft` to `CONDITIONS` — it
-reuses the zero-shot prompt (no exemplars; the register lives in the weights) and
-raises if `adapter_path` is unset. Decoding stays locked (greedy, seed 42,
-max_new_tokens 1024). Config: `configs/peft_qwen.yaml`. Dependency `peft==0.18.0`
-added to `requirements.txt`.
-
-### Reproduction
-
-    python manage.py peft  --config configs/peft_qwen.yaml            # train (Colab / A100)
-    python manage.py infer --condition peft --config configs/peft_qwen.yaml  # generate on val
-
-### Verification (static only — no model load, no network)
-
-`ruff check src`, `ruff format --check src`, `python -m compileall -q src` all
-pass. The completion-masking arithmetic in `build_example` was checked offline
-against a stub tokenizer with synthetic data: only the assistant/target tokens
-are supervised, the prompt is fully masked, and truncation below the prompt
-length degrades to an all-masked example without crashing.
-
-### Limitations / risks to monitor
-
-LoRA rank, learning rate, and epoch/step count in `configs/peft_qwen.yaml` are
-placeholder defaults (r=16, lr=2e-4, 3 epochs) — they must be **dev-tuned** on
-`eval_loss` before the frozen PEFT run, exactly as `k`/`λ` were swept for AFSP.
-The completion mask relies on the prompt-only chat-template render being a strict
-token prefix of the full render; this holds for the Qwen2.5 template (clean
-`<|im_start|>assistant\n` boundary) but should be re-checked if the base or
-template changes.
 
 ## 2026-07-16 — Stage 5b hardening: judge-gating the freeze, persisting per-segment COMET
 
@@ -734,9 +919,11 @@ sealed test split`) before any model is loaded.
 # COMET-only confirmation of the top 3 proxy cells on full val (free/local, needs a GPU for Qwen):
 python manage.py afsp_verify --config configs/afsp_sweep.yaml --top 3
 
-# Add the paid judge pass (top cells only) to decide within the COMET band:
+# Add the paid judge pass (top cells only) to decide within the COMET band.
+# --judge-config takes any YAML carrying a `judge:` block; the canonical one is
+# configs/judge_eval.yaml, which every later entry uses.
 python manage.py afsp_verify --config configs/afsp_sweep.yaml --top 3 \
-    --judge-config configs/afsp_sweep.yaml   # any YAML carrying a `judge:` block
+    --judge-config configs/judge_eval.yaml
 ```
 
 Then read `results/afsp_verify_val.json`, freeze the reported `retrieval.k` and
@@ -777,7 +964,7 @@ as written never resolves.
 - `README.md`: Setup adds the `.venv-comet` environment; the Evaluation section notes
   `manage.py comet` must run from it.
 
-### Why
+### Rationale
 
 COMET 2.2.6's metadata pins `transformers>=4.17,<5.0`, `numpy>=1.20,<2.0`, and
 `huggingface-hub<1.0`. The generation stack pins `transformers==5.12.1` and
@@ -786,7 +973,7 @@ is not a version-bump-away problem. COMET only scores the inference `*.jsonl` fi
 post-hoc (`src/eval/comet.py:19` imports `comet` lazily; `src/eval/_io.py` is
 stdlib-only), so the eval backbone already decouples and a second venv is the clean fix.
 
-### How to reproduce / verify
+### Reproduction and verification
 
 ```bash
 python -m venv .venv-comet && source .venv-comet/bin/activate
@@ -799,13 +986,26 @@ Verified 2026-07-13 on Python 3.11: both `requirements.txt` (minus COMET) and
 `requirements-comet.txt` resolve independently via `pip install --dry-run`; COMET
 imports and `manage.py comet --help` runs under the isolated stack.
 
-### Risks / to monitor
+### Limitations and risks
 
 - The COMET stack pulls its own `transformers`/`numpy`/`torch` (~CPU torch locally, GPU
   torch on Colab); keep the two venvs strictly separate — never `pip install` one file
   into the other's environment.
 - `transformers==4.57.6` / `numpy==1.26.4` are pinned to the resolution verified today;
   if COMET is ever upgraded, re-verify these against its new metadata.
+
+**Correction (2026-08-01): the decoupling this entry relies on no longer holds.**
+Commit `446eca8` (2026-07-18) moved `from comet import download_model,
+load_from_checkpoint` out of `load_model` and up to module scope, so
+`src/eval/comet.py` now requires the `comet` package merely to be imported. The
+consequence reaches beyond that module: `src/infer/afsp_verify.py:13` imports
+`src.eval.comet` at module scope, so `manage.py afsp_verify` — which also needs the
+Qwen base to regenerate cells — can no longer be loaded from the generation venv at
+all, and the two-environment split of this entry cannot satisfy it. `src/peft/verify.py:79`
+imports COMET inside its function and is unaffected. The confirmation runs of
+2026-07-23 and 2026-07-25 postdate the change but did not surface it, because they
+were executed on Colab, where one environment carries both stacks. Either restore
+the lazy import or document that `afsp_verify` requires a combined environment.
 
 ---
 
@@ -917,7 +1117,12 @@ requirement to keep the base unquantized (no `load_in_4bit`) both point to Colab
 
 ---
 
-## 2026-07-04 — Stage 4: Evaluation Backbone (COMET, LLM-as-Judge, paired bootstrap)
+## 2026-07-05 — Stage 4: Evaluation Backbone (COMET, LLM-as-Judge, paired bootstrap)
+
+*Date corrected on 2026-08-01: this entry was filed under 2026-07-04; the commit it
+records, `0c1f81c`, is dated 2026-07-05. References to "the 2026-07-04 entry"
+elsewhere in this log that concern the judge, COMET, or the bootstrap refer to this
+entry and have been updated to 2026-07-05.*
 
 ### Summary
 
@@ -934,7 +1139,7 @@ verified offline, and the CI-equivalent static checks pass.
 
 ### What changed
 
-`src/eval/_io.py` (new) centralises loading: `load_condition(out_dir, condition,
+`src/eval/_io.py` (new) centralizes loading: `load_condition(out_dir, condition,
 split)` returns aligned `(sources, predictions, references)` from the inference
 JSONL. `quick.py`'s `score` was refactored onto it, and `quick.py` gained
 `segment_scores(preds, refs, metric)` — sentence-level chrF (default) or BLEU
@@ -962,8 +1167,8 @@ mis-scored. Per-segment scores, mean, and coverage are written to
 different-family judge block (commented in the config).
 
 `src/eval/bootstrap.py` (new, `manage.py bootstrap`) implements segment-level
-paired resampling (Koehn 2004): `paired_bootstrap(a, b, n_resamples, alpha, seed)`
-returns the observed mean difference, the two-sided 95 % CI, a bootstrap p-value,
+paired resampling (Koehn, 2004): `paired_bootstrap(a, b, n_resamples, alpha, seed)`
+returns the observed mean difference, the two-sided 95% CI, a bootstrap p-value,
 and a significance flag, dropping NaN pairs first. The CLI works on any metric —
 chrF/BLEU computed on the fly, COMET/judge read from their JSON — compares each
 condition against the ladder floor (`zeroshot`), and with `--adjacent` reports
@@ -1171,8 +1376,8 @@ The margin in `src/retrieval/afsp.py` scores a candidate as
 embedding space. The committed `build_index.py` embedded the English **target**
 side, which made `cos(x, y)` and the query hubness `hub(x)` cross-lingual
 (source→target) while the candidate hubness `hub(y)` was monolingual English —
-three quantities in two different spaces, added together. This is the
-Artetxe–Schwenk (2019) margin applied incoherently.
+three quantities in two different spaces, added together. This is the margin of
+Artetxe and Schwenk (2019) applied incoherently.
 
 A verification pass showed the on-disk `data/knn_index/embeddings.npy` was in fact
 already **source**-side (cosine 1.00 to the source of pair 0, 0.86 to its target),
@@ -1227,7 +1432,7 @@ and the H2 across-segment variance analysis still see them; only the register-fi
 distance drops them. `distance_to_centroid` already iterated `centroid["features"]`
 and needed no change; the `--build-centroid` printout was fixed to iterate the
 centroid's own feature list rather than the full `FEATURE_NAMES`. The centroid was
-rebuilt (`n = 10860`, four features).
+rebuilt (n = 10,860, four features).
 
 ### 4. Register rerank: salience, not toward-centroid
 
@@ -1305,6 +1510,8 @@ and `beta` still need a dev-split sweep; these fixes make that sweep meaningful
 (non-inert features, coherent margin, correctly-signed register term) but do not
 themselves select values.
 
+---
+
 ## 2026-07-03 — Stage 0: Local Open-Source Generator (Qwen2.5-7B-Instruct)
 
 ### Summary
@@ -1351,7 +1558,7 @@ throughput and reproducibility bookkeeping.
 In `src/infer/run.py`, a `local` branch was added to `make_client`
 (`src/infer/run.py:41`) that constructs `LocalChatClient` from the `generator`
 block, reading `temperature`, `top_p`, `seed`, `dtype`, `device_map`, and
-`load_in_4bit` with defaults. The error message for an unrecognised provider now
+`load_in_4bit` with defaults. The error message for an unrecognized provider now
 lists `local` (`src/infer/run.py:54`).
 
 `configs/base_qwen.yaml` was updated: the `provider: local` placeholder comment
@@ -1415,7 +1622,7 @@ Arabic test source, recorded non-zero prompt and completion token counts through
 `Usage`, and — under the locked greedy configuration — produced byte-for-byte
 identical output across two calls, confirming determinism. The 0.5B run validates
 the client code path (chat-template application, generation, prompt-prefix
-slicing, token accounting, and decoding); it does not characterise 7B behaviour.
+slicing, token accounting, and decoding); it does not characterize 7B behaviour.
 
 The 7B smoke on the locked base was not run. `Qwen/Qwen2.5-7B-Instruct` in
 `bfloat16` requires roughly 15 GB of weights and does not fit the development
@@ -1495,7 +1702,7 @@ conditions as arbitrary strings and therefore require no change.
 The implementation follows the four mechanisms of `docs/afsp_strategies.md`,
 operating over the shared index of English training targets.
 
-1. Margin-based scoring with hub penalisation. The candidate score is
+1. Margin-based scoring with hub penalization. The candidate score is
    `cos(x, y) − β · ½(hub(x) + hub(y))`, where `hub` is the mean cosine
    similarity of a row to its `knn_hubness` nearest neighbours, self-similarity
    excluded. This is the distance-form margin of Artetxe and Schwenk (2019) with
@@ -1504,7 +1711,7 @@ operating over the shared index of English training targets.
 
 2. Target-distribution-priority selection. A candidate pool of size `pool_mult·k`
    is drawn by margin score, and each candidate's English target is then scored
-   by its standardised distance to the target-register centroid
+   by its standardized distance to the target-register centroid
    (`results/stylometrics_centroid.json`), reusing `stylometrics.features` and
    `distance_to_centroid`. The final ranking combines margin similarity and
    register fit, weighted by `lambda_style`.
@@ -1517,7 +1724,7 @@ operating over the shared index of English training targets.
 4. Multi-view word-level pairs. A curated seed glossary
    `prompts/register_glossary.tsv` (`source_term<TAB>target_term`) is
    substring-matched against each exemplar and the query source, and the matches
-   are inserted as a `[Terms]` line to emphasise register-bearing terminology.
+   are inserted as a `[Terms]` line to emphasize register-bearing terminology.
 
 A new `afsp:` block in `configs/base_qwen.yaml` exposes `beta`, `knn_hubness`,
 `pool_mult`, `lambda_style`, `centroid_file`, `word_pairs`, and `glossary_file`.
@@ -1539,7 +1746,7 @@ python -m compileall -q src
 
 A separate offline check, loading no embedding model and making no API calls,
 exercised the numeric helpers and prompt assembly against synthetic arrays and a
-small in-memory index. It confirmed min-max normalisation and top-k mean, the
+small in-memory index. It confirmed min-max normalization and top-k mean, the
 batched candidate-hubness computation (which ranked a near-duplicate cluster as
 hubs), the target-register fit (which ranked an archaic exemplar above a plain
 one using the real stylometric centroid), glossary parsing, and the ordering and
@@ -1566,13 +1773,13 @@ commercial-API generator block. Development tuning should sweep `beta`,
 ### Limitations and risks
 
 The register glossary is a hand-curated seed list rather than a statistical word
-alignment. Matching is plain substring matching over undiacritised forms and may
-miss diacritised forms or over-match short terms; a subsequent revision should
+alignment. Matching is plain substring matching over undiacritized forms and may
+miss diacritized forms or over-match short terms; a subsequent revision should
 align and extend the list against the corpus. The mechanism is inactive when the
 file is absent or `word_pairs` is false.
 
 Candidate hubness is an `O(N²)` precomputation over the index. It is batched and
-cached, and is inexpensive at roughly 10.8k rows, but would need revisiting at a
+cached, and is inexpensive at roughly 10,860 rows, but would need revisiting at a
 larger scale. The cache key encodes only `knn_hubness`, so an index rebuilt at
 the same path requires its `hubness_top*.npy` files to be cleared.
 
@@ -1716,7 +1923,7 @@ The reporting functions compute per-condition feature means, across-segment stan
 
 The archaic-marker regex `_MARKERS` is now defined in `stylometrics.py` and imported by `src/eval/quick.py`. This makes the smoke scorer and the stylometric report use the same marker definition, preventing metric drift.
 
-The `stylometrics` command was registered in `manage.py`, and `tests/test_stylometrics.py` was added as a pytest-free assertion script. The tests include a hand-labeled lexical-density check.
+The `stylometrics` command was registered in `manage.py`, and `tests/test_stylometrics.py` was added as a pytest-free assertion script. The tests include a hand-labelled lexical-density check.
 
 ### Rationale
 
@@ -1742,7 +1949,7 @@ The command below passed all seven sanity checks:
 python tests/test_stylometrics.py
 ```
 
-This included a hand-labeled excerpt from training target #0, where the expected values were:
+This included a hand-labelled excerpt from training target #0, where the expected values were:
 
 ```text
 42 tokens
@@ -1780,13 +1987,13 @@ python manage.py stylometrics --conditions reference knn_fewshot --split val
 
 Because archaic pronouns and auxiliary forms are counted as function words, a heavily archaic passage may score lower in lexical density. Therefore, `lex_density` and `marker_rate` are complementary signals, not redundant measures.
 
-The `_MARKERS` regex is case-sensitive. As inherited from the quick scorer, sentence-initial `Thou` is not matched, while capital `O` is matched only as the vocative form. This was left unchanged to preserve existing marker-rate behavior.
+The `_MARKERS` regex is case-sensitive. As inherited from the quick scorer, sentence-initial `Thou` is not matched, while capital `O` is matched only as the vocative form. This was left unchanged to preserve existing marker-rate behaviour.
 
 Sentence splitting uses a simple regex. Single-sentence segments receive `sent_len_var = 0`.
 
 ---
 
-## 2026-06-12 — Phase 1: Repository Hygiene, Test Sealing, and Baseline Relabeling
+## 2026-06-12 — Phase 1: Repository Hygiene, Test Sealing, and Baseline Relabelling
 
 ### Summary
 
@@ -1806,7 +2013,7 @@ This config names the locked base model:
 Qwen/Qwen2.5-7B-Instruct
 ```
 
-The local generator client is not yet implemented, so `provider: local` is currently a placeholder for the upcoming local-inference phase. The two commercial-API configs were clearly relabeled as smoke-only configs and should not be treated as thesis conditions or findings.
+The local generator client is not yet implemented, so `provider: local` is currently a placeholder for the upcoming local-inference phase. The two commercial-API configs were clearly relabelled as smoke-only configs and should not be treated as thesis conditions or findings.
 
 The test split was sealed. Earlier smoke configs pointed to:
 
@@ -1827,7 +2034,7 @@ outputs/reference_val.jsonl
 outputs/knn_fewshot_val.jsonl
 ```
 
-This prevents validation or development runs from being mislabeled as test results. The real `test.jsonl` is reserved for the final evaluation run only.
+This prevents validation or development runs from being mislabelled as test results. The real `test.jsonl` is reserved for the final evaluation run only.
 
 Commercial-API smoke outputs were quarantined under:
 
@@ -1843,7 +2050,7 @@ afsp_test.jsonl → knn_fewshot_test.smoke.jsonl
 
 A warning banner was also added to the earlier development-log entry explaining that the BLEU/chrF numbers are smoke checks only, not thesis findings.
 
-The implemented retrieval method was relabeled from `afsp` to `knn_fewshot`, because it is a plain top-k cosine nearest-neighbor baseline rather than the full adaptive AFSP method.
+The implemented retrieval method was relabelled from `afsp` to `knn_fewshot`, because it is a plain top-k cosine nearest-neighbour baseline rather than the full adaptive AFSP method.
 
 The following renames were made:
 
@@ -1874,7 +2081,7 @@ src/data/split.py
 
 The earlier API-backed runs were useful for validating the pipeline, but they should not be interpreted as thesis results. They used commercial APIs rather than the selected open-source model, and they touched the sealed test split.
 
-Relabeling the current retrieval implementation as `knn_fewshot` keeps the experimental comparison honest. The future AFSP contribution should be evaluated against this baseline, not confused with it.
+Relabelling the current retrieval implementation as `knn_fewshot` keeps the experimental comparison honest. The future AFSP contribution should be evaluated against this baseline, not confused with it.
 
 Sealing the test set also enforces the project’s intended train/dev/test discipline. Any prompt tuning, retrieval tuning, or debugging should happen on the validation split, not the final test set.
 
@@ -1988,7 +2195,7 @@ Fertility is used as a proxy for tokenizer efficiency:
 fertility = subword tokens / whitespace words
 ```
 
-Very high fertility indicates byte-fallback behavior, which inflates sequence length and can degrade model quality. The decision rule was set in advance: a value near or below 2.5 would be acceptable, while a value around 4–5 or higher would be unacceptable.
+Very high fertility indicates byte-fallback behaviour, which inflates sequence length and can degrade model quality. The decision rule was set in advance: a value near or below 2.5 would be acceptable, while a value around 4–5 or higher would be unacceptable.
 
 ### Result
 
@@ -2109,9 +2316,9 @@ Using API models allowed the pipeline to be tested without first implementing lo
 
 ### Method and dependencies
 
-Retrieval used brute-force cosine similarity with NumPy rather than FAISS. At approximately 10.8k rows and 1024 dimensions, retrieval is only a matrix multiplication, so FAISS was deferred.
+Retrieval used brute-force cosine similarity with NumPy rather than FAISS. At approximately 10,860 rows and 1024 dimensions, retrieval is only a matrix multiplication, so FAISS was deferred.
 
-The OpenAI client supports reasoning-style request behavior by using:
+The OpenAI client supports reasoning-style request behaviour by using:
 
 ```python
 max_completion_tokens
@@ -2141,7 +2348,11 @@ data/knn_index/
 
 ### Smoke result
 
-The smoke run used `n = 25` and `k = 4`.
+The smoke run used `n = 25` and `k = 4`, on the **first 25 segments of
+`data/splits/test.jsonl`** — at this date the smoke configs still pointed at the
+test split, which is the defect the 2026-06-12 Phase 1 entry corrected by sealing it.
+The outputs were written as `*_test.jsonl` and are now quarantined under
+`outputs/smoke_api_quarantine/` with `.smoke.` in their names.
 
 These results are not thesis findings. They are retained only as evidence that the pipeline executed end-to-end.
 
@@ -2157,6 +2368,12 @@ These results are not thesis findings. They are retained only as evidence that t
 The smoke results showed that stronger base models achieved higher overlap scores. The retrieval condition sometimes moved archaic-marker rate closer to the reference distribution, especially on the stronger models. However, because this run used commercial APIs and an early test-set smoke setup, the numbers should not be interpreted as research findings.
 
 ### Reproduction
+
+The commands below are written against the post-sealing layout of the 2026-06-12
+Phase 1 entry, in which the smoke configs read `data/splits/val.jsonl` and the
+inference script derives the split tag from the eval file. Re-running them therefore
+reproduces the pipeline but not the table above, which was produced on the test
+split before sealing and must not be regenerated there.
 
 ```bash
 python manage.py build_index --config configs/openai_smoke.yaml
@@ -2214,7 +2431,7 @@ split      → src.data.split
 
 Additional commands were later registered for retrieval, inference, evaluation, fertility, and stylometrics.
 
-The dispatcher removes the subcommand from `sys.argv` before importing the target module. This preserves each module’s existing `argparse` behavior and allows all flags to pass through unchanged.
+The dispatcher removes the subcommand from `sys.argv` before importing the target module. This preserves each module’s existing `argparse` behaviour and allows all flags to pass through unchanged.
 
 ### Rationale
 
@@ -2396,7 +2613,7 @@ test records       = 32
 
 The leakage audit passed.
 
-Repeated runs produced byte-identical file hashes, confirming deterministic behavior.
+Repeated runs produced byte-identical file hashes, confirming deterministic behaviour.
 
 The corpus contains 28 distinct works. The 193 records with unknown provenance are forced into training so that they cannot inflate validation or test performance.
 
@@ -2427,3 +2644,35 @@ The whole-work holdout setting creates a harder evaluation regime than a random 
 The deduplication procedure is normalized-exact rather than fuzzy. It captures differences in casing, punctuation, whitespace, and selected orthographic variants, but it does not detect paraphrases or near-duplicates involving word substitution or larger phrase-level changes.
 
 If evaluation scores remain unexpectedly high, fuzzy near-duplicate detection such as MinHash or Jaccard similarity should be considered.
+
+
+---
+
+## References
+
+Works cited by name in the entries above, together with the models and metric
+implementations the pipeline depends on.
+
+* Artetxe, M., and Schwenk, H. (2019). Margin-based parallel corpus mining with
+  multilingual sentence embeddings. *Proceedings of ACL 2019*. — the margin score with
+  hub penalization used by `src/retrieval/afsp.py`.
+* Hu, E. J., Shen, Y., Wallis, P., Allen-Zhu, Z., Li, Y., Wang, S., Wang, L., and
+  Chen, W. (2021). LoRA: Low-rank adaptation of large language models. — the PEFT arm,
+  via the `peft` library.
+* Koehn, P. (2004). Statistical significance tests for machine translation evaluation.
+  *Proceedings of EMNLP 2004*. — the paired bootstrap of `src/eval/bootstrap.py`.
+* Papineni, K., Roukos, S., Ward, T., and Zhu, W.-J. (2002). BLEU: a method for
+  automatic evaluation of machine translation. *Proceedings of ACL 2002*.
+* Popović, M. (2015). chrF: character n-gram F-score for automatic MT evaluation.
+  *Proceedings of WMT 2015*.
+* Post, M. (2018). A call for clarity in reporting BLEU scores. *Proceedings of
+  WMT 2018*. — BLEU and chrF are computed with `sacrebleu`.
+* Qwen Team (2024). Qwen2.5 technical report. — `Qwen/Qwen2.5-7B-Instruct`, the frozen
+  thesis base.
+* Rei, R., et al. (2022). COMET-22: Unbabel-IST 2022 submission for the metrics shared
+  task. *Proceedings of WMT 2022*. — the `Unbabel/wmt22-comet-da` checkpoint.
+* Wang, L., et al. (2024). Multilingual E5 text embeddings: a technical report. — the
+  `intfloat/multilingual-e5-large-instruct` retrieval encoder.
+
+The AFSP method statement and its precedents are cited in `README.md` and
+`docs/afsp_strategies.md`; this log records implementation decisions only.
