@@ -1,0 +1,9 @@
+{
+  "condition": "zeroshot",
+  "output_name": "commercial_haiku",
+  "model": "claude-haiku-4-5",
+  "calls": 1323,
+  "prompt_tokens": 375530,
+  "completion_tokens": 51220,
+  "cost_usd": 0.6316
+}

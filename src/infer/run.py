@@ -216,7 +216,19 @@ def _load_configured_glossary(cfg: dict) -> list[tuple[str, str]]:
     return load_glossary(prompt_cfg.get("glossary_file", af.get("glossary_file")))
 
 
-def run(condition: str, cfg: dict) -> None:
+def resolve_out_name(condition: str, cfg: dict, override: str | None = None) -> str:
+    name = str(override or cfg.get("output", {}).get("name") or condition).strip()
+    if not name:
+        raise ValueError("output name is empty; give a non-blank --out-name or output.name")
+    if "/" in name or "\\" in name or name.startswith("."):
+        raise ValueError(
+            f"invalid output name '{name}': it is a filename stem, not a path — "
+            f"it must not contain separators or start with '.'"
+        )
+    return name
+
+
+def run(condition: str, cfg: dict, out_name: str | None = None) -> None:
     gen = cfg["generator"]
     prompt_cfg = cfg.get("prompt", {})
     style_instruction = Path(prompt_cfg["style_instruction_file"]).read_text(encoding="utf-8")
@@ -265,7 +277,10 @@ def run(condition: str, cfg: dict) -> None:
 
     out_dir = Path(cfg["output"]["dir"])
     out_dir.mkdir(parents=True, exist_ok=True)
-    out_path = out_dir / f"{condition}_{split}.jsonl"
+    name = resolve_out_name(condition, cfg, out_name)
+    out_path = out_dir / f"{name}_{split}.jsonl"
+    if name != condition:
+        print(f"Output name overridden: condition '{condition}' -> {out_path}")
 
     # Resume: skip segments already written by an earlier (interrupted) pass.
     # read_completed_jsonl repairs a torn final line so we never append onto it.
@@ -283,7 +298,7 @@ def run(condition: str, cfg: dict) -> None:
             )
     start = len(done)
     if start:
-        print(f"resuming {condition}: {start}/{len(test_rows)} already done")
+        print(f"resuming {name}: {start}/{len(test_rows)} already done")
 
     total = len(test_rows)
     print(f"Generating {total} translations with {gen['model']} ({condition}) ...")
@@ -324,8 +339,11 @@ def run(condition: str, cfg: dict) -> None:
         )
 
     usage = client.usage.summary()
-    (out_dir / f"{condition}_{split}_usage.json").write_text(
-        json.dumps({"condition": condition, "model": gen["model"], **usage}, indent=2),
+    (out_dir / f"{name}_{split}_usage.json").write_text(
+        json.dumps(
+            {"condition": condition, "output_name": name, "model": gen["model"], **usage},
+            indent=2,
+        ),
         encoding="utf-8",
     )
     print(f"Wrote {out_path}")
@@ -336,10 +354,16 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Provider-agnostic eval-set inference.")
     parser.add_argument("--condition", required=True, choices=list(CONDITIONS))
     parser.add_argument("--config", default="configs/openai_smoke.yaml")
+    parser.add_argument(
+        "--out-name",
+        default=None,
+        metavar="STEM",
+        help="filename stem for outputs/<STEM>_<split>.jsonl, overriding output.name",
+    )
     args = parser.parse_args()
 
     cfg = yaml.safe_load(Path(args.config).read_text(encoding="utf-8"))
-    run(args.condition, cfg)
+    run(args.condition, cfg, out_name=args.out_name)
 
 
 if __name__ == "__main__":

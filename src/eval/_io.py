@@ -5,11 +5,53 @@ Shared IO for the evaluation backbone.
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 
 def condition_path(out_dir: str | Path, condition: str, split: str) -> Path:
     return Path(out_dir) / f"{condition}_{split}.jsonl"
+
+
+def merge_results(path: str | Path, new: dict[str, dict]) -> list[str]:
+    """Merge per-condition results into the JSON map at ``path``.
+
+    Scoring one condition must never discard the others: the writers used to
+    rewrite the whole file from just the conditions of the current run, silently
+    dropping every condition they did not re-score. Conditions in ``new``
+    replace their old entry; every other key is carried through untouched.
+    Returns the sorted names of the carried-through conditions.
+
+    The write goes to a sibling temp file that is then atomically renamed, so an
+    interrupted or failing write leaves the previous results intact.
+    """
+    path = Path(path)
+    existing: dict = {}
+    if path.exists():
+        try:
+            loaded = json.loads(path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as e:
+            raise ValueError(
+                f"{path} is not valid JSON, so prior results cannot be preserved; "
+                f"move it aside to start fresh: {e}"
+            ) from e
+        if not isinstance(loaded, dict):
+            raise ValueError(
+                f"{path} holds {type(loaded).__name__}, expected a condition -> result map"
+            )
+        existing = loaded
+
+    preserved = sorted(set(existing) - set(new))
+    merged = {**existing, **new}
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(path.name + ".tmp")
+    with tmp.open("w", encoding="utf-8") as f:
+        f.write(json.dumps(merged, indent=2) + "\n")
+        f.flush()
+        os.fsync(f.fileno())
+    tmp.replace(path)
+    return preserved
 
 
 def read_completed_jsonl(path: str | Path) -> list[dict]:

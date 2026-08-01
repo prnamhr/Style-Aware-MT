@@ -5,12 +5,11 @@ Reference-based COMET scoring of inference outputs against the gold targets.
 from __future__ import annotations
 
 import argparse
-import json
 from pathlib import Path
 
 from comet import download_model, load_from_checkpoint
 
-from src.eval._io import condition_path, load_condition
+from src.eval._io import condition_path, load_condition, merge_results
 
 DEFAULT_MODEL = "Unbabel/wmt22-comet-da"
 _RESULTS_DIR = Path("results")
@@ -79,10 +78,10 @@ def main() -> None:
         results[cond] = {"n": len(preds), "model": args.model, "sources": sources, **res}
         print(f"{cond:<16} COMET {res['system']:.4f}  (n={len(preds)})")
 
-    results_dir = Path(args.results_dir)
-    results_dir.mkdir(parents=True, exist_ok=True)
-    out_path = results_dir / f"comet_{args.split}.json"
-    out_path.write_text(json.dumps(results, indent=2) + "\n", encoding="utf-8")
+    out_path = Path(args.results_dir) / f"comet_{args.split}.json"
+    preserved = merge_results(out_path, results)
+    if preserved:
+        print(f"preserved {len(preserved)} condition(s) not scored here: {', '.join(preserved)}")
     print(f"Wrote {out_path}")
 
 

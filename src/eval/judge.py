@@ -12,7 +12,7 @@ from pathlib import Path
 
 import yaml
 
-from src.eval._io import condition_path, load_condition, read_completed_jsonl
+from src.eval._io import condition_path, load_condition, merge_results, read_completed_jsonl
 from src.infer.run import make_client
 
 _RESULTS_DIR = Path("results")
@@ -26,6 +26,29 @@ _JUDGE_SYSTEM = (
 # further digit ("12") or a decimal ("3.5"), but allow a sentence-final "3.".
 _LONE_1_5 = r"([1-5])(?!\d)(?!\.\d)"
 _SCORE_RE = re.compile(r"score\s*[:=]?\s*" + _LONE_1_5, re.IGNORECASE)
+
+
+class _LazyClient:
+    """Build the judge client on first use, not up front.
+
+    When every segment cache under ``judge_<split>_segments/`` is already
+    complete, re-deriving the aggregates costs no API calls -- so it should not
+    require provider credentials either.
+    """
+
+    def __init__(self, gen: dict) -> None:
+        self._gen = gen
+        self._client = None
+
+    def complete(self, system: str, user: str) -> str:
+        if self._client is None:
+            self._client = make_client(self._gen)
+        return self._client.complete(system, user)
+
+    @property
+    def usage(self):
+        """Usage of the underlying client, or None if it was never built."""
+        return None if self._client is None else getattr(self._client, "usage", None)
 
 
 def parse_score(text: str) -> int | None:
@@ -120,7 +143,7 @@ def main() -> None:
     template_path = Path(cfg.get("template_file", _DEFAULT_TEMPLATE))
     template = template_path.read_text(encoding="utf-8")
 
-    client = make_client(cfg["judge"])
+    client = _LazyClient(cfg["judge"])
     judge_model = cfg["judge"].get("model", "unknown")
 
     out_dir = Path(args.out_dir)
@@ -152,10 +175,11 @@ def main() -> None:
 
     if not results:
         return
-    results_dir.mkdir(parents=True, exist_ok=True)
     out_path = results_dir / f"judge_{args.split}.json"
-    out_path.write_text(json.dumps(results, indent=2) + "\n", encoding="utf-8")
-    usage = getattr(client, "usage", None)
+    preserved = merge_results(out_path, results)
+    if preserved:
+        print(f"preserved {len(preserved)} condition(s) not scored here: {', '.join(preserved)}")
+    usage = client.usage
     if usage is not None:
         print(f"Judge usage: {usage.summary()}")
     print(f"Wrote {out_path}")
