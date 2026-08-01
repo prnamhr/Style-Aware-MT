@@ -29,6 +29,7 @@ COMMANDS = {
     "bootstrap": "src.eval.bootstrap",
     "fertility": "src.eval.fertility",
     "stylometrics": "src.eval.stylometrics",
+    "sweep_curves": "src.eval.sweep_curves",
 }
 
 

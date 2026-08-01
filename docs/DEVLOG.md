@@ -86,6 +86,122 @@ their history.
 
 ---
 
+## 2026-08-01 — λ dose-response over the AFSP sweep: the rerank has a direction, not a distance
+
+### Summary
+
+The bootstrap entry below left the adaptive layer unshown at one λ. This entry reads
+the whole knob instead: all 18 `k × λ` cells already in `outputs/sweep`, scored on the
+four centroid features and on COMET, with λ treated as a dose. The motivating claim was
+that a monotone fall in `stylo_dist` across six λ values would be stronger evidence than
+the single pairwise test at λ = 0.75 that failed (Φ, p = .078).
+
+**`stylo_dist` shows no dose-response, and its per-k trends contradict each other.**
+Pooled over all 18 cells, Spearman ρ = −0.10 (p = .68). Per k: ρ = +0.77 (p = .072) at
+k = 4 — distance *grows* with λ — ρ = −0.20 (p = .70) at k = 8, and ρ = −0.94 (p = .005)
+at k = 16. A knob whose sign flips with k is not a dose-response. The headline metric
+does not answer RQ3 affirmatively.
+
+**The signed per-feature view does, and it explains why the norm hides it.** λ moves
+three of the four features monotonically, in the same direction, at every k:
+
+| Feature | z at λ=0 (k=16) | ρ vs λ, k=4 | k=8 | k=16 | Reading |
+|---|---|---|---|---|---|
+| `lex_density` | −0.275 | +0.89 (p=.019) | +0.77 (p=.072) | +0.83 (p=.042) | undershoots → λ **helps** |
+| `ttr` | −0.188 | +0.83 (p=.042) | +0.71 (p=.111) | +0.94 (p=.005) | undershoots → λ **helps** |
+| `marker_rate` | +0.153 | +0.71 (p=.111) | +0.77 (p=.072) | +0.89 (p=.019) | overshoots → λ **hurts** |
+| `root_ttr` | −0.177 | −0.09 (p=.87) | −0.03 (p=.96) | −0.43 (p=.40) | inert |
+
+λ does not move outputs *toward* the target register. It turns register intensity *up*:
+denser, more varied, more archaic-marked prose, monotonically in λ. Two of those
+movements close a gap and one widens one that is already open — every condition in the
+project overshoots `marker_rate`, and λ pushes it further out, the opposite of the
+predicted correction. `stylo_dist` is the norm of the four, so the opposing components
+partly cancel, which is what makes it flat pooled and sign-flipping per k: at k = 4 the
+`marker_rate` overshoot is largest (+0.265 at λ = 0) and dominates, so distance grows;
+at k = 16 it starts smallest (+0.153) and has headroom, so the two gains dominate and
+distance falls. The k-dependence is a consequence of the starting overshoot, not of the
+rerank behaving differently.
+
+**No style–adequacy trade-off at λ = 1.** COMET spans 0.6746–0.6886 across all 18 cells,
+and within each k the λ trend is null (ρ = −0.49, +0.37, +0.03; all p > .32). k, not λ,
+sets adequacy: k = 16 is above k = 8 above k = 4 at every λ. Pure register rerank with
+semantic similarity switched off (λ = 1) costs 0.0023 COMET at k = 4 and 0.0000 at
+k = 16 relative to λ = 0. The anticipated trade-off curve is a null; the figure is kept
+because the null is the finding.
+
+**Φ at the three judged cells moves with `stylo_dist`, on two usable points.** k = 8
+λ = 0.75 → λ = 1: Φ 2.797 → 2.763 while `stylo_dist` worsens 0.371 → 0.411 — same
+direction, but the judge CIs (±0.035) overlap and the third judged cell is at a λ
+already occupied. This is consistent with agreement, not evidence of it.
+
+**Everything is inside the bootstrap CIs.** Cell-level 95% CIs on `stylo_dist` are
+≈±0.045 (e.g. k = 16 λ = 1: 0.3808 [0.3378, 0.4344]); every cell overlaps every other
+cell. The trends above are rank correlations over point estimates, which is what makes
+the consistency across k — three independent k series agreeing on the sign for three
+features — the load-bearing evidence rather than any single cell.
+
+### What changed
+
+* `src/eval/sweep_curves.py` (new), registered as `python manage.py sweep_curves`.
+  Computes per-cell aggregates, signed z-deviations, segment bootstrap CIs, and
+  Spearman trend tests; writes `results/sweep_curves_val.json` and four figures.
+* `results/sweep/comet_val.json` (new): COMET for all 18 cells, scored locally on the
+  RTX 4060. `afsp_k16_l0.75` reproduces the 2026-07-23 verify value 0.6871 exactly.
+* `docs/figures/` (new): `lambda_stylo_dist.png`, `lambda_z_deviations.png`,
+  `lambda_style_adequacy.png`, `lambda_judge_overlay.png`.
+* `matplotlib` added to the environment; it was not previously a dependency.
+
+### Rationale
+
+`stylo_dist` was the only stylometric number the sweep reported per cell, and it is an
+undirected norm — it cannot distinguish a condition approaching the centroid from one
+trading an improvement on one feature against a regression on another. The λ sweep is
+exactly the case where that matters, because the rerank turns out to move features in
+opposite senses relative to target. The signed decomposition is four numbers the sweep
+already had the data for and did not report.
+
+Spearman over six λ points per k is a deliberately weak test (its p floor at n = 6 is
+.0028) and is not used here to establish significance. It summarizes direction; the
+argument rests on three k series independently agreeing.
+
+### Reproduction
+
+```
+python manage.py comet --conditions afsp_k4_l0 afsp_k4_l0.1 afsp_k4_l0.25 afsp_k4_l0.5 \
+  afsp_k4_l0.75 afsp_k4_l1 afsp_k8_l0 afsp_k8_l0.1 afsp_k8_l0.25 afsp_k8_l0.5 \
+  afsp_k8_l0.75 afsp_k8_l1 afsp_k16_l0 afsp_k16_l0.1 afsp_k16_l0.25 afsp_k16_l0.5 \
+  afsp_k16_l0.75 afsp_k16_l1 \
+  --split val --out_dir outputs/sweep --results_dir results/sweep --batch_size 8
+python manage.py sweep_curves
+```
+
+The COMET pass loads `Unbabel/wmt22-comet-da` once and reuses it across all 18 cells;
+it fits in the 8 GB card at `--batch_size 8`. `sweep_curves` is CPU-only. The bootstrap
+is seeded (`--seed 42`, 2,000 resamples), so the CIs are reproducible.
+
+### Limitations and risks
+
+The frozen `afsp_full` outputs are **not** byte-identical to their sweep cell
+`afsp_k8_l0.75`: 5 of 1,323 predictions differ, worth 0.0011 in `stylo_dist`
+(0.3698 vs 0.3709). `afsp_margin` and `afsp_k8_l0` are identical on all 1,323. The
+frozen condition was therefore re-run rather than copied, and decoding is not fully
+deterministic across runs. The scale of that drift is ≈2% of the bootstrap CI
+half-width, so it does not affect any conclusion here, but the frozen artifact and the
+sweep cell are two samples, not one.
+
+This is validation-split evidence about the *mechanism* of the rerank. It does not
+license a claim that AFSP beats its baseline — the bootstrap below still stands, and
+no test-split number exists. In particular, the `marker_rate` finding argues that the
+current register objective is mis-targeted for this corpus rather than that λ should be
+raised; acting on it means revisiting the band-pass target of 2026-07-18, not retuning λ.
+
+Six λ values at three k is 18 points with no replication per cell. The per-k Spearman
+values cannot separate a real k × λ interaction from three noisy draws; the shared
+direction across k is the only claim the design supports.
+
+---
+
 ## 2026-08-01 — Paired bootstrap run: AFSP does not separate from its baseline on val
 
 ### Summary

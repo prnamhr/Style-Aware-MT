@@ -8,6 +8,7 @@ openai==2.41.1
 anthropic==0.109.1
 google-genai==2.12.1      # free Google AI Studio tier for the LLM-as-judge
 sacrebleu==2.6.0
+matplotlib==3.11.1        # sweep_curves figures; not needed for scoring
 PyYAML==6.0.3
 python-dotenv==1.2.2
 asttokens==3.0.1
