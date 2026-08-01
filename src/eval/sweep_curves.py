@@ -42,8 +42,7 @@ def _feature_matrix(texts: list[str]) -> np.ndarray:
 
 
 def signed_z(mean_by_feature: dict[str, float], centroid: dict) -> dict[str, float]:
-    """Signed z-deviation of each centroid feature from the target register.
-    """
+    """Signed z-deviation of each centroid feature from the target register."""
     mean = np.asarray(centroid["mean"], dtype=float)
     std = np.asarray(centroid["std"], dtype=float)
     vec = np.asarray([mean_by_feature[name] for name in centroid["features"]], dtype=float)
@@ -58,8 +57,7 @@ def bootstrap_cell(
     alpha: float = 0.05,
     seed: int = 42,
 ) -> dict:
-    """Percentile CIs for stylo_dist and each signed z, resampling segments.
-    """
+    """Percentile CIs for stylo_dist and each signed z, resampling segments."""
     idx_features = [FEATURE_NAMES.index(name) for name in centroid["features"]]
     c_mean = np.asarray(centroid["mean"], dtype=float)
     c_std = np.asarray(centroid["std"], dtype=float)
@@ -106,8 +104,7 @@ def score_cell(
 
 
 def trend_test(lams: list[float], values: list[float]) -> dict:
-    """Spearman rank correlation of a statistic against lambda.
-    """
+    """Spearman rank correlation of a statistic against lambda."""
     rho, p = stats.spearmanr(lams, values)
     return {"spearman_rho": float(rho), "p": float(p), "n_points": len(lams)}
 
@@ -236,7 +233,6 @@ def build(
         "trends_pooled": pooled,
         "judged_cells": sorted(judged),
     }
-
 
 
 _K_COLORS = {4: "#4c72b0", 8: "#dd8452", 16: "#55a868"}
