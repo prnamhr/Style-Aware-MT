@@ -56,8 +56,7 @@ def _load_condition(out_dir: Path, condition: str, split: str) -> tuple[list[str
 
 
 def _assert_aligned(present: list[str], sources: dict[str, list[str]]) -> None:
-    """Fail if conditions' segments don't line up index-for-index.
-    """
+    """Fail if conditions' segments don't line up index-for-index."""
     ref_cond = present[0]
     ref_src = sources[ref_cond]
     for cond in present[1:]:
@@ -122,8 +121,7 @@ def paired_diff(a_draws: np.ndarray, b_draws: np.ndarray, *, alpha: float) -> di
 
 
 def rank_distribution(draws: dict[str, np.ndarray], present: list[str]) -> dict[str, dict]:
-    """Per-condition distribution of stylo_dist rank across the shared resamples.
-    """
+    """Per-condition distribution of stylo_dist rank across the shared resamples."""
     matrix = np.stack([draws[c] for c in present], axis=1)  # (n_resamples, n_conditions)
     order = matrix.argsort(axis=1)
     ranks = np.empty_like(order)

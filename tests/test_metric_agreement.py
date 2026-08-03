@@ -35,6 +35,7 @@ def _phi_like(seed: int, n: int = 300) -> np.ndarray:
     """Integer 1-5 scores: the tie structure Phi actually has."""
     return np.random.default_rng(seed).integers(1, 6, size=n).astype(float)
 
+
 def test_spearman_draws_reproducible_from_seed() -> None:
     x, y = _phi_like(1), _phi_like(2)
     a = spearman_draws(x, y, n_resamples=200, seed=42)
@@ -149,7 +150,6 @@ def test_permutation_p_floor_matches_the_devlog_convention() -> None:
     assert math.isnan(permutation_p_floor(2))
 
 
-
 def _write_config(body: str) -> Path:
     tmp = Path(tempfile.mkdtemp()) / "cfg.yaml"
     tmp.write_text(body, encoding="utf-8")
@@ -203,7 +203,6 @@ def test_register_params_reject_a_missing_sigma() -> None:
         assert "select_target_sigma" in str(e)
     else:
         raise AssertionError("expected a missing sigma to raise")
-
 
 
 def test_segment_register_handles_a_single_segment() -> None:
@@ -272,7 +271,6 @@ def test_condition_level_omits_comet_when_a_condition_lacks_it() -> None:
     del loaded["c"]["comet_system"]
     got = condition_level(loaded, ["a", "b", "c"])
     assert not any("comet" in k for k in got["pairs"])
-
 
 
 def test_blank_prediction_guard_fires() -> None:

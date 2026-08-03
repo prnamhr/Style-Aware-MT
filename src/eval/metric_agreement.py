@@ -46,8 +46,7 @@ _DISTANCE_KEYS = ("centroid_dist", "band_dist")
 
 
 def _load_register_params(config_path: Path) -> tuple[float, list[float]]:
-    """Read the band-pass sigma and register direction from a condition config.
-    """
+    """Read the band-pass sigma and register direction from a condition config."""
     cfg = yaml.safe_load(config_path.read_text(encoding="utf-8"))
     block = cfg.get("afsp") or cfg.get("register") or {}
     direction_map = block.get("style_register_direction")
@@ -74,8 +73,7 @@ def _load_judge_segments(condition: str, judge_dir: Path) -> tuple[list[str], li
 def spearman_draws(
     x: np.ndarray, y: np.ndarray, *, n_resamples: int, seed: int, chunk: int = 512
 ) -> np.ndarray:
-    """Bootstrap draws of Spearman rho, resampling observation *pairs*.
-    """
+    """Bootstrap draws of Spearman rho, resampling observation *pairs*."""
     if x.shape != y.shape:
         raise ValueError(f"x and y differ in shape: {x.shape} vs {y.shape}")
     rng = np.random.default_rng(seed)
@@ -116,16 +114,14 @@ def spearman_ci(x: np.ndarray, y: np.ndarray, *, n_resamples: int, seed: int, al
 
 
 def permutation_p_floor(n: int) -> float:
-    """Smallest attainable two-sided p for a perfect monotone relation over ``n`` points.
-    """
+    """Smallest attainable two-sided p for a perfect monotone relation over ``n`` points."""
     if n < 3:
         return float("nan")
     return 2.0 / float(math.factorial(n))
 
 
 def holm_bonferroni(p_values: list[float], alpha: float = 0.05) -> list[bool]:
-    """Holm-Bonferroni step-down: True where the hypothesis is rejected.
-    """
+    """Holm-Bonferroni step-down: True where the hypothesis is rejected."""
     m = len(p_values)
     order = sorted(range(m), key=lambda i: p_values[i])
     reject = [False] * m
@@ -159,8 +155,7 @@ def _load_all(
     sigma: float,
     direction: list[float],
 ) -> dict[str, dict]:
-    """Load, align, and derive every per-segment series needed, per condition.
-    """
+    """Load, align, and derive every per-segment series needed, per condition."""
     loaded: dict[str, dict] = {}
     for cond in conditions:
         path = condition_path(out_dir, cond, split)
@@ -209,8 +204,7 @@ def _load_all(
 
 
 def condition_level(loaded: dict[str, dict], conditions: list[str]) -> dict:
-    """Pairwise Spearman across conditions on the three system-level metrics.
-    """
+    """Pairwise Spearman across conditions on the three system-level metrics."""
     present = [c for c in conditions if c in loaded]
     metrics = {
         "phi": np.asarray([loaded[c]["phi_mean"] for c in present]),

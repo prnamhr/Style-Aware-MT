@@ -190,8 +190,7 @@ def bootstrap_draws(
     n_resamples: int = 2000,
     seed: int = 42,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Resample segments and recompute stylo_dist and the signed z-vector.
-    """
+    """Resample segments and recompute stylo_dist and the signed z-vector."""
     idx_features = [FEATURE_NAMES.index(name) for name in centroid["features"]]
     c_mean = np.asarray(centroid["mean"], dtype=float)
     c_std = np.asarray(centroid["std"], dtype=float)
