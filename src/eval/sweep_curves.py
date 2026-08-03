@@ -16,8 +16,10 @@ from src.eval.stylometrics import (
     CENTROID_FEATURES,
     FEATURE_NAMES,
     aggregate,
+    bootstrap_cell,
     distance_to_centroid,
     feature_vector,
+    signed_z,
 )
 
 _CENTROID_PATH = Path("results/stylometrics_centroid.json")
@@ -39,45 +41,6 @@ def cell_tag(k: int, lam: float) -> str:
 
 def _feature_matrix(texts: list[str]) -> np.ndarray:
     return np.asarray([feature_vector(t) for t in texts if t.strip()], dtype=float)
-
-
-def signed_z(mean_by_feature: dict[str, float], centroid: dict) -> dict[str, float]:
-    """Signed z-deviation of each centroid feature from the target register."""
-    mean = np.asarray(centroid["mean"], dtype=float)
-    std = np.asarray(centroid["std"], dtype=float)
-    vec = np.asarray([mean_by_feature[name] for name in centroid["features"]], dtype=float)
-    return dict(zip(centroid["features"], ((vec - mean) / std).tolist()))
-
-
-def bootstrap_cell(
-    matrix: np.ndarray,
-    centroid: dict,
-    *,
-    n_resamples: int = 2000,
-    alpha: float = 0.05,
-    seed: int = 42,
-) -> dict:
-    """Percentile CIs for stylo_dist and each signed z, resampling segments."""
-    idx_features = [FEATURE_NAMES.index(name) for name in centroid["features"]]
-    c_mean = np.asarray(centroid["mean"], dtype=float)
-    c_std = np.asarray(centroid["std"], dtype=float)
-
-    n = matrix.shape[0]
-    rng = np.random.default_rng(seed)
-    idx = rng.integers(0, n, size=(n_resamples, n))
-    # (n_resamples, n_features) means of the centroid features across resamples
-    means = matrix[:, idx_features][idx].mean(axis=1)
-    z = (means - c_mean) / c_std
-    dists = np.linalg.norm(z, axis=1)
-
-    lo, hi = 100 * alpha / 2, 100 * (1 - alpha / 2)
-    out = {"stylo_dist_ci": [float(np.percentile(dists, lo)), float(np.percentile(dists, hi))]}
-    for i, name in enumerate(centroid["features"]):
-        out[f"z_{name}_ci"] = [
-            float(np.percentile(z[:, i], lo)),
-            float(np.percentile(z[:, i], hi)),
-        ]
-    return out
 
 
 def _load_predictions(out_dir: Path, condition: str, split: str) -> list[str]:

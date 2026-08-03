@@ -175,6 +175,61 @@ def distance_to_centroid(agg_mean: dict[str, float], centroid: dict) -> float:
     return float(np.linalg.norm((vec - mean) / std))
 
 
+def signed_z(mean_by_feature: dict[str, float], centroid: dict) -> dict[str, float]:
+    """Signed z-deviation of each centroid feature from the target register."""
+    mean = np.asarray(centroid["mean"], dtype=float)
+    std = np.asarray(centroid["std"], dtype=float)
+    vec = np.asarray([mean_by_feature[name] for name in centroid["features"]], dtype=float)
+    return dict(zip(centroid["features"], ((vec - mean) / std).tolist()))
+
+
+def bootstrap_draws(
+    matrix: np.ndarray,
+    centroid: dict,
+    *,
+    n_resamples: int = 2000,
+    seed: int = 42,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Resample segments and recompute stylo_dist and the signed z-vector.
+    """
+    idx_features = [FEATURE_NAMES.index(name) for name in centroid["features"]]
+    c_mean = np.asarray(centroid["mean"], dtype=float)
+    c_std = np.asarray(centroid["std"], dtype=float)
+
+    n = matrix.shape[0]
+    rng = np.random.default_rng(seed)
+    idx = rng.integers(0, n, size=(n_resamples, n))
+    # (n_resamples, n_features) means of the centroid features across resamples
+    means = matrix[:, idx_features][idx].mean(axis=1)
+    z = (means - c_mean) / c_std
+    return np.linalg.norm(z, axis=1), z
+
+
+def draw_intervals(
+    dists: np.ndarray, z: np.ndarray, centroid: dict, *, alpha: float = 0.05
+) -> dict:
+    lo, hi = 100 * alpha / 2, 100 * (1 - alpha / 2)
+    out = {"stylo_dist_ci": [float(np.percentile(dists, lo)), float(np.percentile(dists, hi))]}
+    for i, name in enumerate(centroid["features"]):
+        out[f"z_{name}_ci"] = [
+            float(np.percentile(z[:, i], lo)),
+            float(np.percentile(z[:, i], hi)),
+        ]
+    return out
+
+
+def bootstrap_cell(
+    matrix: np.ndarray,
+    centroid: dict,
+    *,
+    n_resamples: int = 2000,
+    alpha: float = 0.05,
+    seed: int = 42,
+) -> dict:
+    dists, z = bootstrap_draws(matrix, centroid, n_resamples=n_resamples, seed=seed)
+    return draw_intervals(dists, z, centroid, alpha=alpha)
+
+
 def register_salience(feats: dict[str, float], centroid: dict) -> float:
     """Register salience: the mean *absolute* z-score of a segment's register features."""
     mean = np.asarray(centroid["mean"], dtype=float)
