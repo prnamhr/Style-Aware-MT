@@ -1,0 +1,537 @@
+{
+  "split": "val",
+  "sweep_path": "results/peft_sweep_val.json",
+  "out_dir": "outputs/peft_sweep",
+  "evidence_class": "exploratory",
+  "evidence_note": "sweep cells, no pre-specified contrast; register is bootstrapped per segment, adequacy is aggregate-only from the sweep record and has no interval, and Phi covers only cells peft_r16_lr1e-4_e2, peft_r16_lr2e-4_e2, peft_r32_lr2e-4_e2 (epoch(s) 2), so the judge cannot address the epoch axis",
+  "bootstrap": {
+    "n_resamples": 10000,
+    "seed": 42,
+    "alpha": 0.05,
+    "paired": true,
+    "n_segments": 1323
+  },
+  "cells": {
+    "peft_r16_lr2e-4_e1": {
+      "tag": "peft_r16_lr2e-4_e1",
+      "r": 16,
+      "alpha_lora": 32,
+      "lr": 0.0002,
+      "epoch": 1,
+      "n": 1323,
+      "eval_loss": 1.5311743021011353,
+      "chrF": 41.96,
+      "BLEU": 17.05,
+      "stylo_dist": 0.44393802002744653,
+      "register_fit": 1.0829,
+      "z": {
+        "lex_density": -0.34841345131045676,
+        "ttr": -0.09513726395498286,
+        "root_ttr": -0.1662337561892195,
+        "marker_rate": 0.19749499204336438
+      },
+      "phi": null,
+      "phi_n": 0,
+      "phi_coverage": 0.0,
+      "stylo_dist_ci": [
+        0.39514829231189397,
+        0.4992164758990095
+      ],
+      "z_lex_density_ci": [
+        -0.4016877082815246,
+        -0.2940031806505675
+      ],
+      "z_ttr_ci": [
+        -0.15833566997730003,
+        -0.03162853329440099
+      ],
+      "z_root_ttr_ci": [
+        -0.21879134684581342,
+        -0.11445619390934177
+      ],
+      "z_marker_rate_ci": [
+        0.1361963795566055,
+        0.2616990564256942
+      ]
+    },
+    "peft_r16_lr2e-4_e2": {
+      "tag": "peft_r16_lr2e-4_e2",
+      "r": 16,
+      "alpha_lora": 32,
+      "lr": 0.0002,
+      "epoch": 2,
+      "n": 1323,
+      "eval_loss": 1.5601286888122559,
+      "chrF": 41.73,
+      "BLEU": 17.28,
+      "stylo_dist": 0.30267866034972063,
+      "register_fit": 1.0386,
+      "z": {
+        "lex_density": -0.2514896768915838,
+        "ttr": -0.0010705549645953084,
+        "root_ttr": -0.09086127052465662,
+        "marker_rate": 0.14181113242189863
+      },
+      "phi": 2.7324263038548753,
+      "phi_n": 1323,
+      "phi_coverage": 1.0,
+      "stylo_dist_ci": [
+        0.254234802949966,
+        0.3589286843522691
+      ],
+      "z_lex_density_ci": [
+        -0.305171171702845,
+        -0.19597296957283195
+      ],
+      "z_ttr_ci": [
+        -0.05992744977678621,
+        0.05679394819184877
+      ],
+      "z_root_ttr_ci": [
+        -0.14514885726855933,
+        -0.03727238798329897
+      ],
+      "z_marker_rate_ci": [
+        0.08564948231004478,
+        0.20068540155487685
+      ]
+    },
+    "peft_r8_lr2e-4_e1": {
+      "tag": "peft_r8_lr2e-4_e1",
+      "r": 8,
+      "alpha_lora": 16,
+      "lr": 0.0002,
+      "epoch": 1,
+      "n": 1323,
+      "eval_loss": 1.5336226224899292,
+      "chrF": 41.4,
+      "BLEU": 16.93,
+      "stylo_dist": 0.45619695485970824,
+      "register_fit": 1.0776,
+      "z": {
+        "lex_density": -0.35129074585428893,
+        "ttr": -0.09753111345042492,
+        "root_ttr": -0.17880586989689443,
+        "marker_rate": 0.20791011591537167
+      },
+      "phi": null,
+      "phi_n": 0,
+      "phi_coverage": 0.0,
+      "stylo_dist_ci": [
+        0.4067263042986044,
+        0.5112926495587369
+      ],
+      "z_lex_density_ci": [
+        -0.4053025657829639,
+        -0.29541290494607786
+      ],
+      "z_ttr_ci": [
+        -0.15947562389784314,
+        -0.03532243746793418
+      ],
+      "z_root_ttr_ci": [
+        -0.2309037741773247,
+        -0.12712456759947446
+      ],
+      "z_marker_rate_ci": [
+        0.14779227923336485,
+        0.27068364939489986
+      ]
+    },
+    "peft_r8_lr2e-4_e2": {
+      "tag": "peft_r8_lr2e-4_e2",
+      "r": 8,
+      "alpha_lora": 16,
+      "lr": 0.0002,
+      "epoch": 2,
+      "n": 1323,
+      "eval_loss": 1.5582516193389893,
+      "chrF": 41.57,
+      "BLEU": 16.67,
+      "stylo_dist": 0.30657302639665784,
+      "register_fit": 1.0616,
+      "z": {
+        "lex_density": -0.2623066831919194,
+        "ttr": -0.03444834789232805,
+        "root_ttr": -0.08820830829454061,
+        "marker_rate": 0.1273374655871723
+      },
+      "phi": null,
+      "phi_n": 0,
+      "phi_coverage": 0.0,
+      "stylo_dist_ci": [
+        0.2590257231679979,
+        0.36253061923403107
+      ],
+      "z_lex_density_ci": [
+        -0.3176490772046349,
+        -0.20576901144686421
+      ],
+      "z_ttr_ci": [
+        -0.09396847754826342,
+        0.0249740953813102
+      ],
+      "z_root_ttr_ci": [
+        -0.14340285936727096,
+        -0.03332599846807808
+      ],
+      "z_marker_rate_ci": [
+        0.0704706592482824,
+        0.18666633426787332
+      ]
+    },
+    "peft_r32_lr2e-4_e1": {
+      "tag": "peft_r32_lr2e-4_e1",
+      "r": 32,
+      "alpha_lora": 64,
+      "lr": 0.0002,
+      "epoch": 1,
+      "n": 1323,
+      "eval_loss": 1.539802074432373,
+      "chrF": 42.18,
+      "BLEU": 17.33,
+      "stylo_dist": 0.4001938017826606,
+      "register_fit": 1.0736,
+      "z": {
+        "lex_density": -0.31331871244462683,
+        "ttr": -0.10590918165574281,
+        "root_ttr": -0.15226428475900378,
+        "marker_rate": 0.16608821826108133
+      },
+      "phi": null,
+      "phi_n": 0,
+      "phi_coverage": 0.0,
+      "stylo_dist_ci": [
+        0.3523723971774572,
+        0.45407295848446183
+      ],
+      "z_lex_density_ci": [
+        -0.36618480310689366,
+        -0.2589325906359532
+      ],
+      "z_ttr_ci": [
+        -0.16671541040211404,
+        -0.0450986393107749
+      ],
+      "z_root_ttr_ci": [
+        -0.20479409009981112,
+        -0.10006682630908476
+      ],
+      "z_marker_rate_ci": [
+        0.10724268812206467,
+        0.22855728571494702
+      ]
+    },
+    "peft_r32_lr2e-4_e2": {
+      "tag": "peft_r32_lr2e-4_e2",
+      "r": 32,
+      "alpha_lora": 64,
+      "lr": 0.0002,
+      "epoch": 2,
+      "n": 1323,
+      "eval_loss": 1.5733485221862793,
+      "chrF": 41.58,
+      "BLEU": 16.9,
+      "stylo_dist": 0.28864863288629283,
+      "register_fit": 1.0265,
+      "z": {
+        "lex_density": -0.23278118551584967,
+        "ttr": -0.022704864513138346,
+        "root_ttr": -0.10049184654097044,
+        "marker_rate": 0.13607656243154992
+      },
+      "phi": 2.741496598639456,
+      "phi_n": 1323,
+      "phi_coverage": 1.0,
+      "stylo_dist_ci": [
+        0.24090958091217413,
+        0.3449362595420769
+      ],
+      "z_lex_density_ci": [
+        -0.2869997185504233,
+        -0.1777475433826656
+      ],
+      "z_ttr_ci": [
+        -0.08374926247625626,
+        0.03800366669995685
+      ],
+      "z_root_ttr_ci": [
+        -0.15448580469037626,
+        -0.04586209272478381
+      ],
+      "z_marker_rate_ci": [
+        0.0796496318770274,
+        0.19481312519490346
+      ]
+    },
+    "peft_r16_lr1e-4_e1": {
+      "tag": "peft_r16_lr1e-4_e1",
+      "r": 16,
+      "alpha_lora": 32,
+      "lr": 0.0001,
+      "epoch": 1,
+      "n": 1323,
+      "eval_loss": 1.5378767251968384,
+      "chrF": 41.1,
+      "BLEU": 16.57,
+      "stylo_dist": 0.4777589918830923,
+      "register_fit": 1.1015,
+      "z": {
+        "lex_density": -0.37665916817401984,
+        "ttr": -0.10463235784953047,
+        "root_ttr": -0.1816091266082,
+        "marker_rate": 0.20603815224142022
+      },
+      "phi": null,
+      "phi_n": 0,
+      "phi_coverage": 0.0,
+      "stylo_dist_ci": [
+        0.42899694311047254,
+        0.5322247008925597
+      ],
+      "z_lex_density_ci": [
+        -0.4303506708371243,
+        -0.32185096759371246
+      ],
+      "z_ttr_ci": [
+        -0.1683000586048372,
+        -0.04396507744158054
+      ],
+      "z_root_ttr_ci": [
+        -0.23293483152240269,
+        -0.1302547051136005
+      ],
+      "z_marker_rate_ci": [
+        0.14519226843361652,
+        0.26922030498433447
+      ]
+    },
+    "peft_r16_lr1e-4_e2": {
+      "tag": "peft_r16_lr1e-4_e2",
+      "r": 16,
+      "alpha_lora": 32,
+      "lr": 0.0001,
+      "epoch": 2,
+      "n": 1323,
+      "eval_loss": 1.5552585124969482,
+      "chrF": 41.66,
+      "BLEU": 16.95,
+      "stylo_dist": 0.32635483315683844,
+      "register_fit": 1.0449,
+      "z": {
+        "lex_density": -0.26918234415882186,
+        "ttr": -0.012535793521131391,
+        "root_ttr": -0.08950291327375344,
+        "marker_rate": 0.1608739416881925
+      },
+      "phi": 2.696900982615268,
+      "phi_n": 1323,
+      "phi_coverage": 1.0,
+      "stylo_dist_ci": [
+        0.2773468672670668,
+        0.3826828953525937
+      ],
+      "z_lex_density_ci": [
+        -0.32359596802147184,
+        -0.21285067282583023
+      ],
+      "z_ttr_ci": [
+        -0.07106789438791042,
+        0.046604271533525025
+      ],
+      "z_root_ttr_ci": [
+        -0.14345988945405094,
+        -0.03505828885560175
+      ],
+      "z_marker_rate_ci": [
+        0.1025311569758033,
+        0.22239738179230076
+      ]
+    }
+  },
+  "epoch_axis": [
+    {
+      "r": 8,
+      "lr": 0.0002,
+      "a": "peft_r8_lr2e-4_e2",
+      "b": "peft_r8_lr2e-4_e1",
+      "epochs": "2 vs 1",
+      "d_chrF": 0.17,
+      "d_BLEU": -0.26,
+      "d_eval_loss": 0.024629,
+      "diff": -0.14839662440992482,
+      "ci_low": -0.18388685186364365,
+      "ci_high": -0.11371274536454057,
+      "p_value": 0.0,
+      "significant": true,
+      "holm_significant": true
+    },
+    {
+      "r": 16,
+      "lr": 0.0001,
+      "a": "peft_r16_lr1e-4_e2",
+      "b": "peft_r16_lr1e-4_e1",
+      "epochs": "2 vs 1",
+      "d_chrF": 0.56,
+      "d_BLEU": 0.38,
+      "d_eval_loss": 0.017382,
+      "diff": -0.15045595648920362,
+      "ci_low": -0.1850276735352939,
+      "ci_high": -0.11662229235411681,
+      "p_value": 0.0,
+      "significant": true,
+      "holm_significant": true
+    },
+    {
+      "r": 16,
+      "lr": 0.0002,
+      "a": "peft_r16_lr2e-4_e2",
+      "b": "peft_r16_lr2e-4_e1",
+      "epochs": "2 vs 1",
+      "d_chrF": -0.23,
+      "d_BLEU": 0.23,
+      "d_eval_loss": 0.028954,
+      "diff": -0.14017063846335312,
+      "ci_low": -0.1774752354761637,
+      "ci_high": -0.10301339962069375,
+      "p_value": 0.0,
+      "significant": true,
+      "holm_significant": true
+    },
+    {
+      "r": 32,
+      "lr": 0.0002,
+      "a": "peft_r32_lr2e-4_e2",
+      "b": "peft_r32_lr2e-4_e1",
+      "epochs": "2 vs 1",
+      "d_chrF": -0.6,
+      "d_BLEU": -0.43,
+      "d_eval_loss": 0.033546,
+      "diff": -0.11049030535234051,
+      "ci_low": -0.14761863500910288,
+      "ci_high": -0.07371251611552995,
+      "p_value": 0.0,
+      "significant": true,
+      "holm_significant": true
+    }
+  ],
+  "rank_axis": [
+    {
+      "lr": 0.0002,
+      "epoch": 1,
+      "a": "peft_r16_lr2e-4_e1",
+      "b": "peft_r8_lr2e-4_e1",
+      "ranks": "r16 vs r8",
+      "d_chrF": 0.56,
+      "d_BLEU": 0.12,
+      "diff": -0.012013177438843238,
+      "ci_low": -0.04245730962306991,
+      "ci_high": 0.019380342173629744,
+      "p_value": 0.4386,
+      "significant": false,
+      "holm_significant": false
+    },
+    {
+      "lr": 0.0002,
+      "epoch": 1,
+      "a": "peft_r32_lr2e-4_e1",
+      "b": "peft_r8_lr2e-4_e1",
+      "ranks": "r32 vs r8",
+      "d_chrF": 0.78,
+      "d_BLEU": 0.4,
+      "diff": -0.05543248259951763,
+      "ci_low": -0.08854433239350835,
+      "ci_high": -0.021890824794409715,
+      "p_value": 0.0014,
+      "significant": true,
+      "holm_significant": true
+    },
+    {
+      "lr": 0.0002,
+      "epoch": 1,
+      "a": "peft_r32_lr2e-4_e1",
+      "b": "peft_r16_lr2e-4_e1",
+      "ranks": "r32 vs r16",
+      "d_chrF": 0.22,
+      "d_BLEU": 0.28,
+      "diff": -0.0434193051606744,
+      "ci_low": -0.07526163838917309,
+      "ci_high": -0.01158376541697203,
+      "p_value": 0.0084,
+      "significant": true,
+      "holm_significant": true
+    },
+    {
+      "lr": 0.0002,
+      "epoch": 2,
+      "a": "peft_r16_lr2e-4_e2",
+      "b": "peft_r8_lr2e-4_e2",
+      "ranks": "r16 vs r8",
+      "d_chrF": 0.16,
+      "d_BLEU": 0.61,
+      "diff": -0.003787191492271525,
+      "ci_low": -0.03812208768626842,
+      "ci_high": 0.030494018049629246,
+      "p_value": 0.8242,
+      "significant": false,
+      "holm_significant": false
+    },
+    {
+      "lr": 0.0002,
+      "epoch": 2,
+      "a": "peft_r32_lr2e-4_e2",
+      "b": "peft_r8_lr2e-4_e2",
+      "ranks": "r32 vs r8",
+      "d_chrF": 0.01,
+      "d_BLEU": 0.23,
+      "diff": -0.017526163541933322,
+      "ci_low": -0.05428490255001975,
+      "ci_high": 0.01849750352456541,
+      "p_value": 0.3554,
+      "significant": false,
+      "holm_significant": false
+    },
+    {
+      "lr": 0.0002,
+      "epoch": 2,
+      "a": "peft_r32_lr2e-4_e2",
+      "b": "peft_r16_lr2e-4_e2",
+      "ranks": "r32 vs r16",
+      "d_chrF": -0.15,
+      "d_BLEU": -0.38,
+      "diff": -0.013738972049661798,
+      "ci_low": -0.04508834991312472,
+      "ci_high": 0.018608468328702346,
+      "p_value": 0.3928,
+      "significant": false,
+      "holm_significant": false
+    }
+  ],
+  "selection_validity": {
+    "eval_loss_vs": {
+      "stylo_dist": {
+        "rho": -0.9047619047619048,
+        "p_value": 0.002008275505429469,
+        "n": 8
+      },
+      "chrF": {
+        "rho": 0.023809523809523815,
+        "p_value": 0.9553740118158806,
+        "n": 8
+      },
+      "BLEU": {
+        "rho": -0.07142857142857144,
+        "p_value": 0.8665262706759088,
+        "n": 8
+      }
+    },
+    "n_cells": 8,
+    "p_floor": 4.96031746031746e-05,
+    "note": "eval_loss is a generation pre-filter, not a selection criterion (protocol 6, DEVLOG 2026-07-25). A NEGATIVE rho against stylo_dist means higher eval_loss goes with better register fit -- equivalently, picking the lowest-loss checkpoint picks the worst register."
+  },
+  "judged_cells": [
+    "peft_r16_lr1e-4_e2",
+    "peft_r16_lr2e-4_e2",
+    "peft_r32_lr2e-4_e2"
+  ]
+}

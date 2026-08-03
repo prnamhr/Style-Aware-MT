@@ -30,6 +30,8 @@ COMMANDS = {
     "fertility": "src.eval.fertility",
     "stylometrics": "src.eval.stylometrics",
     "stylometrics_ci": "src.eval.stylometrics_ci",
+    "metric_agreement": "src.eval.metric_agreement",
+    "peft_register": "src.eval.peft_register",
     "sweep_curves": "src.eval.sweep_curves",
 }
 
