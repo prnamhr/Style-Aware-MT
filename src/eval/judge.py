@@ -17,7 +17,6 @@ from src.infer.run import make_client
 
 _RESULTS_DIR = Path("results")
 _DEFAULT_TEMPLATE = Path("prompts/judge_eval.txt")
-# The rubric lives in the (user) template; keep the system role minimal and fixed.
 _JUDGE_SYSTEM = (
     "You are a careful, consistent evaluator of translation style. Follow the instructions exactly."
 )
