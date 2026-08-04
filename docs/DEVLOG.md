@@ -86,6 +86,94 @@ their history.
 
 ---
 
+## 2026-08-04 — Commercial zero-shot reference baseline reported in the README
+
+### Summary
+
+`commercial_haiku` has existed as an artifact since the 2026-07-31 six-condition run and
+its paired-bootstrap comparisons were already in
+`results/bootstrap_{comet,judge,chrf,bleu}_val.json`, but no figure from it appeared in
+`README.md`. It is now reported, in a section of its own, explicitly outside the study
+table. No new inference or scoring was run and no existing figure changed.
+
+### What changed
+
+* `README.md:252-303` — new subsection *External reference baseline — commercial
+  zero-shot (not a condition of the study)*: system-level table, the three paired
+  bootstrap contrasts against `zeroshot`, `peft`, and `afsp_full` with 95 % intervals,
+  and three constraints on how it may be read.
+* `README.md:206-207` — the study-conditions table now states that it lists study
+  conditions only and points to the new subsection.
+* `README.md:176-182` — the judge *Open issue* callout now records that the judge and
+  this baseline are the same model.
+
+### Reported figures
+
+System level, val, n = 1,323: COMET 0.7185, chrF 45.24, BLEU 18.06, Φ 3.3333
+(coverage 1.00), lexical density 0.3928, TTR 0.8241, `stylo_dist` 0.5557. Cost
+$0.6316 over 1,323 calls (`outputs/commercial_haiku_val_usage.json`).
+
+Paired bootstrap, 10,000 resamples, α = 0.05, seed 42, segment level. Against `peft`:
+COMET +0.0199 [0.0153, 0.0245], Φ +0.5896 [0.5298, 0.6478], chrF +3.76 [3.00, 4.53],
+BLEU +1.26 [0.52, 2.03] (p = .0008; the other eleven at p < .001). Against `zeroshot`
+and `afsp_full` the direction and significance are the same.
+
+### Rationale
+
+Protocol requires the evidence class of a cited number to be named in the same sentence
+and diagnostic runs to stay out of the study tables. `commercial_haiku` is neither a
+study condition nor purely diagnostic: it is a labelled external reference baseline, and
+`src/eval/metric_agreement.py:43` already treats it that way by reporting `study_only`
+and `with_reference` scopes separately. Omitting it from the README entirely was the
+wrong resolution — it hid the one system in the artifact set that scores highest on the
+primary style metric — so it is reported under its own heading with its class in the
+heading itself.
+
+### Verification
+
+Figures recomputed from artifacts rather than copied from prose:
+`src.eval.quick.score` for chrF/BLEU, `src.eval.stylometrics.aggregate` +
+`distance_to_centroid` for the stylometric columns, `results/comet_val.json` and
+`results/judge_val.json` for COMET and Φ, and the `comparisons` arrays in the four
+bootstrap files for the intervals. Nothing under `results/` or `outputs/` was written.
+
+### Reproduction
+
+```bash
+python manage.py eval --conditions commercial_haiku --split val
+python -c "import json;from pathlib import Path;from src.eval._io import load_condition;\
+from src.eval.stylometrics import aggregate,distance_to_centroid;\
+c=json.loads(Path('results/stylometrics_centroid.json').read_text());\
+m=aggregate(load_condition('outputs','commercial_haiku','val')[1])['mean'];\
+print(m['lex_density'],m['ttr'],distance_to_centroid(m,c))"
+```
+
+### Limitations and risks
+
+* **The Φ figure is self-judged.** The generator is `claude-haiku-4-5`
+  (`configs/commercial_haiku_zeroshot.yaml`) and so is the evaluation-time judge
+  (`configs/judge_eval.yaml`). Its Φ 3.333 — the highest of any system, +0.590 over PEFT
+  — is a model rating its own output, and self-preference bias is a sufficient
+  alternative explanation. This does not touch the six study conditions, none of which
+  the judge generated, but it makes this one Φ inadmissible as a register claim. The
+  README says so at the point of use.
+* **The two style measures invert on this system.** Highest Φ of any system, yet
+  `stylo_dist` 0.5557 is second-worst overall, behind every few-shot rung and well behind
+  PEFT (0.2886). Signed z-deviations: lexical density −0.378 and TTR −0.276, the largest
+  magnitudes in the condition set. Admitting it to the RQ4 correlation moves
+  ρ(Φ, `stylo_dist`) from −0.657 (n = 6) to −0.250 (n = 7).
+* **Not a matched comparison.** Different base model, no adaptation budget, closed
+  weights, and a price per call. It cannot enter the single-factor ladder and does not
+  bear on RQ1. The adequacy margins are a scope statement about the 7 B open base.
+* **Multiplicity.** These three contrasts sit inside the same 14-comparisons-per-metric
+  family as the rest of the bootstrap run. Their intervals are wide of zero by margins
+  that Holm–Bonferroni would not reach, but the correction status is stated nowhere in
+  the new subsection beyond the shared estimator note; if any of these figures is ever
+  used to support a claim rather than to bound a baseline, the correction must be applied
+  explicitly.
+
+---
+
 ## 2026-08-01 — λ dose-response over the AFSP sweep: the rerank has a direction, not a distance
 
 ### Summary
