@@ -1,0 +1,16 @@
+# --- Evaluation-time LLM-as-Judge, SECOND (cross-family) rater ---
+
+
+judge:
+  provider: openai
+  model: gpt-5.6
+  temperature: null
+  reasoning_effort: low
+  max_tokens: 2048
+  seed: 42
+  pricing: [5.00, 30.00]
+
+
+tag: gpt
+
+template_file: prompts/judge_eval.txt

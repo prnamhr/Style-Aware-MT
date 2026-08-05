@@ -1,10 +1,17 @@
 """
 Evaluation-time LLM-as-Judge for register fidelity (RQ1 primary style axis, Φ).
+
+Usage:
+    python manage.py judge --conditions zeroshot --split val \\
+        --config configs/judge_eval.yaml
+    python manage.py judge --conditions zeroshot --split val \\
+        --config configs/judge_eval_gpt.yaml --tag gpt
 """
 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -20,6 +27,7 @@ _DEFAULT_TEMPLATE = Path("prompts/judge_eval.txt")
 _JUDGE_SYSTEM = (
     "You are a careful, consistent evaluator of translation style. Follow the instructions exactly."
 )
+_META_NAME = "_meta.json"
 
 # Prefer an explicit "Score: N" verdict; N must be a lone integer 1-5 -- reject a
 # further digit ("12") or a decimal ("3.5"), but allow a sentence-final "3.".
@@ -50,13 +58,64 @@ class _LazyClient:
         return None if self._client is None else getattr(self._client, "usage", None)
 
 
-def parse_score(text: str) -> int | None:
-    """Extract the 1-5 verdict from a judge response.
+def judge_stem(split: str, tag: str | None = None) -> str:
+    """Artefact stem for one judge on one split; ``None`` keeps the original names."""
+    return f"judge_{split}" if not tag else f"judge_{tag}_{split}"
 
-    Prefers the last ``Score: N`` match; falls back to the last standalone 1-5
-    integer. Returns ``None`` when nothing is parseable -- e.g. an empty string
-    from a safety refusal -- so the segment is dropped rather than mis-scored.
-    """
+
+def judge_results_path(results_dir: str | Path, split: str, tag: str | None = None) -> Path:
+    return Path(results_dir) / f"{judge_stem(split, tag)}.json"
+
+
+def judge_segment_dir(results_dir: str | Path, split: str, tag: str | None = None) -> Path:
+    return Path(results_dir) / f"{judge_stem(split, tag)}_segments"
+
+
+def template_digest(template: str) -> str:
+    """Short sha256 of the frozen rubric, so two judges can be proven to share it."""
+    return hashlib.sha256(template.encode("utf-8")).hexdigest()[:16]
+
+
+def assert_cache_identity(cache_dir: Path, meta: dict) -> None:
+    """Bind a segment cache to one (model, tag, template) and refuse a mismatch."""
+    path = cache_dir / _META_NAME
+    if path.exists():
+        prior = json.loads(path.read_text(encoding="utf-8"))
+        differing = {k: (prior.get(k), meta[k]) for k in meta if prior.get(k) != meta[k]}
+        if differing:
+            detail = "; ".join(
+                f"{k}: cached {old!r}, now {new!r}" for k, (old, new) in differing.items()
+            )
+            raise ValueError(
+                f"segment cache {cache_dir} was written by a different judge ({detail}). "
+                f"Pass a distinct --tag so this judge gets its own cache, or delete the "
+                f"cache to re-judge."
+            )
+        return
+    path.write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8")
+
+
+def assert_results_identity(out_path: Path, model: str, *, allow_overwrite: bool) -> None:
+    """Refuse to overwrite a results file that another judge model wrote."""
+    if allow_overwrite or not out_path.exists():
+        return
+    try:
+        existing = json.loads(out_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return  # merge_results raises a better-targeted error on this path
+    others = sorted(
+        {rec.get("model") for rec in existing.values() if isinstance(rec, dict)} - {None, model}
+    )
+    if others:
+        raise ValueError(
+            f"{out_path} holds scores from {', '.join(others)}, not {model}. Overwriting would "
+            f"replace the primary Phi with a different rater's scores. Pass --tag to route this "
+            f"judge to its own file, or --allow_model_overwrite if replacement is intended."
+        )
+
+
+def parse_score(text: str) -> int | None:
+    """Extract the 1-5 verdict from a judge response."""
     if not text:
         return None
     matches = _SCORE_RE.findall(text)
@@ -134,20 +193,46 @@ def main() -> None:
     parser.add_argument("--out_dir", default="outputs", help="inference output directory")
     parser.add_argument("--results_dir", default=str(_RESULTS_DIR))
     parser.add_argument("--config", required=True, help="YAML with a `judge:` generator block")
+    parser.add_argument(
+        "--tag",
+        default=None,
+        help="judge tag for a second/cross-family pass; routes artefacts to "
+        "judge_<tag>_<split>.json (default: the config's `tag:`, else unsuffixed)",
+    )
+    parser.add_argument(
+        "--allow_model_overwrite",
+        action="store_true",
+        help="permit writing over a results file scored by a different judge model",
+    )
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=None,
+        help="score only the first N segments per condition -- a DIAGNOSTIC pilot for "
+        "measuring real per-call cost before committing to the full split. The cache "
+        "resumes, so the full run continues from where the pilot stopped.",
+    )
     args = parser.parse_args()
+    if args.limit is not None and args.limit <= 0:
+        parser.error("--limit must be positive")
 
     cfg = yaml.safe_load(Path(args.config).read_text(encoding="utf-8"))
     if "judge" not in cfg:
         raise ValueError(f"{args.config} has no `judge:` block")
     template_path = Path(cfg.get("template_file", _DEFAULT_TEMPLATE))
     template = template_path.read_text(encoding="utf-8")
+    digest = template_digest(template)
 
     client = _LazyClient(cfg["judge"])
     judge_model = cfg["judge"].get("model", "unknown")
+    tag = args.tag if args.tag is not None else cfg.get("tag")
 
     out_dir = Path(args.out_dir)
     results_dir = Path(args.results_dir)
-    cache_dir = results_dir / f"judge_{args.split}_segments"
+    cache_dir = judge_segment_dir(results_dir, args.split, tag)
+    out_path = judge_results_path(results_dir, args.split, tag)
+    assert_results_identity(out_path, judge_model, allow_overwrite=args.allow_model_overwrite)
+    print(f"judge {judge_model}  tag={tag or '(none)'}  template={template_path} [{digest}]")
     results: dict[str, dict] = {}
     for cond in args.conditions:
         path = condition_path(out_dir, cond, args.split)
@@ -155,8 +240,13 @@ def main() -> None:
             print(f"skip {cond}: {path} not found")
             continue
         sources, preds, refs = load_condition(out_dir, cond, args.split)
+        if args.limit is not None:
+            sources, preds, refs = sources[: args.limit], preds[: args.limit], refs[: args.limit]
         print(f"Judging {len(preds)} segments for {cond} with {judge_model} ...")
         cache_dir.mkdir(parents=True, exist_ok=True)
+        assert_cache_identity(
+            cache_dir, {"model": judge_model, "tag": tag, "template_sha256": digest}
+        )
         scores = score_condition(
             client, template, sources, preds, refs, cache_path=cache_dir / f"{cond}.jsonl"
         )
@@ -164,6 +254,8 @@ def main() -> None:
         results[cond] = {
             "n": len(scores),
             "model": judge_model,
+            "judge_tag": tag,
+            "template_sha256": digest,
             "mean": mean,
             "coverage": round(coverage, 4),
             "sources": sources,
@@ -174,14 +266,49 @@ def main() -> None:
 
     if not results:
         return
-    out_path = results_dir / f"judge_{args.split}.json"
-    preserved = merge_results(out_path, results)
-    if preserved:
-        print(f"preserved {len(preserved)} condition(s) not scored here: {', '.join(preserved)}")
+    if args.limit is not None:
+        print(
+            f"\npilot only (--limit {args.limit}): segment cache written to {cache_dir}, "
+            f"{out_path} deliberately NOT written. Re-run without --limit for the full split."
+        )
+    else:
+        preserved = merge_results(out_path, results)
+        if preserved:
+            print(f"preserved {len(preserved)} condition(s) not re-scored: {', '.join(preserved)}")
+        print(f"Wrote {out_path}")
     usage = client.usage
     if usage is not None:
         print(f"Judge usage: {usage.summary()}")
-    print(f"Wrote {out_path}")
+        priced = judge_model in usage.pricing
+        if not priced:
+            print(
+                f"  note: no pricing for {judge_model}, so cost_usd is a floor of 0, not the "
+                f"actual spend; set `pricing: [in, out]` in the judge block to account it"
+            )
+
+        usage_path = results_dir / f"{judge_stem(args.split, tag)}_usage.json"
+        session = usage.summary()
+        prior = {}
+        if usage_path.exists():
+            prior = json.loads(usage_path.read_text(encoding="utf-8")).get("cumulative", {})
+        cumulative = {k: round(prior.get(k, 0) + v, 6) for k, v in session.items()}
+        usage_path.write_text(
+            json.dumps(
+                {
+                    "model": judge_model,
+                    "tag": tag,
+                    "conditions": sorted(results),
+                    "limit": args.limit,
+                    "priced": priced,
+                    "session": session,
+                    "cumulative": cumulative,
+                },
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        print(f"Wrote {usage_path}  (cumulative ${cumulative['cost_usd']:.2f})")
 
 
 if __name__ == "__main__":

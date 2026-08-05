@@ -60,7 +60,7 @@ def _nan_segments(raw: list) -> list[float]:
 
 
 def _load_segment_scores(
-    metric: str, conditions: list[str], out_dir: Path, split: str
+    metric: str, conditions: list[str], out_dir: Path, split: str, judge_tag: str | None = None
 ) -> tuple[dict, dict]:
     """Return (scores, sources) keyed by condition for the chosen metric."""
     metric = metric.lower()
@@ -77,7 +77,12 @@ def _load_segment_scores(
         return scores, sources
 
     if metric in ("comet", "judge"):
-        path = Path("results") / f"{metric}_{split}.json"
+        # judge_tag selects a second/cross-family rater's scores; None keeps the
+        # primary judge's unsuffixed artefacts.
+        stem = f"{metric}_{judge_tag}_{split}" if (metric == "judge" and judge_tag) else (
+            f"{metric}_{split}"
+        )
+        path = Path("results") / f"{stem}.json"
         if not path.exists():
             raise FileNotFoundError(f"{path} not found; run `manage.py {metric}` first")
         stored = json.loads(path.read_text(encoding="utf-8"))
@@ -170,13 +175,20 @@ def main() -> None:
         help="write the comparison table as JSON; bare --out uses "
         "results/bootstrap_<metric>_<split>.json",
     )
+    parser.add_argument(
+        "--judge_tag",
+        default=None,
+        help="with --metric judge, which rater's scores to use (default: the primary judge)",
+    )
     parser.add_argument("--n_resamples", type=int, default=10000)
     parser.add_argument("--alpha", type=float, default=0.05)
     parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args()
+    if args.judge_tag and args.metric != "judge":
+        parser.error("--judge_tag only applies to --metric judge")
 
     scores, sources = _load_segment_scores(
-        args.metric, args.conditions, Path(args.out_dir), args.split
+        args.metric, args.conditions, Path(args.out_dir), args.split, args.judge_tag
     )
     present = [c for c in args.conditions if c in scores]
     if len(present) < 2:
@@ -214,14 +226,16 @@ def main() -> None:
         )
 
     if args.out is not None:
-        out_path = (
-            Path(args.out)
-            if args.out
-            else Path("results") / (f"bootstrap_{args.metric}_{args.split}.json")
+        stem = (
+            f"bootstrap_{args.metric}_{args.judge_tag}_{args.split}"
+            if args.judge_tag
+            else f"bootstrap_{args.metric}_{args.split}"
         )
+        out_path = Path(args.out) if args.out else Path("results") / f"{stem}.json"
         out_path.parent.mkdir(parents=True, exist_ok=True)
         payload = {
             "metric": args.metric,
+            "judge_tag": args.judge_tag,
             "split": args.split,
             "conditions": present,
             "baseline": baseline,

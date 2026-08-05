@@ -71,6 +71,7 @@ def make_client(gen: dict):
             max_tokens=gen.get("max_tokens", 1024),
             seed=gen.get("seed"),
             reasoning_effort=gen.get("reasoning_effort"),
+            pricing=gen.get("pricing"),  # rates for a model newer than the built-in table
         )
     if provider == "anthropic":
         return AnthropicChatClient(
@@ -143,17 +144,7 @@ def _term_line(source: str, glossary: list[tuple[str, str]], max_pairs: int = 6)
 def build_fewshot_user(
     source: str, exemplars: list[dict], glossary: list[tuple[str, str]] | None = None
 ) -> str:
-    """Assemble the few-shot user prompt shared by every retrieval condition
-    (random_fewshot, knn_fewshot, afsp_margin, afsp_full).
-
-    When ``glossary`` is non-empty, a ``[Terms]`` register line is injected
-    before each exemplar and before the query. An empty or ``None`` glossary
-    disables it, in which case the output is byte-identical to the plain
-    baseline prompt -- so the glossary is a controlled augmentation applied
-    uniformly across conditions, not an AFSP-only confound.
-
-    Exemplars arrive already in final prompt order.
-    """
+    """Assemble the few-shot user prompt shared by every retrieval condition."""
     glossary = glossary or []
     blocks = ["Here are example translations in the required style:\n"]
     for e in exemplars:
@@ -282,8 +273,6 @@ def run(condition: str, cfg: dict, out_name: str | None = None) -> None:
     if name != condition:
         print(f"Output name overridden: condition '{condition}' -> {out_path}")
 
-    # Resume: skip segments already written by an earlier (interrupted) pass.
-    # read_completed_jsonl repairs a torn final line so we never append onto it.
     done = read_completed_jsonl(out_path)
     if len(done) > len(test_rows):
         raise ValueError(

@@ -86,6 +86,120 @@ their history.
 
 ---
 
+## 2026-08-05 — Cross-family second judge implemented (not run)
+
+### Summary
+
+The evaluation-time judge pipeline can now score the same outputs with a second rater
+from a different provider family, and a new `judge_agreement` stage measures how far a
+Φ-based conclusion depends on rater identity. **Implemented and statically verified
+only: no judge call has been made, no OpenAI artifact exists, and nothing under
+`results/` or `outputs/` was written.** No reported figure changes.
+
+### What changed
+
+* `src/eval/judge.py` — `--tag` routes a second judge's artifacts to
+  `results/judge_<tag>_<split>.json` and `results/judge_<tag>_<split>_segments/`,
+  defaulting to the config's `tag:`. Untagged behaviour is unchanged, so the existing
+  `judge_val.json` and its segment cache keep their paths.
+* `src/eval/judge.py:104` `assert_results_identity` — refuses to write a results file
+  already scored by a different judge model unless `--allow_model_overwrite` is passed.
+* `src/eval/judge.py:79` `assert_cache_identity` — binds a segment cache to one
+  `(model, tag, rubric digest)` via a `_meta.json` sentinel and refuses a mismatch.
+* `src/eval/judge.py` — records `judge_tag` and `template_sha256` per condition; writes
+  `results/judge_<stem>_usage.json` with per-session and cumulative token/cost figures;
+  adds `--limit N` for a diagnostic pilot, which writes the segment cache but
+  deliberately **not** the results file.
+* `src/eval/judge_agreement.py` (new, `manage.py judge_agreement`) — quadratic-weighted
+  κ, Spearman ρ, exact/adjacent rates, the paired severity offset, system-ordering
+  comparison, and re-runs of the nine pre-specified contrasts under each rater.
+* `configs/judge_eval_gpt.yaml` (new) — the second rater. `template_file` is the same
+  frozen `prompts/judge_eval.txt`.
+* `src/infer/openai_client.py:35`, `src/infer/run.py:72` — optional `pricing: [in, out]`
+  from config, so a model absent from the built-in table reports real cost instead of
+  silently costing zero.
+* `notebooks/judge_second_pass_colab.ipynb` (new) — the runbook.
+* `tests/test_judge_agreement.py` (new) — 22 cases.
+
+### Rationale
+
+Single-judge dependence has been the open construct-validity threat since the judge was
+introduced, and the threats register carries it as *cross-family pass unrun*. It is
+sharper than a generic reliability concern here: the primary rater `claude-haiku-4-5` is
+the same model family as the `commercial_haiku` condition it scores, so the one system
+scoring highest on Φ is scored by its own family.
+
+Three design points are load-bearing:
+
+1. **Same frozen rubric.** Both raters read `prompts/judge_eval.txt`. Re-tuning the
+   prompt for the second rater would confound rater identity with rubric identity and
+   void the comparison; the digest is recorded per condition and `judge_agreement`
+   raises if the two disagree.
+2. **Contrast replication is the deliverable, not κ.** Two raters can agree poorly
+   segment-by-segment and still order the systems identically. `contrast_replication`
+   therefore re-runs each pre-specified contrast under both raters on one common segment
+   set — the intersection over both conditions and both raters — and labels each
+   contrast `both separate`, `neither separates`, or `RATER-DEPENDENT`. Holm correction
+   is applied within each rater's family of nine.
+3. **The primary Φ must be unclobberable.** Running the second config without a tag
+   would have overwritten `results/judge_val.json` in place, and pointing it at the
+   existing segment cache would have found the cache complete, made zero calls, and
+   returned judge A's scores labelled as judge B's. Both paths now raise.
+
+### Verification
+
+Static only, as nothing was run:
+
+* `ruff check src tests manage.py` clean; `pytest tests/ -q` 77 passed (22 new).
+* `quadratic_weighted_kappa` agrees with `sklearn.metrics.cohen_kappa_score(weights=
+  'quadratic')` to 12 decimal places over five random 200-point samples. The bootstrap
+  is vectorised through `bincount` because a per-resample Python loop at the pooled
+  n ≈ 9,000 would be ~10⁸ iterations.
+* End-to-end plumbing check at full scale in a scratch directory, with a **synthetic**
+  second rater derived by perturbing judge A's scores: 9,260 paired segments, report
+  renders, `knn_fewshot`'s n = 1,322 propagates correctly, 11 s at 2,000 resamples.
+  Those numbers are plumbing evidence and carry no empirical status whatsoever.
+* Notebook pre-flight and cost-estimate cells executed against the real repository;
+  the post-run cells executed against the scratch artifacts.
+
+### Reproduction
+
+```bash
+python manage.py judge --conditions zeroshot --split val \
+    --config configs/judge_eval_gpt.yaml --limit 25          # diagnostic pilot first
+python manage.py judge --conditions zeroshot random_fewshot knn_fewshot \
+    afsp_margin afsp_full peft commercial_haiku \
+    --split val --config configs/judge_eval_gpt.yaml
+python manage.py judge_agreement --tag_b gpt --split val --n_resamples 10000
+```
+
+### Limitations and risks
+
+* **Unrun, so it establishes nothing yet.** A first execution would establish the
+  agreement coefficients, the severity offset, and — the only part bearing on the
+  thesis — which pre-specified contrasts survive the rater swap. Until then
+  single-judge dependence remains a standing limitation and the threats register entry
+  stays open.
+* **Cost is the gating risk, and it is not yet known.** The full pass is 7 × 1,323 =
+  9,261 calls over ~15.9 M prompt characters (≈4.0–5.3 M input tokens). The output side
+  is dominated by hidden reasoning tokens and cannot be estimated from the prompt, so
+  the notebook requires a 25-call pilot and an explicit confirmation before the full
+  run. `docs/budget.md` is still not written; the cap belongs there first.
+* **Model identity unconfirmed.** `configs/judge_eval_gpt.yaml` names `gpt-5.6` with
+  placeholder `pricing: [5.00, 30.00]`. Both must be checked against the provider's
+  current model list before spending. A wrong price only misreports cost; a wrong model
+  id fails the run.
+* **Φ_B is not seed-controlled either.** The config sets `seed: 42`, but the provider
+  documents it as best-effort, so the second rater does not resolve the
+  non-reproducibility of Φ — it only removes the single-family dependence.
+* **Agreement does not validate Φ.** A high κ is equally consistent with two
+  similarly-biased raters. The result bounds rater dependence; it does not establish
+  that either rater measures register correctly.
+* **The severity offset must not be averaged away.** If the two raters differ in mean
+  severity, Φ_A and Φ_B are not interchangeable in a table of absolute values. A
+  constant offset cannot create or destroy a contrast, but a combined "mean Φ" column
+  would be uninterpretable.
+
 ## 2026-08-04 — Commercial zero-shot reference baseline reported in the README
 
 ### Summary

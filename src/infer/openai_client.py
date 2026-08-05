@@ -32,13 +32,22 @@ class ChatClient:
     seed: int | None = 42
     # reasoning_effort: none|low|medium|high|xhigh, only for reasoning models.
     reasoning_effort: str | None = None
+    pricing: tuple[float, float] | None = None
     usage: Usage = field(default=None)
     _client: OpenAI = field(default=None, repr=False)
 
     def __post_init__(self) -> None:
         # max_retries gives exponential backoff on rate-limit / transient 5xx.
         self._client = OpenAI(max_retries=5)
-        self.usage = Usage(pricing=_PRICING)
+        table = dict(_PRICING)
+        if self.pricing is not None:
+            table[self.model] = tuple(self.pricing)
+        self.usage = Usage(pricing=table)
+
+    @property
+    def priced(self) -> bool:
+        """Whether reported cost is real; False means cost_usd is a floor of 0."""
+        return self.model in self.usage.pricing
 
     def complete(self, system: str, user: str) -> str:
         # max_completion_tokens is the current chat-completions field (accepted by
