@@ -1,0 +1,345 @@
+{
+  "split": "val",
+  "judge": {
+    "tag": "gpt",
+    "model": "gpt-5.6-terra",
+    "template_sha256": "ffd6dad41acb0512",
+    "results_path": "results/judge_gpt_val.json"
+  },
+  "bootstrap": {
+    "n_resamples": 10000,
+    "seed": 42,
+    "alpha": 0.05,
+    "paired": true,
+    "unit": "segment",
+    "n_segments": 1323
+  },
+  "evidence_class": {
+    "study_conditions": [
+      "zeroshot",
+      "random_fewshot",
+      "knn_fewshot",
+      "afsp_margin",
+      "afsp_full",
+      "peft"
+    ],
+    "external_reference": [
+      "commercial_haiku"
+    ],
+    "note": "commercial_haiku is a diagnostic external reference baseline, not a condition of the study, and is excluded from study tables. Phi is not seed-reproducible, so differences of order 0.05 are within measurement noise."
+  },
+  "conditions": [
+    "zeroshot",
+    "random_fewshot",
+    "knn_fewshot",
+    "afsp_margin",
+    "afsp_full",
+    "peft",
+    "commercial_haiku"
+  ],
+  "ranking": [
+    "commercial_haiku",
+    "afsp_full",
+    "knn_fewshot",
+    "afsp_margin",
+    "zeroshot",
+    "random_fewshot",
+    "peft"
+  ],
+  "cells": {
+    "zeroshot": {
+      "n": 1323,
+      "n_scored": 1300,
+      "coverage": 0.982615268329554,
+      "phi": 3.647692307692308,
+      "sd": 0.8101754136386579,
+      "phi_ci": [
+        3.602929838087895,
+        3.691719235557358
+      ],
+      "score_histogram": {
+        "1": 0.021538461538461538,
+        "2": 0.06153846153846154,
+        "3": 0.2523076923076923,
+        "4": 0.5769230769230769,
+        "5": 0.0876923076923077
+      },
+      "is_reference": false,
+      "rank": 5,
+      "rank_distribution": {
+        "rank_probs": [
+          0.0,
+          0.0068,
+          0.0696,
+          0.1547,
+          0.4594,
+          0.2439,
+          0.0656
+        ],
+        "modal_rank": 5,
+        "modal_prob": 0.4594,
+        "mean_rank": 5.0608
+      }
+    },
+    "random_fewshot": {
+      "n": 1323,
+      "n_scored": 1297,
+      "coverage": 0.9803476946334089,
+      "phi": 3.632999228989977,
+      "sd": 0.7813941881753536,
+      "phi_ci": [
+        3.5909082120509033,
+        3.675115207373272
+      ],
+      "score_histogram": {
+        "1": 0.014649190439475714,
+        "2": 0.07016191210485737,
+        "3": 0.25751734772552043,
+        "4": 0.5828835774865073,
+        "5": 0.07478797224363917
+      },
+      "is_reference": false,
+      "rank": 6,
+      "rank_distribution": {
+        "rank_probs": [
+          0.0,
+          0.0005,
+          0.0107,
+          0.049,
+          0.2181,
+          0.5127,
+          0.209
+        ],
+        "modal_rank": 6,
+        "modal_prob": 0.5127,
+        "mean_rank": 5.8588
+      }
+    },
+    "knn_fewshot": {
+      "n": 1323,
+      "n_scored": 1308,
+      "coverage": 0.9886621315192744,
+      "phi": 3.6788990825688073,
+      "sd": 0.8154671656790428,
+      "phi_ci": [
+        3.634498087202599,
+        3.723112128146453
+      ],
+      "score_histogram": {
+        "1": 0.01834862385321101,
+        "2": 0.07186544342507645,
+        "3": 0.21865443425076453,
+        "4": 0.5948012232415902,
+        "5": 0.0963302752293578
+      },
+      "is_reference": false,
+      "rank": 3,
+      "rank_distribution": {
+        "rank_probs": [
+          0.0,
+          0.0991,
+          0.584,
+          0.2486,
+          0.0563,
+          0.0108,
+          0.0012
+        ],
+        "modal_rank": 3,
+        "modal_prob": 0.584,
+        "mean_rank": 3.2993
+      }
+    },
+    "afsp_margin": {
+      "n": 1323,
+      "n_scored": 1303,
+      "coverage": 0.9848828420256992,
+      "phi": 3.666922486569455,
+      "sd": 0.8077221195466124,
+      "phi_ci": [
+        3.6235543238782073,
+        3.710892119912479
+      ],
+      "score_histogram": {
+        "1": 0.01918649270913277,
+        "2": 0.06139677666922486,
+        "3": 0.24865694551036072,
+        "4": 0.5748273215656178,
+        "5": 0.09593246354566386
+      },
+      "is_reference": false,
+      "rank": 4,
+      "rank_distribution": {
+        "rank_probs": [
+          0.0,
+          0.0191,
+          0.228,
+          0.5105,
+          0.1899,
+          0.0471,
+          0.0054
+        ],
+        "modal_rank": 4,
+        "modal_prob": 0.5105,
+        "mean_rank": 4.0341
+      }
+    },
+    "afsp_full": {
+      "n": 1323,
+      "n_scored": 1310,
+      "coverage": 0.9901738473167044,
+      "phi": 3.7068702290076336,
+      "sd": 0.8408216396757892,
+      "phi_ci": [
+        3.660809778456837,
+        3.7524752475247523
+      ],
+      "score_histogram": {
+        "1": 0.022900763358778626,
+        "2": 0.0648854961832061,
+        "3": 0.21068702290076335,
+        "4": 0.5854961832061069,
+        "5": 0.11603053435114503
+      },
+      "is_reference": false,
+      "rank": 2,
+      "rank_distribution": {
+        "rank_probs": [
+          0.0,
+          0.8741,
+          0.1028,
+          0.0213,
+          0.0015,
+          0.0002,
+          0.0001
+        ],
+        "modal_rank": 2,
+        "modal_prob": 0.8741,
+        "mean_rank": 2.1512
+      }
+    },
+    "peft": {
+      "n": 1323,
+      "n_scored": 1306,
+      "coverage": 0.9871504157218443,
+      "phi": 3.6125574272588055,
+      "sd": 1.0200871641041664,
+      "phi_ci": [
+        3.5567484662576687,
+        3.668195806530985
+      ],
+      "score_histogram": {
+        "1": 0.06355283307810107,
+        "2": 0.07503828483920368,
+        "3": 0.18223583460949463,
+        "4": 0.5436447166921899,
+        "5": 0.13552833078101073
+      },
+      "is_reference": false,
+      "rank": 7,
+      "rank_distribution": {
+        "rank_probs": [
+          0.0,
+          0.0004,
+          0.0049,
+          0.0159,
+          0.0748,
+          0.1853,
+          0.7187
+        ],
+        "modal_rank": 7,
+        "modal_prob": 0.7187,
+        "mean_rank": 6.5958
+      }
+    },
+    "commercial_haiku": {
+      "n": 1323,
+      "n_scored": 1308,
+      "coverage": 0.9886621315192744,
+      "phi": 3.9808868501529053,
+      "sd": 0.7597981103678855,
+      "phi_ci": [
+        3.9385548868824762,
+        4.022222222222222
+      ],
+      "score_histogram": {
+        "1": 0.013761467889908258,
+        "2": 0.03134556574923547,
+        "3": 0.12155963302752294,
+        "4": 0.6269113149847095,
+        "5": 0.20642201834862386
+      },
+      "is_reference": true,
+      "rank": 1,
+      "rank_distribution": {
+        "rank_probs": [
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "modal_rank": 1,
+        "modal_prob": 1.0,
+        "mean_rank": 1.0
+      }
+    }
+  },
+  "paired_adjacent": [
+    {
+      "a": "commercial_haiku",
+      "b": "afsp_full",
+      "diff": 0.273416166306007,
+      "ci_low": 0.22261493492993817,
+      "ci_high": 0.3236872176648081,
+      "p_value": 0.0,
+      "significant": true
+    },
+    {
+      "a": "afsp_full",
+      "b": "knn_fewshot",
+      "diff": 0.02818048569262776,
+      "ci_low": -0.016290283055125178,
+      "ci_high": 0.07247705177174735,
+      "p_value": 0.214,
+      "significant": false
+    },
+    {
+      "a": "knn_fewshot",
+      "b": "afsp_margin",
+      "diff": 0.011866289853222153,
+      "ci_low": -0.025911224488114257,
+      "ci_high": 0.04922102172734791,
+      "p_value": 0.5286,
+      "significant": false
+    },
+    {
+      "a": "afsp_margin",
+      "b": "zeroshot",
+      "diff": 0.019239752317643462,
+      "ci_low": -0.029382395343709466,
+      "ci_high": 0.06665169715400783,
+      "p_value": 0.4416,
+      "significant": false
+    },
+    {
+      "a": "zeroshot",
+      "b": "random_fewshot",
+      "diff": 0.014764298535779898,
+      "ci_low": -0.032694206054635806,
+      "ci_high": 0.06261140941049154,
+      "p_value": 0.551,
+      "significant": false
+    },
+    {
+      "a": "random_fewshot",
+      "b": "peft",
+      "diff": 0.02047543080359413,
+      "ci_low": -0.03565626572669346,
+      "ci_high": 0.07659044580000736,
+      "p_value": 0.4802,
+      "significant": false
+    }
+  ]
+}

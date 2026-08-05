@@ -1,0 +1,29 @@
+{
+  "model": "gpt-5.6-terra",
+  "tag": "gpt",
+  "transport": "batch",
+  "batch_discount": 0.5,
+  "conditions": [
+    "afsp_full",
+    "afsp_margin",
+    "commercial_haiku",
+    "knn_fewshot",
+    "peft",
+    "random_fewshot",
+    "zeroshot"
+  ],
+  "limit": null,
+  "priced": true,
+  "session": {
+    "calls": 9236,
+    "prompt_tokens": 3784961,
+    "completion_tokens": 385774,
+    "cost_usd": 6.0996
+  },
+  "cumulative": {
+    "calls": 9261,
+    "prompt_tokens": 3796497,
+    "completion_tokens": 386804,
+    "cost_usd": 6.1173
+  }
+}
