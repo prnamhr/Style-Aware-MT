@@ -3,13 +3,15 @@
 
 judge:
   provider: openai
-  model: gpt-5.6
+  model: terra        
+  reasoning_effort: none
   temperature: null
-  reasoning_effort: low
-  max_tokens: 2048
+  max_tokens: 256
   seed: 42
-  pricing: [5.00, 30.00]
 
+  pricing: [null, null] # (USD per 1M input, output) at LIST price -- fill in
+  batch_discount: 0.5
+  completion_window: 24h
 
 tag: gpt
 

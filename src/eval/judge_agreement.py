@@ -45,7 +45,7 @@ SECONDARY_CONTRASTS = [
     ("peft", "afsp_full"),
 ]
 
-_SCALE = (1, 2, 3, 4, 5) 
+_SCALE = (1, 2, 3, 4, 5)
 
 
 def load_judge_segments(segment_dir: Path, condition: str) -> tuple[list[str], list[int | None]]:
@@ -56,9 +56,7 @@ def load_judge_segments(segment_dir: Path, condition: str) -> tuple[list[str], l
 
 
 def _first_difference(a: list[str], b: list[str]) -> int:
-    return next(
-        (i for i, (x, y) in enumerate(zip(a, b)) if x != y), min(len(a), len(b))
-    )
+    return next((i for i, (x, y) in enumerate(zip(a, b)) if x != y), min(len(a), len(b)))
 
 
 def _scale_index(x: np.ndarray, scale=_SCALE) -> np.ndarray:
@@ -232,7 +230,6 @@ def rater_agreement(
 
 
 def condition_ordering(loaded: dict[str, dict], conditions: list[str]) -> dict:
-
     present = [c for c in conditions if c in loaded and loaded[c]["index"].size]
     means_a, means_b = [], []
     for c in present:
@@ -252,7 +249,6 @@ def condition_ordering(loaded: dict[str, dict], conditions: list[str]) -> dict:
         "p_floor": permutation_p_floor(len(present)),
     }
     if len(present) >= 3:
-
         res = stats.spearmanr(means_a, means_b)
         out["spearman"] = {
             "rho": float(res.statistic),
@@ -270,7 +266,6 @@ def contrast_replication(
     seed: int,
     alpha: float,
 ) -> dict:
-
     rows: dict[str, dict] = {}
     for hi, lo in contrasts:
         if hi not in loaded or lo not in loaded:

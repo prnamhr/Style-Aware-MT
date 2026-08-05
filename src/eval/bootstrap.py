@@ -79,8 +79,10 @@ def _load_segment_scores(
     if metric in ("comet", "judge"):
         # judge_tag selects a second/cross-family rater's scores; None keeps the
         # primary judge's unsuffixed artefacts.
-        stem = f"{metric}_{judge_tag}_{split}" if (metric == "judge" and judge_tag) else (
-            f"{metric}_{split}"
+        stem = (
+            f"{metric}_{judge_tag}_{split}"
+            if (metric == "judge" and judge_tag)
+            else (f"{metric}_{split}")
         )
         path = Path("results") / f"{stem}.json"
         if not path.exists():

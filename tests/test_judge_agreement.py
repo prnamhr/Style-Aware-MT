@@ -169,9 +169,7 @@ def _write_condition(root: Path, cond: str, scores_a: list, scores_b: list, spli
     )
     for d, scores in ((dir_a, scores_a), (dir_b, scores_b)):
         (d / f"{cond}.jsonl").write_text(
-            "\n".join(
-                json.dumps({"input": s, "score": sc}) for s, sc in zip(sources, scores)
-            )
+            "\n".join(json.dumps({"input": s, "score": sc}) for s, sc in zip(sources, scores))
             + "\n"
         )
     return out_dir, dir_a, dir_b
@@ -180,9 +178,7 @@ def _write_condition(root: Path, cond: str, scores_a: list, scores_b: list, spli
 def test_load_pair_counts_coverage_per_rater_and_intersects() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
-        out_dir, dir_a, dir_b = _write_condition(
-            root, "zeroshot", [3, 4, None, 2], [3, None, 5, 2]
-        )
+        out_dir, dir_a, dir_b = _write_condition(root, "zeroshot", [3, 4, None, 2], [3, None, 5, 2])
         d = _load_pair(out_dir, "val", "zeroshot", dir_a, dir_b)
         assert (d["n_total"], d["n_a"], d["n_b"], d["n_both"]) == (4, 3, 3, 2)
         assert d["index"].tolist() == [0, 3]  # only where BOTH raters parsed
@@ -194,9 +190,7 @@ def test_load_pair_rejects_misaligned_judge_segments() -> None:
         out_dir, dir_a, dir_b = _write_condition(root, "zeroshot", [3, 4], [3, 4])
         rows = [json.loads(x) for x in (dir_b / "zeroshot.jsonl").read_text().splitlines()]
         rows[1]["input"] = "a different segment"
-        (dir_b / "zeroshot.jsonl").write_text(
-            "\n".join(json.dumps(r) for r in rows) + "\n"
-        )
+        (dir_b / "zeroshot.jsonl").write_text("\n".join(json.dumps(r) for r in rows) + "\n")
         with pytest.raises(ValueError, match="aligned index-for-index"):
             _load_pair(out_dir, "val", "zeroshot", dir_a, dir_b)
 

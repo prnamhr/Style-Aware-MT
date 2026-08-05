@@ -25,6 +25,7 @@ COMMANDS = {
     "eval": "src.eval.quick",
     "comet": "src.eval.comet",
     "judge": "src.eval.judge",
+    "judge_batch": "src.eval.judge_batch",
     "judge_ci": "src.eval.judge_ci",
     "judge_agreement": "src.eval.judge_agreement",
     "human": "src.eval.human",
