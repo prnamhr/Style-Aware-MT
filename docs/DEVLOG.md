@@ -86,6 +86,236 @@ their history.
 
 ---
 
+## 2026-08-05 — Cross-family second judge run: four of five primary Φ contrasts are rater-dependent
+
+### Summary
+
+The cross-family confirmation pass was executed. `gpt-5.6-terra` scored all seven
+conditions on val through the OpenAI Batch API — 9,261 calls, 9,132 segments scored,
+**$6.12** — against the same frozen `prompts/judge_eval.txt` the primary rater reads.
+The result is the one the threats register has been waiting on, and it is not
+reassuring: the two raters order the systems similarly at the top but **four of the five
+pre-specified primary contrasts on Φ do not replicate under the second rater**, two of
+them with the sign reversed. The central negative result *does* replicate — AFSP-full
+still fails to separate from `knn_fewshot` under both raters. No reported figure in
+`README.md` changes, because Φ_A is unchanged; what changes is how much weight Φ_A alone
+can carry.
+
+### What changed
+
+Relative to the implementation entry below (same date), three things moved before the run
+could happen:
+
+* **Model identity resolved.** `configs/judge_eval_gpt.yaml` names `gpt-5.6-terra`, not the
+  unconfirmed `gpt-5.6` placeholder, with real `pricing: [2.00, 12.00]` replacing the
+  placeholder `[5.00, 30.00]` (commit `7e5ee52`). `reasoning_effort: none` and
+  `max_tokens: 256` bound the output side, which the implementation entry flagged as
+  un-estimable.
+* **Batch transport added** (commit `bb5243e`) — `src/infer/openai_batch.py` (submit /
+  poll / collect, `openai_batch.py:78`, `:106`, `:135`) and `src/eval/judge_batch.py`
+  (`manage.py judge_batch`), which shards a condition into request files under
+  `results/judge_<tag>_<split>_batch/`, records job ids in
+  `results/judge_<tag>_<split>_batch_state.json`, and appends into the same segment cache
+  the synchronous path writes (`judge_batch.py:59` `resume_point`, `:71`
+  `append_results`). This halved the pass: the same 9,236-call session priced
+  synchronously is $12.20.
+* **`src/eval/judge_ci.py` added** (`manage.py judge_ci`) — per-condition Φ with bootstrap
+  interval, score histogram, and a bootstrap rank distribution per rater, on shared
+  resample draws (`judge_ci.py:74`). Written for both raters:
+  `results/judge_ci_val.json` (A) and `results/judge_ci_gpt_val.json` (B).
+
+Artefacts written: `results/judge_gpt_val.json`, `results/judge_gpt_val_segments/`
+(7 conditions + `_meta.json` sentinel), `results/judge_gpt_val_usage.json`,
+`results/judge_ci_val.json`, `results/judge_ci_gpt_val.json`,
+`results/judge_agreement_gpt_val.json`. `results/judge_val.json` and its segment cache
+were **not** touched, which is what `assert_results_identity` and `assert_cache_identity`
+exist to guarantee.
+
+Repository hygiene in the same commit range: the 9,261 lines of batch *request payloads*
+under `results/judge_gpt_val_batch/` are untracked and gitignored — they are regenerable
+from `outputs/` plus the frozen rubric, whereas the job ids, the scores and the usage
+record are tracked. The accidental nested clone at `notebooks/Style-Aware-MT` was
+committed as a gitlink (`24e81c5`, pointing at the pre-fork origin) and has been removed
+from the index with `git rm --cached`; the working directory is untouched.
+
+### Cost
+
+| Item | Figure |
+|---|---|
+| Calls (cumulative, incl. 25-call pilot) | 9,261 |
+| Prompt / completion tokens | 3,796,497 / 386,804 |
+| Batch discount | 0.5 |
+| **Cost** | **$6.1173** ($6.0996 for the 9,236-call full session) |
+| Full-price equivalent | $12.24 |
+
+Recorded in `docs/budget.md`, written today. That file was the outstanding precondition
+this entry's predecessor flagged; the declared cap itself still has to be transcribed
+from `docs/proposal.pdf`, which cannot be read in the current environment.
+
+### Coverage
+
+9,132 of 9,261 segments returned a parseable rating — 98.6 %, between 1,297 and 1,310 per
+condition against 1,323 offered. The 129 unscored segments are a property of rater B only;
+Φ_A coverage is unchanged (1,323 everywhere, 1,322 for `knn_fewshot`). Every agreement and
+contrast figure below is computed on the intersection of both raters and both conditions,
+so each contrast carries its own n (1,275–1,295) and none is padded or imputed.
+
+`template_verified` is **false** in the report: rater A's results predate per-condition
+digest recording, so while B's `ffd6dad41acb0512` is recorded, *that both raters read the
+same rubric is asserted from the config, not verified from the artefacts*.
+
+### Rater agreement
+
+Pooled over the six study conditions (n = 7,823):
+
+| Quantity | Value |
+|---|---|
+| Quadratic-weighted κ | 0.384 [0.370, 0.398] |
+| Spearman ρ | 0.592 [0.577, 0.607] |
+| Exact agreement | 27.8 % |
+| Adjacent (±1) agreement | 77.2 % |
+| Severity offset (A − B) | −0.950 [−0.968, −0.932] |
+
+Two readings follow. First, **the raters are not interchangeable in absolute terms**:
+B sits almost a full rubric point above A on the same segments (Φ_A 2.55–2.79 against
+Φ_B 3.61–3.71), so a table averaging the two, or quoting one as a check on the other's
+level, would be uninterpretable. A constant offset cannot manufacture or destroy a
+contrast, which is why the deliverable is contrast replication rather than κ. Second,
+**κ ≈ 0.38 is fair agreement at best** — the two raters place the same segment in the same
+rubric band under 28 % of the time. Per-condition κ rises monotonically with how far up
+the ladder the condition sits, 0.302 (`zeroshot`) → 0.518 (`peft`), so agreement is worst
+exactly where the outputs are worst.
+
+### System ordering
+
+`afsp_full` is the highest-scoring study condition under **both** raters (modal rank 2 of
+7 including the reference, p = 0.838 under A and 0.874 under B), which is the one ordering
+claim that survives the swap intact. Below it the orderings diverge: A ranks
+`afsp_margin` > `knn_fewshot` > `peft` > `random_fewshot` > `zeroshot`, while B ranks
+`knn_fewshot` > `afsp_margin` > `zeroshot` > `random_fewshot` > `peft`. **PEFT falls from
+5th to last.** Spearman over the six study conditions is ρ = 0.714, p = 0.111 — with six
+systems the permutation floor is p = 0.0028, so this neither separates nor could it
+plausibly; n = 6 is simply too small to test ordering agreement, and the coefficient is
+reported as descriptive.
+
+### Contrast replication
+
+The deliverable. Each of the nine pre-specified contrasts re-run under both raters on one
+common segment set, Holm correction applied within each rater's family of nine.
+
+| Contrast | Judge A (haiku) | Judge B (gpt) | Verdict |
+|---|---|---|---|
+| random few-shot − zero-shot | +0.089, p = .0008 ✓Holm | −0.014, p = .574 | **rater-dependent, sign flips** |
+| kNN few-shot − zero-shot | +0.193, p < .001 ✓Holm | +0.027, p = .281 | **rater-dependent** |
+| AFSP-margin − zero-shot | +0.212, p < .001 ✓Holm | +0.018, p = .487 | **rater-dependent** |
+| AFSP-full − zero-shot | +0.244, p < .001 ✓Holm | +0.055, p = .030 ✗Holm | same sign, both separate uncorrected |
+| PEFT − zero-shot | +0.202, p < .001 ✓Holm | −0.027, p = .403 | **rater-dependent, sign flips** |
+| AFSP-full − kNN few-shot | +0.046, p = .056 | +0.031, p = .166 | neither separates |
+| AFSP-margin − kNN few-shot | +0.013, p = .518 | −0.010, p = .596 | neither separates |
+| AFSP-full − AFSP-margin | +0.029, p = .218 | +0.041, p = .059 | neither separates |
+| PEFT − AFSP-full | −0.043, p = .169 | −0.097, p = .0018 ✓Holm | **rater-dependent** |
+
+Three consequences, in order of how much they matter:
+
+1. **The "every rung of the ladder separates on Φ" reading is rater-dependent.** Under A,
+   all five primary contrasts against the zero-shot floor separate and survive Holm. Under
+   B, one of the five separates uncorrected and none survives Holm. Two — random few-shot
+   and PEFT — reverse sign. Rater B still recovers the ladder's *direction* for the
+   retrieval rungs (all three retrieval contrasts positive), but at a tenth the magnitude
+   and with intervals spanning zero. The ladder's separation on COMET, chrF and BLEU is
+   untouched by any of this; only the Φ column is affected.
+2. **The central negative result replicates.** All three AFSP-internal secondary
+   contrasts fail to separate under *both* raters, `afsp_full − knn_fewshot` included
+   (A p = .056, B p = .166). The finding that the adaptive layer is not demonstrated on
+   validation therefore does not depend on rater identity — the one place where a
+   negative result being robust is genuinely useful.
+3. **PEFT − AFSP-full is rater-dependent against PEFT.** Under B, PEFT scores 0.097 below
+   AFSP-full on Φ and this survives Holm. This does not license "AFSP beats PEFT on
+   register": it is one rater of two, against the other rater finding nothing (p = .169),
+   and PEFT's significant lead on COMET, chrF and BLEU is unaffected. It is a lead, and it
+   points the opposite way from PEFT's `stylo_dist` advantage (0.289, the best of any
+   condition) — which is itself an RQ4 disagreement worth following.
+
+### Self-preference of the primary rater
+
+The sharpest reason for this pass was that rater A and the `commercial_haiku` condition are
+the same model family. The severity offset makes the effect visible: A sits 0.87–1.09 below
+B on the six study conditions, but only **0.641 [0.605, 0.678] below B on
+`commercial_haiku`** — that is, A is 0.23–0.45 rubric points *less severe* on its own
+family's output, relative to B, than it is on everything else. Exact agreement on that
+condition is 42.7 % against 27.8 % pooled, and adjacent agreement 91.4 %, so the two raters
+converge there while diverging elsewhere, consistent with the shared-family reading.
+
+But the reference's lead is not an artefact of self-judging. Rater B, a different family,
+also places `commercial_haiku` first by a wide margin: Φ_B = 3.981 [3.939, 4.022] against
+`afsp_full` at 3.707 [3.661, 3.753]. The correct statement is that the +0.590 Φ_A margin
+over PEFT is **inflated** by self-preference, not that it is manufactured by it. This does
+not rehabilitate that figure as a register measure — `commercial_haiku` remains a
+diagnostic external reference, its `stylo_dist` of 0.556 still points the other way, and
+its Φ is still not admissible as a register finding.
+
+### Verification
+
+* `ruff check src tests manage.py` clean; `pytest tests/ -q` **96 passed** (19 added since
+  the implementation entry's 77, chiefly `tests/test_judge_batch.py`).
+* The 25-call pilot ran first and wrote only the segment cache, per `--limit` semantics;
+  its cost is the $0.0177 difference between the session and cumulative figures.
+* `results/judge_val.json` compared before and after: unchanged. The tagged paths kept
+  Φ_A intact, which was the design requirement.
+* Bootstrap parameters identical to every prior inferential run — 10,000 resamples,
+  α = 0.05, seed 42, paired at segment level — so the A-side figures in the replication
+  table reproduce `results/bootstrap_judge_val.json` where the segment sets coincide.
+* Rank distributions in both `judge_ci` reports are computed on shared resample draws, so
+  the per-condition ranks within one rater are mutually consistent.
+
+### Reproduction
+
+```bash
+python manage.py judge --conditions zeroshot --split val \
+    --config configs/judge_eval_gpt.yaml --limit 25          # pilot; cache only
+python manage.py judge_batch --conditions zeroshot random_fewshot knn_fewshot \
+    afsp_margin afsp_full peft commercial_haiku \
+    --split val --config configs/judge_eval_gpt.yaml
+python manage.py judge_ci --split val --n_resamples 10000
+python manage.py judge_ci --split val --tag gpt --n_resamples 10000
+python manage.py judge_agreement --tag_b gpt --split val --n_resamples 10000
+```
+
+The batch request payloads are gitignored; `judge_batch` regenerates them from `outputs/`
+and the frozen rubric. Re-running the judge stage costs money again — the segment caches
+under `results/judge_{val,gpt_val}_segments/` are what make the analysis stages free.
+
+### Limitations and risks
+
+* **This bounds rater dependence; it does not validate Φ.** Neither rater is ground truth.
+  κ = 0.384 with a −0.95 offset is equally consistent with two differently-biased raters as
+  with one correct and one noisy. What the pass establishes is which conclusions survive
+  changing the rater, and the answer is: the AFSP-versus-baseline null, and `afsp_full` at
+  the top of the ladder. Not the primary contrasts against the floor.
+* **Φ_B is not seed-controlled either.** `seed: 42` is set in the config but documented as
+  best-effort by the provider, so a re-run will not reproduce byte-for-byte. The pass
+  removes single-family dependence; it does not make Φ reproducible, and the standing
+  caution that Φ differences of order 0.05 are within measurement noise still holds — note
+  that seven of the nine contrasts under B are smaller than 0.05 in absolute value.
+* **Rubric identity is asserted, not verified, for rater A.** Until Φ_A is re-run under a
+  build that records `template_sha256`, the claim that both raters read the same rubric
+  rests on the configs rather than on the artefacts. This is cheap to close only by
+  re-spending on Φ_A, so it stays open.
+* **129 segments (1.4 %) have no Φ_B.** They are not random with respect to content —
+  a rating is missing because the response did not parse, which correlates with the
+  output being unusual. The effect on the reported figures is bounded by 1.4 % of the
+  sample but is not zero, and no imputation was performed.
+* **The ordering-agreement test is underpowered by construction.** At n = 6 systems the
+  Spearman permutation floor is p = 0.0028; ρ = 0.714 could not have separated whatever
+  the data. Do not report the orderings as "statistically consistent" — report the
+  rankings and let them speak.
+* **Rater B's compression is unexplained.** B's ratings span 3.61–3.71 across the six study
+  conditions, a range of 0.10, against A's 0.25. Whether that is genuine insensitivity to
+  register, a ceiling effect from `reasoning_effort: none`, or the rubric reading
+  differently to a different family is not established, and it is the obvious next
+  diagnostic: a small pilot at a higher reasoning effort would distinguish the ceiling
+  explanation from the others.
+
 ## 2026-08-05 — Cross-family second judge implemented (not run)
 
 ### Summary

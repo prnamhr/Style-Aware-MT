@@ -144,7 +144,7 @@ The index is built over the **source** side (not the English targets) so that th
   r(y) = ω₁ · COMET(x, y, y*) + ω₂ · BLEU(y, y*) + ω₃ · Φ(y, S_T)
   ```
   with `Φ` an LLM-as-Judge style score using the **training-time** judge template. Weights are dev-tuned over a small grid that intentionally varies ω₃ relative to (ω₁, ω₂).
-- **Bounded:** PPO step cap, batch cap, and judge API spend cap to be declared in `docs/budget.md` (not yet written) before training starts.
+- **Bounded:** PPO step cap, batch cap, and judge API spend cap to be declared in [`docs/budget.md`](docs/budget.md) before training starts — the file now exists and records spend to date, but those three caps are still unfixed.
 - **Fallback:** if PPO does not converge under budget, RLSF is reported using **best-of-N reranking** of PEFT-checkpoint samples, scored with the same reward.
 
 ---
@@ -165,14 +165,28 @@ All four conditions, same held-out test set, same decoding settings (temperature
 ### Judge circularity mitigation
 - Two separate, fixed judge templates: training-time (for RLSF reward) vs. evaluation-time (for final scoring). Templates are frozen before their respective phases and never tuned against the test set.
 - Test partition is unseen during RLSF.
-- Where budget permits, a **cross-family** confirmation pass with a judge from a different commercial LLM family is performed; judge–judge agreement is reported.
+- A **cross-family** confirmation pass with a judge from a different LLM family was run on 2026-08-05 (`gpt-5.6-terra`, same frozen rubric, all seven conditions, val); judge–judge agreement and contrast replication are reported below.
 
-> **Open issue.** The evaluation-time judge is currently `claude-haiku-4-5`
+> **Open issue.** The evaluation-time judge is `claude-haiku-4-5`
 > ([`configs/judge_eval.yaml`](configs/judge_eval.yaml)), which offers no seed control, so
-> Φ is not byte-reproducible; and the cross-family confirmation pass has not been run. Φ is
-> the *primary* stylistic metric, so this is the weakest link in the current results — Φ gaps
-> on the order of 0.05 should not be treated as real until it is addressed. See
-> [`docs/DEVLOG.md`](docs/DEVLOG.md), 2026-07-23.
+> Φ is not byte-reproducible. Φ is the *primary* stylistic metric, so this remains the
+> weakest link in the current results — Φ gaps on the order of 0.05 should not be treated
+> as real. See [`docs/DEVLOG.md`](docs/DEVLOG.md), 2026-07-23.
+>
+> **The cross-family pass has now been run, and it narrows what Φ supports.** A second
+> rater from a different family (`gpt-5.6-terra`,
+> [`configs/judge_eval_gpt.yaml`](configs/judge_eval_gpt.yaml)) scored the same segments
+> against the same frozen `prompts/judge_eval.txt`
+> (`results/judge_gpt_val.json`, agreement report `results/judge_agreement_gpt_val.json`).
+> Agreement is fair at best — quadratic-weighted κ = 0.384 [0.370, 0.398], exact 27.8 %,
+> adjacent 77.2 % — and the second rater sits 0.95 [0.93, 0.97] rubric points higher on the
+> same segments, so **Φ_A and Φ_B are not interchangeable as absolute values and are never
+> averaged.** Of the nine pre-specified contrasts, **four of the five primary contrasts
+> against the zero-shot floor do not replicate under the second rater** (two reverse sign),
+> while all three AFSP-internal contrasts fail to separate under *both* raters. Which
+> conclusions survive the rater swap is set out in
+> [Threats to validity](#threats-to-validity); the full table is in
+> [`docs/DEVLOG.md`](docs/DEVLOG.md), 2026-08-05.
 >
 > Separately, the judge and the commercial reference baseline are the *same model*
 > (`claude-haiku-4-5`), so that baseline's Φ is a self-judged score. It does not affect
@@ -216,6 +230,13 @@ one segment). Full tables in `results/bootstrap_{comet,judge,chrf,bleu}_val.json
 random few-shot → kNN few-shot is significant on all four metrics (Φ +0.087 and
 +0.115; COMET +0.016 and +0.020). PEFT beats AFSP-full on COMET (+0.013,
 95% CI [0.009, 0.018]), chrF (+1.06 [0.36, 1.77]) and BLEU (+2.13 [1.44, 2.84]).
+
+> **The Φ column of the ladder result is rater-dependent.** Under the second, cross-family
+> judge the same rungs do not separate on Φ (+0.027 and −0.014, both intervals spanning
+> zero), and PEFT − zero-shot reverses sign. The COMET, chrF and BLEU separations are
+> unaffected — they involve no judge. Read the ladder as separating on adequacy and overlap,
+> and as separating on Φ *under one rater of two*. See
+> [Threats to validity](#threats-to-validity).
 
 **Not significant.** The comparisons the contribution rests on:
 
@@ -280,7 +301,15 @@ things constrain how this may be read:
   and the evaluation-time judge are the *same model*, `claude-haiku-4-5`
   ([`configs/judge_eval.yaml`](configs/judge_eval.yaml)). The +0.590 Φ margin over PEFT is
   a model scoring its own output against a rubric, and known self-preference bias in
-  LLM-as-Judge is a sufficient alternative explanation.
+  LLM-as-Judge is a sufficient alternative explanation. **The cross-family pass now
+  quantifies it as inflation, not fabrication.** The second rater sits 0.87–1.09 rubric
+  points above `claude-haiku-4-5` on the six study conditions but only 0.641
+  [0.605, 0.678] above it on `commercial_haiku` — i.e. the primary rater is 0.23–0.45
+  points *less severe* on its own family's output than its treatment of everything else
+  predicts. But the second rater, a different family, also places `commercial_haiku` first
+  by a wide margin (Φ_B 3.981 [3.939, 4.022] against `afsp_full` 3.707 [3.661, 3.753]), so
+  the lead is real and its size is overstated. Neither reading makes this Φ admissible as a
+  register finding.
 - **The objective register proxy points the other way.** At `Stylo. dist.` 0.556 the
   commercial baseline is *farther* from the target-register centroid than every few-shot
   rung (0.474–0.370) and far worse than PEFT (0.289) — worse than everything except the
@@ -295,8 +324,24 @@ things constrain how this may be read:
   (`results/metric_agreement_val.json`).
 
 Per-segment scores are in `results/comet_val.json` and `results/judge_val.json`
-(with per-condition segment caches under `results/judge_val_segments/`); selection and
-freeze records are in `results/{afsp,peft}_{sweep,verify}_val.json`.
+(with per-condition segment caches under `results/judge_val_segments/`); the second
+rater's are in `results/judge_gpt_val.json` and `results/judge_gpt_val_segments/`;
+selection and freeze records are in `results/{afsp,peft}_{sweep,verify}_val.json`.
+
+### Threats to validity
+
+| Type | Threat | Status |
+|---|---|---|
+| Construct | Single-judge dependence for the primary metric Φ | **Measured, 2026-08-05.** Cross-family pass run (`gpt-5.6-terra`, same frozen rubric, 9,132 paired segments): κ = 0.384 [0.370, 0.398], severity offset −0.950 [−0.968, −0.932]. Four of five primary Φ contrasts do not replicate; the AFSP-vs-baseline null does. Bounds rater dependence — does not establish that either rater measures register correctly |
+| Internal | Judge non-determinism | **Unresolved for both raters.** `claude-haiku-4-5` exposes no seed; `gpt-5.6-terra` accepts `seed: 42` as best-effort only. Φ differences of order 0.05 are within measurement noise |
+| Construct | Rubric identity across raters asserted, not verified | Rater A's results predate `template_sha256` recording, so `template_verified: false` in the agreement report. Closable only by re-spending on Φ_A |
+| Measurement | 1.4 % of Φ_B ratings missing (129 of 9,261) | Non-random: a rating is missing because the response did not parse. No imputation; every contrast computed on the paired intersection, n stated |
+| Conclusion | Multiplicity across 56 uncorrected tests | Acknowledged; Holm–Bonferroni applied per claim, and correction status stated. The one AFSP separation (BLEU +0.58, p = .010) does not survive it |
+| Conclusion | Sample size below the detection floor for small effects | Quantified: Φ half-width ≈0.058, COMET ≈0.005 at n = 1,323. Effects below it are reported as unresolvable, not absent |
+| Internal | Single training run per LoRA cell | Unmeasured within-cell variance; no seed replication |
+| Internal | Greedy decoding drifted across sessions | 2 and 5 of 1,323 segments in two resumed runs; verify alignment before comparing cross-session artefacts |
+| External | One corpus, one language pair, one base model | Scope stated under [Constraints](#constraints); not widened in prose |
+| External | Register glossary hand-specified for this corpus | Toggleable in the `prompt:` config block, applied uniformly to every few-shot rung; effect measurable |
 
 ---
 
@@ -314,7 +359,7 @@ freeze records are in `results/{afsp,peft}_{sweep,verify}_val.json`.
 ## Constraints
 
 - **Compute:** Colab for every GPU stage (sweeps, training, full-split inference) — the 8 GB development GPU cannot hold `Qwen2.5-7B-Instruct` in bf16, and quantizing it would change the frozen-base definition. LoRA default; QLoRA fallback.
-- **API budget:** judge calls are the only paid component so far; RLSF judge calls will dominate once implemented. The declared cap lives in the proposal (`docs/budget.md` is not yet written); if approached, switch to best-of-N reranking.
+- **API budget:** judge calls and the commercial reference baseline are the only paid components so far — **$6.75 recorded to date**, of which $6.12 is the 2026-08-05 cross-family judge pass (9,261 calls, Batch API at 50 % discount). RLSF judge calls will dominate once implemented. Spend, rules, and the fallback are in [`docs/budget.md`](docs/budget.md); the declared cap itself still has to be transcribed there from the proposal. If approached, switch to best-of-N reranking.
 - **Scope:** the project does not claim to fully capture literary or sacred style. It documents trade-offs across three adaptation families on one specific corpus and language combination not previously addressed in published LLM-MT work.
 
 ---
@@ -426,7 +471,8 @@ python manage.py bootstrap --metric $M --conditions $CONDS --split val --adjacen
 - Full thesis proposal: [`docs/proposal.pdf`](docs/proposal.pdf) — H1–H4 and support criteria
 - Engineering and decision log: [`docs/DEVLOG.md`](docs/DEVLOG.md) — what was built, why, and how to reproduce it
 - AFSP mechanism specification: [`docs/afsp_strategies.md`](docs/afsp_strategies.md)
-- Not yet written: `docs/methodology.md` (long-form methodology) and `docs/budget.md` (declared compute and API caps)
+- Compute and API budget: [`docs/budget.md`](docs/budget.md) — spend to date, per-run rules, fallback. The declared cap is still only in the proposal and has to be transcribed
+- Not yet written: `docs/methodology.md` (long-form methodology)
 
 ---
 
