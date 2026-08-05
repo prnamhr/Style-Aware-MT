@@ -14,6 +14,7 @@ import sys
 COMMANDS = {
     "preprocess": "src.data.preprocess",
     "split": "src.data.split",
+    "rlsf_dev": "src.data.rlsf_dev",
     "build_index": "src.retrieval.build_index",
     "peft": "src.peft.train",
     "peft_sweep": "src.peft.sweep",
