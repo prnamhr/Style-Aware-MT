@@ -1,0 +1,8 @@
+{
+  "calls": 80,
+  "prompt_tokens": 33332,
+  "completion_tokens": 1482,
+  "cost_usd": 0.0059,
+  "per_call_usd": 7.375e-05,
+  "model": "gpt-4o-mini"
+}

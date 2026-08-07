@@ -33,3 +33,5 @@ notebooks/Style-Aware-MT/
 
 models/
 CLAUDE.md
+
+.venv-comet/
