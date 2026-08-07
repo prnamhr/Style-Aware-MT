@@ -36,7 +36,7 @@ def _declared(**overrides):
     return cfg
 
 
-# --- caps ------------------------------------------------------------------------------
+# caps 
 
 
 def test_committed_config_refuses_to_load_while_caps_are_null():
@@ -68,7 +68,7 @@ def test_non_positive_cap_is_rejected(bad):
         assert_caps_declared(_declared(max_steps=bad))
 
 
-# --- authorized envelope ---------------------------------------------------------------
+# authorized envelope 
 
 
 def test_committed_group_size_is_within_the_ceiling():
@@ -98,7 +98,7 @@ def test_priced_worst_case_matches_hand_arithmetic():
     assert cost == pytest.approx(5.1072)
 
 
-# --- reward block ----------------------------------------------------------------------
+# reward block 
 
 
 def test_reward_config_reads_the_weights_and_ignores_sub_blocks():
@@ -123,7 +123,7 @@ def test_grid_cells_inherit_the_base_feasibility_band():
         assert (rc.len_min_ratio, rc.len_max_ratio) == (base.len_min_ratio, base.len_max_ratio)
 
 
-# --- circularity control ---------------------------------------------------------------
+# circularity control 
 
 
 def test_reward_reads_the_training_rubric_not_the_evaluation_one():

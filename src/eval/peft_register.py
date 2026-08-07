@@ -141,7 +141,7 @@ def build(
     rows = {t: loaded[t]["row"] for t in loaded}
     draws = {t: loaded[t]["draws"] for t in loaded}
 
-    # --- epoch axis: paired within each (r, lr), which is the clean factorial contrast
+    # epoch axis: paired within each (r, lr), which is the clean factorial contrast
     epoch_pairs = []
     by_config: dict[tuple[int, float], dict[int, str]] = {}
     for tag, row in rows.items():
@@ -165,7 +165,7 @@ def build(
                 }
             )
 
-    # --- rank axis: paired within each (lr, epoch)
+    # rank axis: paired within each (lr, epoch)
     rank_pairs = []
     by_le: dict[tuple[float, int], dict[int, str]] = {}
     for tag, row in rows.items():
@@ -193,7 +193,7 @@ def build(
     for rec, rej in zip(family, holm_bonferroni([r["p_value"] for r in family], alpha=alpha)):
         rec["holm_significant"] = bool(rej)
 
-    # --- selection validity: eval_loss against register and adequacy across cells.
+    # selection validity: eval_loss against register and adequacy across cells.
     # Confirms DEVLOG 2026-07-25 on this grid rather than discovering it.
     tags = sorted(rows)
     loss = np.asarray([rows[t]["eval_loss"] for t in tags])

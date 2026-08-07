@@ -7,6 +7,7 @@ and the length band's rejection rate. Produces no reportable figure.
 Usage:
     python manage.py rlsf_smoke --segments 20 --group_size 4 --yes
     python manage.py rlsf_smoke --segments 4 --skip_judge      # free: no paid calls
+    python manage.py rlsf_smoke --hyps_file outputs/rlsf/smoke_hyps.jsonl --yes  # no sampling
 """
 
 from __future__ import annotations
@@ -17,7 +18,9 @@ from pathlib import Path
 
 import numpy as np
 
+from src.infer.run import build_zeroshot_user, make_client
 from src.rlsf.config import load_config, make_judge_client, reward_config
+from src.rlsf.kiwi import KiwiScorer
 from src.rlsf.reward import (
     compute_rewards,
     group_normalize,
@@ -130,6 +133,36 @@ def _load_rows(path: Path, n: int) -> list[dict]:
     return rows
 
 
+def _dump_hyps(
+    path: Path, sources: list[str], refs: list[str], hyps: list[str], group_size: int
+) -> None:
+    """One row per segment, carrying its source, reference and completions."""
+    with path.open("w", encoding="utf-8") as fh:
+        for i, (src, ref) in enumerate(zip(sources, refs)):
+            row = {
+                "source": src,
+                "reference": ref,
+                "hyps": hyps[i * group_size : (i + 1) * group_size],
+            }
+            fh.write(json.dumps(row, ensure_ascii=False) + "\n")
+
+
+def _load_hyps(path: Path, n: int, group_size: int) -> tuple[list[str], list[str], list[str]]:
+    """Sources, references and flattened completions from a dump written by an earlier run."""
+    rows = _load_rows(path, n)
+    sizes = {len(r["hyps"]) for r in rows}
+    if sizes != {group_size}:
+        raise ValueError(
+            f"{path} carries {sorted(sizes)} completions per segment, not {group_size}; "
+            f"pass --group_size to match the dump"
+        )
+    return (
+        [r["source"] for r in rows],
+        [r["reference"] for r in rows],
+        [h for r in rows for h in r["hyps"]],
+    )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Smoke-test the RLSF reward path.")
     parser.add_argument("--config", default="configs/rlsf.yaml")
@@ -139,6 +172,11 @@ def main() -> None:
     parser.add_argument("--skip_judge", action="store_true", help="no paid calls; judge held flat")
     parser.add_argument("--yes", action="store_true", help="confirm the spend and proceed")
     parser.add_argument("--out", default="outputs/rlsf/smoke_steps.jsonl")
+    parser.add_argument(
+        "--hyps_file",
+        default=None,
+        help="score completions from an earlier dump instead of sampling; no generator is loaded",
+    )
     args = parser.parse_args()
 
     # Caps gate PPO training; this pilot is what measures the rate needed to declare them,
@@ -161,25 +199,36 @@ def main() -> None:
         if not args.yes:
             raise SystemExit("refusing to spend without --yes (budget rule 1)")
 
-    rows = _load_rows(Path(cfg["data"]["dev_file"]), args.segments)
-    sources = [r["input"] for r in rows]
-    refs = [r["output"] for r in rows]
+    out_path = Path(args.out)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
 
-    from src.infer.run import build_zeroshot_user, make_client
+    if args.hyps_file:
+        sources, refs, hyps = _load_hyps(Path(args.hyps_file), args.segments, group_size)
+        print(f"loaded {len(hyps)} completions from {args.hyps_file}, no generator started")
+    else:
+        rows = _load_rows(Path(cfg["data"]["dev_file"]), args.segments)
+        sources = [r["input"] for r in rows]
+        refs = [r["output"] for r in rows]
 
-    rollout = cfg["rlsf"]["rollout"]
-    style = Path(cfg["prompt"]["style_instruction_file"]).read_text(encoding="utf-8")
-    policy = make_client(cfg["generator"])
-    print(f"sampling {group_size} completions per segment at T={rollout['temperature']} ...")
-    hyps: list[str] = []
-    for src in sources:
-        hyps += policy.complete_many(
-            style,
-            build_zeroshot_user(src),
-            n=group_size,
-            temperature=rollout["temperature"],
-            top_p=rollout["top_p"],
-        )
+        rollout = cfg["rlsf"]["rollout"]
+        style = Path(cfg["prompt"]["style_instruction_file"]).read_text(encoding="utf-8")
+        policy = make_client(cfg["generator"])
+        print(f"sampling {group_size} completions per segment at T={rollout['temperature']} ...")
+        hyps = []
+        for src in sources:
+            hyps += policy.complete_many(
+                style,
+                build_zeroshot_user(src),
+                n=group_size,
+                temperature=rollout["temperature"],
+                top_p=rollout["top_p"],
+            )
+
+        # Sampling is the expensive half and runs elsewhere (Colab); dump it so the reward
+        # path can be re-run locally with --hyps_file as many times as it takes.
+        dump_path = out_path.parent / "smoke_hyps.jsonl"
+        _dump_hyps(dump_path, sources, refs, hyps, group_size)
+        print(f"wrote {dump_path}")
 
     # Every sample in a group shares its group's source and reference.
     src_rep = [s for s in sources for _ in range(group_size)]
@@ -187,8 +236,6 @@ def main() -> None:
 
     rc = reward_config(cfg)
     raw = {"bleu": overlap_scores(hyps, ref_rep, rc.overlap_metric)}
-
-    from src.rlsf.kiwi import KiwiScorer
 
     kiwi_cfg = cfg["rlsf"]["reward"]["kiwi"]
     kiwi_ready = False
@@ -217,8 +264,6 @@ def main() -> None:
         step=0,
     )
 
-    out_path = Path(args.out)
-    out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(log.as_dict()) + "\n", encoding="utf-8")
     written = json.loads(out_path.read_text(encoding="utf-8").splitlines()[0])
 

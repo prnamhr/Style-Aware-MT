@@ -115,7 +115,7 @@ def test_shape_mismatch_is_rejected() -> None:
         raise AssertionError("expected mismatched shapes to raise")
 
 
-# ---------------------------------------------------------------- multiplicity
+# multiplicity
 
 
 def test_holm_rejects_nothing_when_all_p_are_large() -> None:

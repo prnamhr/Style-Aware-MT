@@ -26,10 +26,10 @@ REF = (
 )
 
 # Hand count (rose-garden splits on the hyphen into two tokens -> 42 tokens):
-#   FUNCTION (24): verily the within the of my and the in the of my such and as
-#                  are to all but the of the of and
-#   CONTENT  (18): birds abiding domains Kingdom doves dwelling rose garden wisdom
-#                  utter melodies warblings inscrutable God Lord kingdoms earth heaven
+#  FUNCTION (24): verily the within the of my and the in the of my such and as
+#                 are to all but the of the of and
+#  CONTENT  (18): birds abiding domains Kingdom doves dwelling rose garden wisdom
+#                 utter melodies warblings inscrutable God Lord kingdoms earth heaven
 EXPECTED_TOKENS = 42
 EXPECTED_CONTENT = 18
 EXPECTED_TYPES = 31  # the x6, of x4, and x3, my x2 -> 11 duplicates removed

@@ -1,4 +1,4 @@
-# --- Evaluation-time LLM-as-Judge (register fidelity Φ) ---
+# Evaluation-time LLM-as-Judge (register fidelity Φ) 
 
 judge:
   provider: anthropic

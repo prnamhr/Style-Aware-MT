@@ -1,31 +1,26 @@
 # SMOKE TEST ONLY -- NOT A THESIS CONDITION, NOT A SOURCE OF FINDINGS.
 
-# --- Generation (Anthropic messages API) ---
 generator:
   provider: anthropic
   model: claude-opus-4-8  
   max_tokens: 1024
   thinking: false       
 
-# --- Prompting ---
 prompt:
   style_instruction_file: prompts/style_instruction.txt
   ordering: most_similar_last  
   ordering_seed: 42             # only used when ordering: random
 
-# --- Retrieval (knn_fewshot baseline) ---
 retrieval:
   embed_model: intfloat/multilingual-e5-large-instruct
   index_dir: data/knn_index
   train_file: data/splits/train.jsonl
   k: 4
 
-# --- Data ---
 # Tuning and smoke runs use the DEV split. test.jsonl is sealed for final eval.
 data:
   eval_file: data/splits/val.jsonl
   limit: 25
 
-# --- Output ---
 output:
   dir: outputs

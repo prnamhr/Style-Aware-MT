@@ -19,6 +19,8 @@ from src.rlsf.reward import (
     overlap_scores,
     z_deviations,
 )
+from src.eval.judge import build_prompt
+from src.eval.judge import template_digest
 
 CENTROID = {
     "features": ["lex_density", "ttr", "root_ttr", "marker_rate"],
@@ -228,7 +230,7 @@ def test_config_rejects_bad_settings():
         RewardConfig(len_min_ratio=2.0, len_max_ratio=1.0)
 
 
-# --- logging --------------------------------------------------------------------------
+# logging 
 
 
 def test_z_deviations_reports_all_four_features():
@@ -258,7 +260,7 @@ def test_step_log_records_components_length_and_z():
     assert set(d["z"]) == set(CENTROID["features"])
 
 
-# --- overlap and template -------------------------------------------------------------
+# overlap and template 
 
 
 def test_overlap_scores_smoothed_bleu_is_positive_without_4gram_match():
@@ -293,7 +295,6 @@ def test_frozen_train_template_matches_its_freeze_record():
 
 
 def test_frozen_train_template_fills_and_is_brace_safe():
-    from src.eval.judge import build_prompt
 
     filled = build_prompt(load_train_template(), "src {x}", "ref", "cand")
     assert "src {x}" in filled and "cand" in filled
@@ -316,7 +317,6 @@ def _freeze(tmp_path, text, digest):
 
 
 def test_load_train_template_refuses_a_drifted_rubric(tmp_path):
-    from src.eval.judge import template_digest
 
     path, hashes = _freeze(tmp_path, "rubric v1", template_digest("rubric v1"))
     assert load_train_template(path, hashes) == "rubric v1"

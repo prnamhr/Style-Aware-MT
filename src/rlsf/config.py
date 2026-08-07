@@ -5,6 +5,7 @@ from pathlib import Path
 
 import yaml
 
+from src.infer.run import make_client
 from src.rlsf.reward import RewardConfig
 
 _CONFIG = Path("configs/rlsf.yaml")
@@ -65,7 +66,6 @@ def make_judge_client(cfg: dict):
             f"Training against a rater spends it on the one condition that most needs a "
             f"rater it was not trained against; pick a model distinct from both."
         )
-    from src.infer.run import make_client  # lazy: importing run pulls torch
 
     return make_client(judge)
 

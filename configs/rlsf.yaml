@@ -1,4 +1,4 @@
-# --- RLSF (PPO/GRPO-style group-relative updates) ---
+# RLSF (PPO/GRPO-style group-relative updates) 
 
 generator:
   provider: local
@@ -44,7 +44,7 @@ rlsf:
     w_bleu: 1.0                           # omega_2, overlap
     w_judge: 1.0                          # omega_3, register: prompts/judge_train.txt
     len_min_ratio: 0.5                    # feasible generated length, as a ratio of the
-    len_max_ratio: 2.0                    #   reference word count
+    len_max_ratio: 2.0                    #  reference word count
     on_violation: floor                   # floor | drop
     overlap_metric: bleu                  # bleu | chrf
 
@@ -72,7 +72,7 @@ rlsf:
 
   pilot:
     judge_calls: 80                       # 20 segments x G=4, the smoke's brief. Diagnostic:
-                                          #   is the rubric discriminative within one group?
+                                          #  is the rubric discriminative within one group?
 
 
 judge:

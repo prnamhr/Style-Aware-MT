@@ -7,25 +7,25 @@ generator:
   max_tokens: 4096      
   reasoning_effort: low   
 
-# --- Prompting ---
+# Prompting 
 prompt:
   style_instruction_file: prompts/style_instruction.txt
   ordering: most_similar_last  
   ordering_seed: 42        
 
-# --- Retrieval (knn_fewshot baseline) ---
+# Retrieval (knn_fewshot baseline) 
 retrieval:
   embed_model: intfloat/multilingual-e5-large-instruct
   index_dir: data/knn_index          
   train_file: data/splits/train.jsonl 
   k: 4                               
 
-# --- Data ---
+# Data 
 # Tuning and smoke runs use the DEV split. test.jsonl is sealed for final eval.
 data:
   eval_file: data/splits/val.jsonl
   limit: 25                # smoke slice; null = full dev set
 
-# --- Output ---
+# Output 
 output:
   dir: outputs

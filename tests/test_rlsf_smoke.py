@@ -5,7 +5,15 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from src.rlsf.smoke import group_variance_report, plan, reward_degeneracy, verdicts
+from src.rlsf.reward import RewardConfig, compute_rewards
+from src.rlsf.smoke import (
+    _dump_hyps,
+    _load_hyps,
+    group_variance_report,
+    plan,
+    reward_degeneracy,
+    verdicts,
+)
 
 CENTROID = {
     "features": ["lex_density", "ttr", "root_ttr", "marker_rate"],
@@ -18,7 +26,6 @@ def _log(n_samples=16, n_feasible=16, ratio=1.0):
     return {"n_samples": n_samples, "n_feasible": n_feasible, "length_ratio_mean": ratio}
 
 
-# --- plan ------------------------------------------------------------------------------
 
 
 def test_plan_counts_one_judge_call_per_sample():
@@ -29,7 +36,22 @@ def test_plan_price_is_positive_and_scales():
     assert plan(40, 4)["est_usd"] == pytest.approx(2 * plan(20, 4)["est_usd"], rel=1e-3)
 
 
-# --- variance --------------------------------------------------------------------------
+def test_hyps_dump_round_trips_in_sampling_order(tmp_path):
+    # Scoring reads back the group a sample belongs to; a reordered flatten would pair
+    # completions with the wrong source.
+    sources, refs = ["s0", "s1"], ["r0", "r1"]
+    hyps = ["h00", "h01", "h10", "h11"]
+    path = tmp_path / "smoke_hyps.jsonl"
+    _dump_hyps(path, sources, refs, hyps, 2)
+    assert _load_hyps(path, 2, 2) == (sources, refs, hyps)
+
+
+def test_loading_a_dump_under_the_wrong_group_size_is_refused(tmp_path):
+    path = tmp_path / "smoke_hyps.jsonl"
+    _dump_hyps(path, ["s0", "s1"], ["r0", "r1"], ["h00", "h01", "h10", "h11"], 2)
+    with pytest.raises(ValueError, match="completions per segment"):
+        _load_hyps(path, 2, 4)
+
 
 
 def test_identical_scores_in_a_group_are_flagged_degenerate():
@@ -80,7 +102,6 @@ def test_a_floored_sample_does_not_manufacture_spread():
 def test_the_false_pass_is_prevented_through_compute_rewards():
     # The same case built by the real reward path rather than by hand: three feasible
     # samples with identical component scores, one rejected by the length band.
-    from src.rlsf.reward import RewardConfig, compute_rewards
 
     ref = " ".join(["word"] * 10)
     hyps = [ref, ref, ref, "short"]

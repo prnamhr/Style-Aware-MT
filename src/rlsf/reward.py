@@ -49,7 +49,7 @@ class RewardConfig:
         return {"bleu": self.w_bleu, "kiwi": self.w_kiwi, "judge": self.w_judge}
 
 
-# --- components ----------------------------------------------------------------------
+# components 
 
 
 def overlap_scores(hyps: list[str], refs: list[str], metric: str = "bleu") -> list[float]:

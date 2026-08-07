@@ -36,7 +36,7 @@ def _returned(indices, text="Score: 4"):
     return {_CUSTOM_ID.format(i=i): {"text": text, "error": None} for i in indices}
 
 
-# --- resume accounting ---
+# resume accounting 
 
 
 def test_resume_point_counts_the_scored_prefix() -> None:
@@ -69,7 +69,7 @@ def test_state_path_is_tag_scoped() -> None:
     assert state_path(Path("results"), "val", None) != state_path(Path("results"), "val", "gpt")
 
 
-# --- writing returned scores back into the shared cache format ---
+# writing returned scores back into the shared cache format 
 
 
 def test_append_writes_every_segment_when_the_batch_completed() -> None:
@@ -131,7 +131,7 @@ def test_unparseable_and_errored_responses_become_nulls_not_lost_segments() -> N
         assert rows[1]["error"] == "status 429"
 
 
-# --- request construction ---
+# request construction 
 
 
 def test_request_omits_temperature_and_seed_when_unset() -> None:
@@ -175,7 +175,7 @@ def test_submit_refuses_an_empty_or_duplicated_batch() -> None:
             c.submit(dupe, Path(tmp), "label")
 
 
-# --- the money-critical path: never submit twice for the same segments ---
+# the money-critical path: never submit twice for the same segments 
 
 
 class _FakeBatch:

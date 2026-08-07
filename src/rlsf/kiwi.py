@@ -171,7 +171,7 @@ class KiwiScorer:
             )
         return [float(x) for x in scores]
 
-    # -- plumbing ----------------------------------------------------------------
+    # -- plumbing 
 
     def _read_line(self, timeout: float | None) -> dict:
         proc = self._proc

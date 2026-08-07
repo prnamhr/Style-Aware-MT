@@ -1,11 +1,11 @@
 # COMMERCIAL-MODEL REFERENCE BASELINE.
 #
-#   model                n=0     n=5    n=10    n=20    n=30      row
-#   gpt-4o-mini         0.08    0.16    0.23    0.37    0.52     1.36
-#   claude-haiku-4-5    0.58    1.09    1.58    2.54    3.51     9.30
-#   claude-sonnet-4-6   1.74    3.28    4.73    7.62   10.52    27.89
-#   ------------------------------------------------------------------
-#   TOTAL (15 cells, 19,845 calls)                            ~38.54
+#  model                n=0     n=5    n=10    n=20    n=30      row
+#  gpt-4o-mini         0.08    0.16    0.23    0.37    0.52     1.36
+#  claude-haiku-4-5    0.58    1.09    1.58    2.54    3.51     9.30
+#  claude-sonnet-4-6   1.74    3.28    4.73    7.62   10.52    27.89
+#  ------------------------------------------------------------------
+#  TOTAL (15 cells, 19,845 calls)                            ~38.54
 
 sweep:
   models: [gpt-4o-mini, claude-haiku-4-5, claude-sonnet-4-6]
