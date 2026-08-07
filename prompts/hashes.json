@@ -1,0 +1,22 @@
+{
+  "purpose": "Freeze record for the two judge rubrics. `digest` is the first 16 hex characters of `sha256`, which is the value src/eval/judge.py:template_digest computes and records as `template_sha256` in each judge artefact -- so a run's recorded digest can be checked against this file rather than asserted from a config.",
+  "reproduce": "sha256sum prompts/judge_eval.txt prompts/judge_train.txt",
+  "templates": {
+    "judge_eval.txt": {
+      "role": "evaluation-time rubric; scores the reported Phi",
+      "frozen_on": "2026-07-05",
+      "recorded_on": "2026-08-07",
+      "sha256": "ffd6dad41acb05125d8d61828348fff59c3808c82de12b95305f29190b354f00",
+      "digest": "ffd6dad41acb0512",
+      "note": "Unchanged since the 2026-08-05 cross-family pass, whose rater-B artefacts record digest ffd6dad41acb0512. Rater A's artefacts predate digest recording, so `template_verified` stays false in results/judge_agreement_gpt_val.json; this record does not close that gap retrospectively."
+    },
+    "judge_train.txt": {
+      "role": "training-time rubric; the Phi term of the RLSF reward",
+      "frozen_on": "2026-08-07",
+      "recorded_on": "2026-08-07",
+      "sha256": "8eaa11ff341c86ca7916bc674ee303af37f10accb3661c00a5a60b23af6a8907",
+      "digest": "8eaa11ff341c86ca",
+      "note": "Frozen before any RLSF run, so every reward call this template serves is digest-checkable. Verified on load by src/rlsf/reward.py:load_train_template."
+    }
+  }
+}

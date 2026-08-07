@@ -11,6 +11,7 @@ from src.eval.stylometrics import CENTROID_FEATURES, features, signed_z
 
 _CENTROID_PATH = Path("results/stylometrics_centroid.json")
 _TRAIN_TEMPLATE = Path("prompts/judge_train.txt")
+_TEMPLATE_HASHES = Path("prompts/hashes.json")
 
 
 _FLOOR_MARGIN = 1.0
@@ -92,7 +93,36 @@ def judge_scores(
     return out
 
 
-def load_train_template(path: str | Path = _TRAIN_TEMPLATE) -> str:
+def frozen_digest(
+    path: str | Path, hashes_path: str | Path = _TEMPLATE_HASHES
+) -> str:
+    """The digest recorded for a rubric when it was frozen.
+
+    Unrecorded raises rather than being read on trust: that is the `template_verified:
+    false` gap of 2026-08-05, where rubric identity could only be asserted after the fact.
+    """
+    hashes_path = Path(hashes_path)
+    if not hashes_path.exists():
+        raise FileNotFoundError(
+            f"{hashes_path} does not exist, so no run can prove which rubric it read. "
+            f"Record each judge template's sha256 there before it is used."
+        )
+    record = json.loads(hashes_path.read_text(encoding="utf-8"))["templates"]
+    name = Path(path).name
+    if name not in record:
+        raise KeyError(
+            f"{name} has no freeze record in {hashes_path}. Freeze the template by "
+            f"recording its sha256 there first; a digest recorded after the run is an "
+            f"assertion about the rubric, not a verification of it."
+        )
+    return record[name]["digest"]
+
+
+def load_train_template(
+    path: str | Path = _TRAIN_TEMPLATE, hashes_path: str | Path = _TEMPLATE_HASHES
+) -> str:
+    """Read the frozen training-time rubric, verified against its freeze record."""
+    from src.eval.judge import template_digest
 
     path = Path(path)
     if not path.exists():
@@ -101,7 +131,17 @@ def load_train_template(path: str | Path = _TRAIN_TEMPLATE) -> str:
             f"template from prompts/judge_eval.txt and must be written before RLSF runs; "
             f"reusing the evaluation rubric as the reward would make the Phi result circular."
         )
-    return path.read_text(encoding="utf-8")
+    text = path.read_text(encoding="utf-8")
+    expected = frozen_digest(path, hashes_path)
+    actual = template_digest(text)
+    if actual != expected:
+        raise ValueError(
+            f"{path} has drifted from its freeze record: {hashes_path} holds {expected}, the "
+            f"file on disk hashes to {actual}. Rewards computed under an edited rubric are not "
+            f"comparable with those already collected. Restore the frozen text, or freeze the "
+            f"new rubric deliberately and re-record its digest."
+        )
+    return text
 
 
 

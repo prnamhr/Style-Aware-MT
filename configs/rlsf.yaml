@@ -1,0 +1,100 @@
+# --- RLSF (PPO/GRPO-style group-relative updates) ---
+
+generator:
+  provider: local
+  model: Qwen/Qwen2.5-7B-Instruct         # locked base, unquantized, as in every condition
+  adapter_path: models/peft_lora_r32_lr2e-4/checkpoint-1358   # RLSF init = frozen PEFT cell
+  max_tokens: 1024
+  dtype: bfloat16
+  device_map: auto
+  load_in_4bit: false                     # quantizing would redefine the frozen control
+
+# Byte-identical to the PEFT condition's prompt assembly. RLSF adapts the policy, not
+# the prompt; changing anything here confounds the arm with a prompting change.
+prompt:
+  style_instruction_file: prompts/style_instruction.txt
+
+rlsf:
+  seed: 42
+
+  # Not the locked greedy decoding: at temperature 0 a group has no variance and
+  # group_normalize returns all zeros (reward.py:115). Greedy still governs inference.
+  rollout:
+    temperature: 1.0
+    top_p: 0.95
+    prompts_per_step: 16
+    group_size: 4                         # samples per prompt; 16 x 4 = 64 judge calls/step
+    max_new_tokens: 512
+
+
+  reference:
+    adapter_path: models/peft_lora_r32_lr2e-4/checkpoint-1358   # frozen copy of the init
+    kl_coef: 0.05
+
+
+  train:
+    learning_rate: 0.000001
+    ppo_epochs: 4
+    clip_range: 0.2
+    gradient_accumulation_steps: 1
+    logging_steps: 1                      # one StepLog JSON line per step (reward.py:154)
+
+
+  # omega_1..3 in the README. Components are z-normalized within each group before
+  # weighting, so weights are relative and need not sum to 1. Fields match RewardConfig.
+  reward:
+    w_kiwi: 1.0                           # omega_1, adequacy: COMET-Kiwi, reference-free
+    w_bleu: 1.0                           # omega_2, overlap
+    w_judge: 1.0                          # omega_3, register: prompts/judge_train.txt
+    len_min_ratio: 0.5                    # feasible generated length, as a ratio of the
+    len_max_ratio: 2.0                    #   reference word count
+    on_violation: floor                   # floor | drop
+    overlap_metric: bleu                  # bleu | chrf
+
+    kiwi:
+      model: Unbabel/wmt22-cometkiwi-da
+      batch_size: 16
+      # COMET runs in .venv-comet; the worker is long-lived across steps (kiwi.py:37).
+      python: .venv-comet/bin/python
+
+  weight_grid:
+    steps_per_cell: 50
+    cells:
+      - {name: w3_0.0, w_kiwi: 1.0, w_bleu: 1.0, w_judge: 0.0}   # ablation: no style term
+      - {name: w3_0.5, w_kiwi: 1.0, w_bleu: 1.0, w_judge: 0.5}
+      - {name: w3_1.0, w_kiwi: 1.0, w_bleu: 1.0, w_judge: 1.0}
+      - {name: w3_2.0, w_kiwi: 1.0, w_bleu: 1.0, w_judge: 2.0}
+
+
+  caps:
+    max_steps: null                       # PPO step cap, final run
+    max_grid_steps: null                  # PPO step cap, summed over all grid cells
+    max_judge_calls: null                 # hard stop on the paid component
+    max_judge_spend_usd: null             # hard stop, priced from provider-reported usage
+    group_size_ceiling: 8                 # authorized ceiling; rollout.group_size may not exceed
+
+  pilot:
+    judge_calls: 50                       # diagnostic: is the rubric discriminative within a
+                                          #   single policy's group? Writes no reported figure.
+
+
+judge:
+  provider: openai
+  model: gpt-4o-mini                      # priced in src/infer/openai_client.py:17
+  temperature: 0.0
+  seed: 42
+  max_tokens: 128
+
+template_file: prompts/judge_train.txt    # frozen; digest verified on load
+
+
+data:
+  train_file: data/splits/rlsf_train.jsonl   # PPO updates
+  dev_file: data/splits/rlsf_dev.jsonl       # weight-grid selection; never reported
+  centroid_file: results/stylometrics_centroid.json   # z-deviation logging only
+  limit: null
+
+
+output:
+  dir: outputs
+  step_log: outputs/rlsf/steps.jsonl      # one StepLog line per step

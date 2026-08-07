@@ -86,6 +86,333 @@ their history.
 
 ---
 
+## 2026-08-07 — RLSF dev slice carved from train.jsonl
+
+### Summary
+
+`manage.py rlsf_dev --target 500 --seed 42` was run. It carved 499 segments across four
+works out of `train.jsonl` as the RLSF weight-selection slice, leaving 10,361 for PPO
+updates. This is a data operation only: no model was loaded, no judge call made, no
+reward computed. The reported splits are untouched and no figure changes.
+
+### What changed
+
+Three new files under `data/splits/`:
+
+| File | Segments | sha256 |
+|---|---:|---|
+| `rlsf_dev.jsonl` | 499 | `45b45e40b03ea3c3…` |
+| `rlsf_train.jsonl` | 10,361 | `3c2dbc43d11311c1…` |
+| `rlsf_dev_manifest.json` | — | selection record |
+
+The dev works are `Lawh-i-Burhan` (117), `Lawh-i-Dunya` (183),
+`Lawh-i-Siyyid-i-Mihdiy-i-Dahaji` (77) and `Suriy-i-Vafa` (122). Selection is whole-work
+and deterministic: the subset minimising `|total − target|`, ties toward fewer works then
+lexicographic. At target 500 the best achievable is 499. The 193 unlabelled segments are
+forced to the remainder rather than being eligible for the slice.
+
+`configs/rlsf.yaml` and the README command block were amended, both of which said these
+files did not exist.
+
+### Rationale
+
+Reward weights are a selection decision, so they need a partition that is neither the one
+used for updates nor the one used for reporting. Validation is the reported split for
+every other condition and using it here would make the RLSF row's figures selection-
+contaminated relative to the rest of the table. Carving from train instead keeps
+validation clean.
+
+The slice is whole-work for the same reason the top-level split is: partitioning by row
+would leak an author's stylistic habits across the boundary, and register is the thing
+being optimized.
+
+### Verification
+
+```bash
+.venv/bin/python manage.py rlsf_dev --target 500 --seed 42 --dry_run   # plan
+.venv/bin/python manage.py rlsf_dev --target 500 --seed 42
+```
+
+Checked after the write:
+
+* `train.jsonl`, `val.jsonl` and `test.jsonl` still hash to the digests in
+  `data/splits/hashes.json`. The frozen split was read, not modified.
+* `rlsf_dev + rlsf_train` equals `train.jsonl` exactly as a multiset over
+  `(input, output)`, and record order is preserved within each part.
+* Input overlap between the two parts is 0, and no dev work appears in the remainder.
+* All three digests in `rlsf_dev_manifest.json` match the files on disk.
+
+### Limitations and risks
+
+* The slice is not unseen by the model. `models/peft_lora_r32_lr2e-4/checkpoint-1358`,
+  which RLSF initializes from, was trained on all of `train.jsonl` including these four
+  works. Dev-slice figures select reward weights; they do not measure generalization and
+  are never reported as a result.
+* `results/stylometrics_centroid.json` was built over all 10,860 train targets, these
+  works included, so the `z` field in the step log is measured against a centroid the
+  slice contributed to. It is a training diagnostic, not evidence.
+* 499 segments is small for ranking four grid cells. What separation it can resolve is
+  unquantified, and no interval has been computed on it. If the cells land close, the
+  slice cannot break the tie and saying so is the correct outcome rather than picking the
+  leader.
+* Removing these four works changes what PPO trains on relative to what PEFT trained on.
+  The two arms are no longer matched on training data, which is a difference between
+  conditions that the RQ1 comparison has to carry.
+
+---
+
+## 2026-08-07 — RLSF condition config written; reward judge selected; caps deliberately null
+
+### Summary
+
+`configs/rlsf.yaml` (new) specifies the RLSF arm: policy init, rollout sampling, reward
+weights and the RQ3 weight grid, spend caps, and the training-time judge block.
+`src/rlsf/config.py` (new) loads and validates it. **The config is not runnable as
+committed**: every spend cap is `null` and the loader raises until they are set, because
+budget rule 1 forbids starting a paid run before its volume is recorded and the declared
+cap is still untranscribed from `docs/proposal.pdf`. **Implemented and statically
+verified only: no PPO step, no judge call, no artefact written.** No reported figure
+changes. RLSF remains an empty row in the results table.
+
+### What changed
+
+* `configs/rlsf.yaml` (new) — the condition config. Policy initializes from the frozen
+  PEFT cell `models/peft_lora_r32_lr2e-4/checkpoint-1358`, which is also the KL reference.
+* `src/rlsf/config.py` (new) — `load_config` (validating; `require_caps=False` inspects
+  without spending), `assert_caps_declared`, `assert_group_size_within_ceiling`,
+  `reward_config`, `grid_reward_configs`, `worst_case_judge_calls`, `priced_worst_case`.
+* `docs/budget.md` — the RLSF arm's authorized envelope, the section's own outstanding
+  requirement since 2026-08-05.
+* `tests/test_rlsf_config.py` (new) — 18 cases (157 in the suite).
+
+Reward-block field names match `src.rlsf.reward.RewardConfig` exactly, so
+`reward_config` is a filtered splat rather than a translation layer; the `kiwi:`
+sub-block is ignored by that filter and read by the scorer.
+
+### Rationale
+
+**The reward judge is `gpt-4o-mini`, model-distinct from both evaluation raters.** Φ_A is
+`claude-haiku-4-5` and Φ_B is `gpt-5.6-terra`. Training against either spends that rater
+on the single condition that most needs two independent ones — RLSF is the only arm
+optimized against a judge, so it is the arm whose Φ most needs a rater it was not trained
+against. A third model keeps both. It is also the only candidate honouring `temperature:
+0` *and* `seed: 42`: Haiku exposes no seed and Terra treats it as best-effort. That
+matters more at training time than at evaluation time, because under group normalization
+a rater that randomly flips a 3 to a 4 inverts a sample's advantage sign — rater noise
+becomes gradient noise, not just measurement noise.
+
+A local Qwen judge was excluded outright rather than on cost: the policy is
+`Qwen2.5-7B-Instruct`, so a Qwen judge is self-preference bias by construction — the same
+objection that makes `commercial_haiku`'s Φ inadmissible as anything but a labelled
+external reference.
+
+**The caps are null on purpose.** RLSF spends one judge call per sampled completion, so
+an uncapped run has no upper bound and a step-count typo is a spend event. Writing a
+plausible number here would have substituted an estimate for a pre-registered commitment;
+the cap in `docs/proposal.pdf` is the commitment, and it still cannot be read in this
+environment. So the keys exist, hold `null`, and the loader raises with the rule-1
+reasoning in the message. The envelope is nonetheless priced in `docs/budget.md`, because
+recording the arithmetic and authorising the spend are separate acts and only the first
+can happen today.
+
+**The ceiling is priced at group size 8 while the config operates at 4.** Judge calls
+scale one-for-one with group size, so raising it after authorisation would be a widening
+under budget rule 3. Pricing the envelope at 8 makes that headroom part of the original
+authorisation instead. `assert_group_size_within_ceiling` enforces the boundary.
+
+**Rollout sampling is deliberately not the locked greedy decoding.** `temperature: 1.0`,
+`top_p: 0.95`. At temperature 0 every sample in a group is identical, the group's reward
+sd is 0, and `group_normalize` (`reward.py:115`) returns all zeros — the reward would be
+identically flat and no update informative. The locked greedy setting still governs the
+reported inference pass that scores this arm; the matched-decoding requirement is a
+property of evaluation, not of rollout.
+
+**The weight grid varies ω₃ against a fixed adequacy pair**, per the README's RLSF
+section, with a `w_judge: 0.0` ablation cell so the style term's contribution is
+identifiable rather than inferred. Grid cells are short proxy runs on the dev slice under
+the §7 selection protocol — sweep, verify, freeze — and a cell is never itself a reported
+result.
+
+### Verification
+
+No PPO step, no judge call, no network, no GPU.
+
+```bash
+.venv/bin/python -m ruff check src tests manage.py    # All checks passed
+.venv/bin/python -m pytest tests/ -q                  # 157 passed
+```
+
+The new cases assert the properties that would otherwise be prose: the committed config
+refuses to load; every undeclared cap is named, not just the first; a non-positive cap is
+rejected; a group size above the ceiling raises citing rule 3; worst-case volume defaults
+to the ceiling rather than the operative group size (44,800 against 22,400); the grid
+varies only ω₃ and inherits the base feasibility band; `template_file` is the training
+rubric and not the evaluation one; and the reward judge's model appears in neither
+`configs/judge_eval.yaml` nor `configs/judge_eval_gpt.yaml`.
+
+### Reproduction
+
+```bash
+.venv/bin/python -m pytest tests/test_rlsf_config.py -q
+python -c "from src.rlsf.config import load_config; load_config()"   # must raise
+```
+
+### Limitations and risks
+
+* **Nothing here has been run, and no trainer exists.** `src/rlsf/` holds the reward, the
+  COMET-Kiwi worker, and now the config loader. There is no PPO loop, no `rlsf` entry in
+  `manage.py`, and no `infer` support for the condition. This config specifies an arm that
+  cannot yet execute.
+* **The data files do not exist.** `data/splits/rlsf_train.jsonl` and `rlsf_dev.jsonl` are
+  produced by `manage.py rlsf_dev`, which has not been run. Its manifest records that the
+  dev slice is held out from PPO updates *only* — the PEFT checkpoint RLSF initializes
+  from was trained on all of `train.jsonl`, this slice included, so the slice is not
+  unseen by the model and dev-slice figures select weights rather than measure them.
+* **The cost figures are estimates over assumed token counts.** The $5.11–$6.45 ceiling
+  spans 600–800 prompt tokens; at the 400-token assumption it is ~$2.96. The 50-call pilot
+  measures the real rate. Either way the arm is under a dollar of spend to date, so
+  dollars are not the binding constraint — GPU hours and in-loop judge latency are.
+* **Family adjacency, logged.** `gpt-4o-mini` shares a provider family with Φ_B
+  (`gpt-5.6-terra`). This is weaker than model-identical contamination but not nothing:
+  Φ_B is family-adjacent rather than fully clean for the RLSF row specifically. Added to
+  the threats register.
+* **Group size 4 is statistically thin.** `group_normalize` returns all zeros when fewer
+  than 2 samples in a group are length-feasible (`reward.py:110`), so at G = 4 a group
+  with three length-band violations contributes no gradient signal at all. How often that
+  happens is unmeasured; the step log's `n_feasible` field is what will show it, and the
+  ceiling permits raising to 8 without re-authorisation if it does.
+* **`learning_rate: 1e-6`, `kl_coef: 0.05`, `clip_range: 0.2`, `ppo_epochs: 4` are
+  conventional defaults, not tuned values.** They have no support from this project's
+  data and should not be described as selected.
+
+---
+
+## 2026-08-07 — Training-time judge rubric written and frozen with a recorded digest
+
+### Summary
+
+`prompts/judge_train.txt` — the Φ term of the RLSF reward, referenced by
+`src/rlsf/reward.py:13` since the first RLSF stage but never written — now exists, is
+frozen, and its sha256 is recorded in a new freeze manifest `prompts/hashes.json`
+**before** any reward call reads it. `src/rlsf/reward.py:load_train_template` verifies
+the file against that record on every load and refuses a mismatch. **Implemented and
+statically verified only: no judge call has been made, no RLSF training has run, and
+nothing under `results/` or `outputs/` was written.** No reported figure changes, and
+the rubric's behaviour as a reward signal is entirely unmeasured.
+
+### What changed
+
+* `prompts/judge_train.txt` (new) — the training-time rubric. Same construct as the
+  evaluation rubric (register fidelity, 1–5, scored against the authorized reference)
+  and the same `source` / `reference` / `prediction` fields `build_prompt` fills, but
+  independently worded, with its own band anchors and its own output contract.
+  sha256 `8eaa11ff341c86ca…`, digest `8eaa11ff341c86ca`.
+* `prompts/hashes.json` (new) — freeze record for both rubrics, named and shaped after
+  `data/splits/hashes.json`. Records role, freeze date, full sha256, and the 16-character
+  `digest` that `src/eval/judge.py:74 template_digest` computes and writes into each judge
+  artefact as `template_sha256`.
+* `src/rlsf/reward.py:96 frozen_digest` (new) — reads a rubric's recorded digest; raises
+  if the manifest is absent or the rubric has no entry in it.
+* `src/rlsf/reward.py:123 load_train_template` — now takes `hashes_path`, hashes the file
+  it read, and raises `ValueError` if it differs from the freeze record. The
+  missing-file `FileNotFoundError` and its circularity message are unchanged.
+* `tests/test_rlsf_reward.py` — 6 new cases (43 in the file, 139 in the suite).
+
+The frozen eval rubric is untouched: `prompts/judge_eval.txt` still hashes to
+`ffd6dad41acb0512…`, the digest rater B's 2026-08-05 artefacts carry, so recording it
+here is a transcription of the current file, not a change to it.
+
+### Rationale
+
+**Why the digest is recorded at freeze time rather than at run time.** The 2026-08-05
+agreement pass reports `template_verified: false` because rater A's artefacts predate
+per-condition digest recording: that both raters read the same rubric rests on the
+configs, not on the artefacts, and is closable only by re-spending on Φ_A. That gap
+opened because the rubric was frozen and the digest was recorded at two different times,
+with runs in between. Recording the digest as part of the freeze, before the first
+consumer exists, removes the window in which that can recur for the RLSF reward.
+
+**Why the loader verifies rather than logs.** A recorded hash that nothing checks is the
+same class of evidence as a config assertion. Verification on load means an edited rubric
+fails loudly at the start of training instead of producing rewards that are silently
+incomparable with those already collected.
+
+**Why a separate rubric at all.** §Judge circularity mitigation in `README.md` and the
+2026-07-05 entry commit the study to two fixed templates, training-time and
+evaluation-time. Scoring the reward with the same rubric that scores the reported Φ would
+make the Φ result circular — the policy would be optimized directly against its own
+evaluation instrument. `load_train_template`'s error message has carried that reasoning
+since the first RLSF stage; this entry supplies the template it was pointing at.
+
+Three rubric decisions are load-bearing and revisable **only until the first RLSF run
+consumes them**:
+
+1. **Degenerate output is floored at 1.** Empty, truncated, self-repeating, non-English,
+   and source-script output score 1 regardless of any elevated wording, as does archaic
+   vocabulary applied ungrammatically. The evaluation rubric has no such clause because it
+   never sees policy samples mid-training; a reward that does not floor these is a reward
+   that pays for scattering `Thou` and `hath` into modern prose.
+2. **A ≤15-word justification precedes the verdict.** It costs completion tokens on every
+   sample. The alternative — a bare `Score: N` — is cheaper, but rater B compressed to a
+   0.10 range across six conditions under `reasoning_effort: none`, and a judge component
+   with no within-group variance is silently zeroed by `group_normalize` (sd < 1e-9 → all
+   zeros), which would drop the style term from the reward without any error surfacing.
+3. **Register only; adequacy is explicitly out of scope.** Adequacy enters the reward
+   through the BLEU/chrF and COMET-Kiwi terms, and the length band gates feasibility.
+   Double-counting it in the judge term would confound ω₃ with ω₁ and ω₂ and make the RQ3
+   weight sweep uninterpretable.
+
+### Verification
+
+No judge calls, no network, no GPU. Nothing was run against a model.
+
+```bash
+.venv/bin/python -m ruff check src tests manage.py    # All checks passed
+.venv/bin/python -m pytest tests/ -q                  # 139 passed
+sha256sum prompts/judge_eval.txt prompts/judge_train.txt
+```
+
+The new cases cover: the committed rubric loads and verifies against the committed
+manifest; it fills through `build_prompt` and is brace-safe against stray braces in
+inserted text; the two rubrics' digests differ (the circularity control, asserted as a
+test rather than as prose); an edited rubric raises; a rubric absent from the manifest
+raises; a missing manifest raises.
+
+`prompts/judge_eval.txt` hashing to `ffd6dad41acb0512…` was checked against the digest
+recorded in rater B's artefacts, confirming the eval rubric has not drifted since the
+2026-08-05 pass.
+
+### Reproduction
+
+```bash
+sha256sum prompts/judge_eval.txt prompts/judge_train.txt   # must match prompts/hashes.json
+.venv/bin/python -m pytest tests/test_rlsf_reward.py -q
+```
+
+### Limitations and risks
+
+* **This does not close the `template_verified: false` gap retrospectively.** That gap is
+  a property of Φ_A's existing artefacts and remains open in the threats register;
+  only re-spending on Φ_A closes it. What this entry closes is the possibility of the
+  same gap opening for the RLSF reward.
+* **The rubric is unvalidated.** No call has been made against it. Whether it
+  discriminates register at all, whether it discriminates it *within* a PPO group of
+  samples from one policy — a much narrower spread than the seven conditions the eval
+  rubric separates — and whether it is gameable by the policy are all unmeasured. A
+  `--limit N` pilot on existing outputs is the cheapest first check and has not been run.
+* **The freeze is revisable now and expensive later.** Once reward values collected under
+  this rubric exist, changing it invalidates them. Any revision to the three decisions
+  above should happen before the first run, not after.
+* **Cost is unestimated.** The rubric is ~330 tokens of prompt plus source, reference, and
+  candidate, and one call per sample. Neither the PPO step cap, batch cap, nor judge spend
+  cap is fixed in `docs/budget.md` yet, so the total is still undeclared — that
+  precondition is unchanged by this entry.
+* **The training judge model is unselected.** No `configs/rlsf.yaml` exists; which model
+  reads this rubric, and whether it is the same family as the evaluation judge, is an open
+  decision with its own circularity implications.
+
+---
+
 ## 2026-08-05 — Cross-family second judge run: four of five primary Φ contrasts are rater-dependent
 
 ### Summary

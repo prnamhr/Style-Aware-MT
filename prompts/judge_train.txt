@@ -1,0 +1,29 @@
+Rate the register of a candidate English translation.
+
+The target register is that of the authorized Bahá'í translations of Shoghi Effendi. The reference below is written in that register; treat it as the standard the candidate is measured against, not as a string the candidate should reproduce word for word.
+
+Register here means: sustained elevated cadence; the sacred second person (Thou, Thee, Thy, Thine) with its agreeing verb forms (art, hast, hath, dost, doth); formal vocatives; prepositions such as unto and wherein; and dignified, non-colloquial diction.
+
+Rate register alone. Semantic accuracy is measured separately and must not affect the rating. Three cases are rated 1 whatever elevated wording they contain:
+- the candidate is empty, is truncated mid-clause, or repeats itself
+- the candidate is not English, or reproduces the source script
+- archaic forms are applied incorrectly: verbs disagreeing with Thou, markers dropped into otherwise modern prose, or elevated vocabulary used where the sentence does not carry it
+
+Bands:
+5 — reads throughout as authorized scripture
+4 — elevated throughout, with occasional neutral phrasing
+3 — elevated in some passages, plainly modern in others
+2 — modern English carrying a few isolated markers
+1 — plain modern English, or any case listed above
+
+[SOURCE]
+{source}
+
+[REFERENCE]
+{reference}
+
+[CANDIDATE]
+{prediction}
+
+Answer in exactly two lines. First a justification of at most fifteen words. Then, as the final line and with no other text on it:
+Score: <integer 1-5>

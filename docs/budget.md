@@ -54,10 +54,42 @@ Two qualifications on that total:
 **RLSF is the dominant future cost and is not yet implemented.** Its reward includes a
 training-time judge term (`ω₃ · Φ`), so PPO consumes one judge call per sampled
 completion: cost scales as PPO steps × rollout batch size, not with the size of the
-validation split. No figure is projected here because the step and batch caps are not
-yet fixed. Before PPO training starts, the following must be recorded in this file and in
-a DEVLOG entry: the PPO step cap, the rollout batch cap, the resulting worst-case call
-volume, and the priced worst-case cost.
+validation split.
+
+### RLSF arm — authorized envelope (2026-08-07)
+
+The shape of the arm and its priced worst case, as required above. **The caps in
+`configs/rlsf.yaml` are null and `src/rlsf/config.py:assert_caps_declared` refuses to
+load until they are set**, so recording this envelope does not itself authorise a run:
+rule 1 still requires the declared cap to be transcribed from `docs/proposal.pdf` first,
+and that transcription has not happened.
+
+| Quantity | Operative | Ceiling |
+|---|---:|---:|
+| PPO steps (4 × 50 RQ3 grid cells + 150 final) | 350 | 350 |
+| Prompts per step | 16 | 16 |
+| Group size (samples per prompt) | 4 | **8** |
+| Judge calls (one per sampled completion) | 22,400 | **44,800** |
+| Priced worst case | $2.55 – $3.23 | **$5.11 – $6.45** |
+
+Priced at `gpt-4o-mini` `[0.15, 0.60]` — in the built-in table at
+`src/infer/openai_client.py:17`, so rule 4 needs no `pricing:` override. The range spans
+600–800 prompt tokens (the ~382-token frozen rubric plus source, reference, and
+candidate) and ~40 completion tokens (a ≤15-word justification and the verdict line).
+**These are estimates over assumed token counts, not measurements.** The 50-call pilot
+in the config's `pilot:` block measures the real per-call rate, and the measured figure
+replaces this range.
+
+The ceiling is stated at group size **8** while the config operates at **4**, so that
+raising the group size later is covered by this authorisation rather than being a
+widening of an authorised run under rule 3. Going beyond 8, or beyond 350 steps, is a
+new authorisation requiring a re-priced entry here.
+
+For scale: the ceiling is under a dollar of the $6.75 spent to date, so **dollars are not
+the binding constraint on this arm** — GPU rental hours and in-loop judge latency are.
+The reward judge was selected on validity grounds rather than cost: `gpt-4o-mini` is
+model-distinct from both evaluation raters, so neither Φ_A nor Φ_B is spent on the one
+condition trained against a judge. See DEVLOG 2026-08-07.
 
 The terminal test-split evaluation will require one further judge pass per condition on
 1,323 sealed segments. Both raters are priced above, so that cost is estimable from the

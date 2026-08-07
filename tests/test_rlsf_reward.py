@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import math
 
 import numpy as np
@@ -11,6 +12,7 @@ from src.data.rlsf_dev import partition, select_works, work_sizes
 from src.rlsf.reward import (
     RewardConfig,
     compute_rewards,
+    frozen_digest,
     group_normalize,
     length_feasible,
     load_train_template,
@@ -282,6 +284,59 @@ def test_overlap_scores_perfect_match_is_maximal():
 def test_load_train_template_refuses_missing_file(tmp_path):
     with pytest.raises(FileNotFoundError, match="circular"):
         load_train_template(tmp_path / "judge_train.txt")
+
+
+def test_frozen_train_template_matches_its_freeze_record():
+    # The committed rubric against the committed digest. This is the check that makes
+    # rubric identity verifiable from the artefacts rather than asserted from a config.
+    assert load_train_template().startswith("Rate the register")
+
+
+def test_frozen_train_template_fills_and_is_brace_safe():
+    from src.eval.judge import build_prompt
+
+    filled = build_prompt(load_train_template(), "src {x}", "ref", "cand")
+    assert "src {x}" in filled and "cand" in filled
+    assert "{source}" not in filled and "{prediction}" not in filled
+
+
+def test_the_two_rubrics_are_distinct_templates():
+    # Circularity control: the reward must not be scored by the rubric that scores Phi.
+    eval_digest = frozen_digest("judge_eval.txt")
+    train_digest = frozen_digest("judge_train.txt")
+    assert eval_digest != train_digest
+
+
+def _freeze(tmp_path, text, digest):
+    (tmp_path / "judge_train.txt").write_text(text, encoding="utf-8")
+    (tmp_path / "hashes.json").write_text(
+        json.dumps({"templates": {"judge_train.txt": {"digest": digest}}}), encoding="utf-8"
+    )
+    return tmp_path / "judge_train.txt", tmp_path / "hashes.json"
+
+
+def test_load_train_template_refuses_a_drifted_rubric(tmp_path):
+    from src.eval.judge import template_digest
+
+    path, hashes = _freeze(tmp_path, "rubric v1", template_digest("rubric v1"))
+    assert load_train_template(path, hashes) == "rubric v1"
+    path.write_text("rubric v2", encoding="utf-8")
+    with pytest.raises(ValueError, match="drifted"):
+        load_train_template(path, hashes)
+
+
+def test_load_train_template_refuses_an_unrecorded_rubric(tmp_path):
+    path, hashes = _freeze(tmp_path, "rubric", "deadbeefdeadbeef")
+    hashes.write_text(json.dumps({"templates": {}}), encoding="utf-8")
+    with pytest.raises(KeyError, match="no freeze record"):
+        load_train_template(path, hashes)
+
+
+def test_load_train_template_refuses_a_missing_freeze_record(tmp_path):
+    path, hashes = _freeze(tmp_path, "rubric", "deadbeefdeadbeef")
+    hashes.unlink()
+    with pytest.raises(FileNotFoundError, match="which rubric it read"):
+        load_train_template(path, hashes)
 
 
 

@@ -60,7 +60,8 @@ Full hypotheses (H1–H4) and support criteria live in the thesis proposal ([`do
 ├── prompts/
 │   ├── style_instruction.txt
 │   ├── judge_train.txt        ← judge template used inside RLSF reward
-│   └── judge_eval.txt         ← separate judge template for final evaluation
+│   ├── judge_eval.txt         ← separate judge template for final evaluation
+│   └── hashes.json            ← freeze record: sha256 of both judge templates
 ├── models/                    ← trained LoRA adapters, one dir per sweep cell (+ epoch checkpoints)
 ├── outputs/                   ← <condition>_<split>.jsonl per run (split tag, e.g. _val)
 │   ├── sweep/                 ← AFSP k × λ sweep cells
@@ -143,8 +144,9 @@ The index is built over the **source** side (not the English targets) so that th
   ```
   r(y) = ω₁ · COMET(x, y, y*) + ω₂ · BLEU(y, y*) + ω₃ · Φ(y, S_T)
   ```
-  with `Φ` an LLM-as-Judge style score using the **training-time** judge template. Weights are dev-tuned over a small grid that intentionally varies ω₃ relative to (ω₁, ω₂).
-- **Bounded:** PPO step cap, batch cap, and judge API spend cap to be declared in [`docs/budget.md`](docs/budget.md) before training starts — the file now exists and records spend to date, but those three caps are still unfixed.
+  with `Φ` an LLM-as-Judge style score using the **training-time** judge template. Weights are dev-tuned over a small grid that intentionally varies ω₃ relative to (ω₁, ω₂) — four cells including a `ω₃ = 0` ablation, in [`configs/rlsf.yaml`](configs/rlsf.yaml).
+- **Reward judge:** `gpt-4o-mini`, **model-distinct from both evaluation raters** (Φ_A `claude-haiku-4-5`, Φ_B `gpt-5.6-terra`). RLSF is the only arm optimized against a judge, so it is the arm whose Φ most needs raters it was not trained against; training on either would spend one of them. It is also the only candidate honouring both `temperature: 0` and `seed: 42`, which matters here because group normalization turns rater noise into gradient noise. A Qwen judge is excluded as self-preference bias against a Qwen policy.
+- **Bounded:** the arm's authorized envelope is priced in [`docs/budget.md`](docs/budget.md) — 350 steps × 16 prompts × group size 8 = 44,800 judge calls, ~$5.11–$6.45 estimated. **The caps in the config are `null` and `src/rlsf/config.py` refuses to load until they are set**: budget rule 1 forbids a paid run before its volume is recorded, and the declared cap itself is still untranscribed from the proposal. Recording the envelope is not authorising the run.
 - **Fallback:** if PPO does not converge under budget, RLSF is reported using **best-of-N reranking** of PEFT-checkpoint samples, scored with the same reward.
 
 ---
@@ -163,7 +165,7 @@ All four conditions, same held-out test set, same decoding settings (temperature
 | Cost | Trainable params, inference latency, RLSF API calls + spend | reported per condition |
 
 ### Judge circularity mitigation
-- Two separate, fixed judge templates: training-time (for RLSF reward) vs. evaluation-time (for final scoring). Templates are frozen before their respective phases and never tuned against the test set.
+- Two separate, fixed judge templates: training-time (for RLSF reward) vs. evaluation-time (for final scoring). Templates are frozen before their respective phases and never tuned against the test set. Both are hashed in [`prompts/hashes.json`](prompts/hashes.json) **at freeze time**, and `src/rlsf/reward.py:load_train_template` verifies the training rubric against that record on every load, so which rubric a run read is checkable from the artifacts rather than asserted from a config (DEVLOG, 2026-08-07).
 - Test partition is unseen during RLSF.
 - A **cross-family** confirmation pass with a judge from a different LLM family was run on 2026-08-05 (`gpt-5.6-terra`, same frozen rubric, all seven conditions, val); judge–judge agreement and contrast replication are reported below.
 
@@ -333,8 +335,9 @@ selection and freeze records are in `results/{afsp,peft}_{sweep,verify}_val.json
 | Type | Threat | Status |
 |---|---|---|
 | Construct | Single-judge dependence for the primary metric Φ | **Measured, 2026-08-05.** Cross-family pass run (`gpt-5.6-terra`, same frozen rubric, 9,132 paired segments): κ = 0.384 [0.370, 0.398], severity offset −0.950 [−0.968, −0.932]. Four of five primary Φ contrasts do not replicate; the AFSP-vs-baseline null does. Bounds rater dependence — does not establish that either rater measures register correctly |
+| Construct | Reward judge family-adjacent to Φ_B, for the RLSF row only | **Accepted, not yet incurred** (no RLSF run exists). The reward judge `gpt-4o-mini` is model-distinct from both raters but shares a provider family with Φ_B `gpt-5.6-terra`, so Φ_B is family-adjacent rather than fully clean for the one condition trained against a judge. Weaker than model-identical contamination; Φ_A stays clean. Any RLSF Φ claim states which rater it rests on |
 | Internal | Judge non-determinism | **Unresolved for both raters.** `claude-haiku-4-5` exposes no seed; `gpt-5.6-terra` accepts `seed: 42` as best-effort only. Φ differences of order 0.05 are within measurement noise |
-| Construct | Rubric identity across raters asserted, not verified | Rater A's results predate `template_sha256` recording, so `template_verified: false` in the agreement report. Closable only by re-spending on Φ_A |
+| Construct | Rubric identity across raters asserted, not verified | **Open for Φ.** Rater A's results predate `template_sha256` recording, so `template_verified: false` in the agreement report. Closable only by re-spending on Φ_A. Prevented from recurring on the RLSF side: both rubrics were hashed into `prompts/hashes.json` at freeze time on 2026-08-07 and the training rubric is verified on load |
 | Measurement | 1.4 % of Φ_B ratings missing (129 of 9,261) | Non-random: a rating is missing because the response did not parse. No imputation; every contrast computed on the paired intersection, n stated |
 | Conclusion | Multiplicity across 56 uncorrected tests | Acknowledged; Holm–Bonferroni applied per claim, and correction status stated. The one AFSP separation (BLEU +0.58, p = .010) does not survive it |
 | Conclusion | Sample size below the detection floor for small effects | Quantified: Φ half-width ≈0.058, COMET ≈0.005 at n = 1,323. Effects below it are reported as unresolvable, not absent |
@@ -411,9 +414,12 @@ python manage.py peft_verify --config configs/peft_sweep.yaml --top 3 \
 python manage.py infer --condition peft --config configs/peft_qwen.yaml
 # (`manage.py peft --config configs/peft_qwen.yaml` trains a single adapter without the sweep)
 
-# RLSF — not yet implemented; neither the `rlsf` command nor configs/rlsf.yaml exists yet
-# python manage.py rlsf  --config configs/rlsf.yaml
-# python manage.py infer --condition rlsf --config configs/rlsf.yaml
+# RLSF — configs/rlsf.yaml exists but the `rlsf` command does not; there is no PPO loop yet.
+# The config is not runnable as committed: its spend caps are null and the loader raises
+# until they are set (see Bounded, below).
+python manage.py rlsf_dev --target 500 --seed 42             # dev slice: 499 / 10,361 (done)
+# python manage.py rlsf   --config configs/rlsf.yaml
+# python manage.py infer  --condition rlsf --config configs/rlsf.yaml
 ```
 
 The GPU stages (sweeps, training, full-split inference) do not fit an 8 GB development
