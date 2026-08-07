@@ -69,13 +69,32 @@ def group_variance_report(
     return out
 
 
+def reward_degeneracy(
+    rewards: np.ndarray, feasible: np.ndarray, group_size: int
+) -> dict:
+    """Fraction of groups whose combined reward has no spread across feasible samples."""
+    rewards = np.asarray(rewards, dtype=float)
+    sds = []
+    for start in range(0, len(rewards), group_size):
+        sl = slice(start, start + group_size)
+        # Infeasible entries are excluded, not floored in: `worst - 1.0` would manufacture
+        # spread in a flat group. Below two feasible samples there is no spread to measure.
+        values = rewards[sl][feasible[sl]]
+        sds.append(float(values.std(ddof=0)) if values.size >= 2 else 0.0)
+    degenerate = sum(sd < _MIN_SD for sd in sds)
+    return {
+        "groups": len(sds),
+        "degenerate": degenerate,
+        "degenerate_frac": round(degenerate / len(sds), 3) if sds else 1.0,
+        "min_group_sd": round(min(sds), 6) if sds else 0.0,
+    }
+
+
 def verdicts(
-    kiwi_ready: bool, variance: dict[str, dict], log_written: bool, log: dict
+    kiwi_ready: bool, degenerate_frac: float, log_written: bool, log: dict
 ) -> list[tuple[str, bool, str]]:
     """The four checks, as (name, passed, detail)."""
     feasible_frac = log["n_feasible"] / log["n_samples"] if log["n_samples"] else 0.0
-    worst = max(variance.values(), key=lambda v: v["degenerate_frac"], default=None)
-    worst_name = max(variance, key=lambda k: variance[k]["degenerate_frac"], default="-")
     return [
         (
             "kiwi handshake",
@@ -83,10 +102,10 @@ def verdicts(
             "worker ready" if kiwi_ready else "worker did not report ready",
         ),
         (
-            "within-group variance",
-            worst is not None and worst["degenerate_frac"] <= _MAX_DEGENERATE,
-            f"worst component {worst_name}: {worst['degenerate_frac']:.0%} of groups "
-            f"normalize to zeros" if worst else "no components scored",
+            "reward variance",
+            degenerate_frac <= _MAX_DEGENERATE,
+            f"{degenerate_frac:.0%} of groups have no reward spread across their "
+            f"feasible samples",
         ),
         ("steplog written", log_written, f"n_samples={log.get('n_samples')}"),
         (
@@ -203,14 +222,21 @@ def main() -> None:
     out_path.write_text(json.dumps(log.as_dict()) + "\n", encoding="utf-8")
     written = json.loads(out_path.read_text(encoding="utf-8").splitlines()[0])
 
+    # Per component: diagnostics for reading which term went flat, never the verdict.
+    # A component can normalize to zeros while the combined reward still spreads.
     variance = group_variance_report(raw, feasible, group_size)
+    degeneracy = reward_degeneracy(rewards, feasible, group_size)
     print(f"\nreward mean {log.reward_mean:.3f} sd {log.reward_sd:.3f}, wrote {out_path}")
     for name, stats in variance.items():
         print(f"  {name:6s} degenerate groups {stats['degenerate']}/{stats['groups']}")
+    print(f"  {'reward':6s} degenerate groups {degeneracy['degenerate']}/{degeneracy['groups']}"
+          f"  (min group sd {degeneracy['min_group_sd']})")
 
     print()
     failed = 0
-    for name, ok, detail in verdicts(kiwi_ready, variance, out_path.exists(), written):
+    for name, ok, detail in verdicts(
+        kiwi_ready, degeneracy["degenerate_frac"], out_path.exists(), written
+    ):
         print(f"  [{'PASS' if ok else 'FAIL'}] {name}: {detail}")
         failed += not ok
     if judge is not None:

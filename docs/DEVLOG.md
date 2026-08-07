@@ -123,13 +123,25 @@ paid run had already produced nothing useful:
 
 1. **Kiwi handshake.** The worker is a subprocess in a second interpreter with a 600 s
    handshake timeout, so it fails slowly and at a distance from its cause.
-2. **Within-group variance.** This is the one that silently wastes money.
-   `group_normalize` returns all zeros when a group's scores are identical or fewer than
-   two samples are feasible, so the samples carry no advantage and the step contributes
-   no gradient. Training would proceed, log plausible-looking rewards, and learn nothing.
-   The report is per group and never pooled: two internally flat groups at different
-   levels have a healthy pooled sd and no usable signal, and a pooled statistic would
-   call that fine.
+2. **Reward variance.** This is the one that silently wastes money. `group_normalize`
+   returns all zeros when a group's scores are identical or fewer than two samples are
+   feasible, so the samples carry no advantage and the step contributes no gradient.
+   Training would proceed, log plausible-looking rewards, and learn nothing.
+
+   Three properties make the check mean what it says. It is computed on the **combined**
+   reward, not the worst component: a single flat component is survivable when the others
+   still spread the sum, and judging the worst component would fail runs that are fine —
+   `--skip_judge`, which holds the judge flat by construction, most obviously. It is
+   computed over **feasible entries only**: under `on_violation: floor` a violator takes
+   `worst - 1.0`, which manufactures spread in a group whose feasible samples all scored
+   identically, so including it returns a false pass on precisely the case being tested
+   (`tests/test_rlsf_smoke.py`, verified through `compute_rewards` rather than against a
+   hand-built array — the real path produces rewards `[0, 0, 0, -1]` there, pooled sd
+   0.43). And it is **per group, never pooled**: two internally flat groups at different
+   levels have a healthy pooled sd and no usable signal.
+
+   The per-component report remains as printed diagnostics, for reading which term went
+   flat once the combined check has already failed. It is not a verdict.
 3. **StepLog writes.** The step log is the only record of a run's reward trajectory.
 4. **Length band.** `on_violation: floor` assigns violators the group's worst reward
    minus a margin. If the band rejects most of the batch, the reward is dominated by the
