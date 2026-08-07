@@ -71,8 +71,8 @@ rlsf:
     group_size_ceiling: 8                 # authorized ceiling; rollout.group_size may not exceed
 
   pilot:
-    judge_calls: 50                       # diagnostic: is the rubric discriminative within a
-                                          #   single policy's group? Writes no reported figure.
+    judge_calls: 80                       # 20 segments x G=4, the smoke's brief. Diagnostic:
+                                          #   is the rubric discriminative within one group?
 
 
 judge:

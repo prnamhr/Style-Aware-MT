@@ -76,9 +76,10 @@ Priced at `gpt-4o-mini` `[0.15, 0.60]` — in the built-in table at
 `src/infer/openai_client.py:17`, so rule 4 needs no `pricing:` override. The range spans
 600–800 prompt tokens (the ~382-token frozen rubric plus source, reference, and
 candidate) and ~40 completion tokens (a ≤15-word justification and the verdict line).
-**These are estimates over assumed token counts, not measurements.** The 50-call pilot
-in the config's `pilot:` block measures the real per-call rate, and the measured figure
-replaces this range.
+**These are estimates over assumed token counts, not measurements.** The pilot in the
+config's `pilot:` block measures the real per-call rate, and the measured figure replaces
+this range. `pilot.judge_calls` is **80** — 20 segments at group size 4, ~$0.01, sized to
+the reward-path smoke's brief rather than the smoke trimmed to fit a round number.
 
 The ceiling is stated at group size **8** while the config operates at **4**, so that
 raising the group size later is covered by this authorisation rather than being a

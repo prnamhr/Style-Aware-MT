@@ -184,10 +184,11 @@ levels, and an empty batch. Both refusal paths exit before `_load_rows` and `mak
 * **It cannot run on this machine.** The policy is `Qwen2.5-7B-Instruct` in bf16, which
   the 8 GB development GPU cannot hold, and `.venv-comet` does not exist locally, so the
   Kiwi handshake is untestable here. Colab, per the standing compute constraint.
-* **The requested shape exceeds the declared pilot ceiling.** 20 segments at G = 4 is 80
-  judge calls against a `pilot.judge_calls` of 50. Raising it is a deliberate act and
-  belongs on the command line as `--max_judge_calls 80`, where it is visible, rather than
-  as a quiet edit to the config.
+* **`pilot.judge_calls` was raised from 50 to 80** so the declared ceiling matches the
+  smoke's brief of 20 segments at G = 4. The alternative — trimming the run to 12 segments
+  to fit 50, or overriding with `--max_judge_calls` at the command line — would have let a
+  budget number silently reshape a diagnostic. A ceiling moved on purpose is preferable to
+  one that quietly changes what is being tested. 80 calls is ~$0.01.
 * **`--skip_judge` holds the judge component flat**, which makes its group variance
   degenerate by construction. That check is meaningless in that mode and the run's
   variance verdict should be read as covering BLEU and Kiwi only.
