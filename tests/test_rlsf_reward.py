@@ -9,6 +9,7 @@ import numpy as np
 import pytest
 
 from src.data.rlsf_dev import partition, select_works, work_sizes
+from src.eval.judge import build_prompt, template_digest
 from src.rlsf.reward import (
     RewardConfig,
     compute_rewards,
@@ -19,8 +20,6 @@ from src.rlsf.reward import (
     overlap_scores,
     z_deviations,
 )
-from src.eval.judge import build_prompt
-from src.eval.judge import template_digest
 
 CENTROID = {
     "features": ["lex_density", "ttr", "root_ttr", "marker_rate"],
@@ -258,6 +257,19 @@ def test_step_log_records_components_length_and_z():
     assert d["length_mean"] == pytest.approx(3.5)
     assert d["length_ratio_mean"] == pytest.approx(0.875)
     assert set(d["z"]) == set(CENTROID["features"])
+
+
+def test_the_overlap_term_is_logged_under_the_metric_in_use():
+    # The chrF grid cell must not write its scores under a "bleu" key in steps.jsonl.
+    n = 2
+    _, _, log = compute_rewards(
+        ["s"] * n, ["a b c"] * n, ["a b c"] * n,
+        cfg=RewardConfig(overlap_metric="chrf"), group_size=n,
+        component_scores=_components(n, chrf=[10.0, 20.0]), centroid=CENTROID,
+    )
+    d = log.as_dict()
+    assert set(d["raw"]) == {"chrf", "kiwi", "judge"}
+    assert d["raw"]["chrf"] == pytest.approx(15.0)
 
 
 # overlap and template 

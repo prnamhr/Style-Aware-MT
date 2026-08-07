@@ -235,7 +235,7 @@ def main() -> None:
     ref_rep = [r for r in refs for _ in range(group_size)]
 
     rc = reward_config(cfg)
-    raw = {"bleu": overlap_scores(hyps, ref_rep, rc.overlap_metric)}
+    raw = {rc.overlap_metric: overlap_scores(hyps, ref_rep, rc.overlap_metric)}
 
     kiwi_cfg = cfg["rlsf"]["reward"]["kiwi"]
     kiwi_ready = False

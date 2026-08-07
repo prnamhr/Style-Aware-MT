@@ -1,6 +1,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -46,7 +47,8 @@ class RewardConfig:
 
     @property
     def weights(self) -> dict[str, float]:
-        return {"bleu": self.w_bleu, "kiwi": self.w_kiwi, "judge": self.w_judge}
+        # Keyed by the metric in use, so a chrF grid cell is not logged under a BLEU label.
+        return {self.overlap_metric: self.w_bleu, "kiwi": self.w_kiwi, "judge": self.w_judge}
 
 
 # components 
@@ -77,12 +79,7 @@ def judge_scores(
     *,
     default: float = 1.0,
 ) -> list[float]:
-    """Training-time Phi, one paid call per sample.
-
-    An unparseable rating becomes ``default`` rather than being dropped: the group has a
-    fixed size, and silently shrinking it would change the normalization denominator
-    mid-training.
-    """
+    """Training-time Phi, one paid call per sample."""
     from src.eval.judge import _JUDGE_SYSTEM, build_prompt, parse_score
 
     out: list[float] = []
@@ -123,8 +120,6 @@ def load_train_template(
     path: str | Path = _TRAIN_TEMPLATE, hashes_path: str | Path = _TEMPLATE_HASHES
 ) -> str:
     """Read the frozen training-time rubric, verified against its freeze record."""
-    from src.eval.judge import template_digest
-
     path = Path(path)
     if not path.exists():
         raise FileNotFoundError(
@@ -134,7 +129,9 @@ def load_train_template(
         )
     text = path.read_text(encoding="utf-8")
     expected = frozen_digest(path, hashes_path)
-    actual = template_digest(text)
+    # Same digest as src.eval.judge.template_digest, inlined: hashing a text file should not
+    # import torch and the provider SDKs. tests pin the two against each other.
+    actual = hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
     if actual != expected:
         raise ValueError(
             f"{path} has drifted from its freeze record: {hashes_path} holds {expected}, the "
