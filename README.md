@@ -414,10 +414,10 @@ python manage.py peft_verify --config configs/peft_sweep.yaml --top 3 \
 python manage.py infer --condition peft --config configs/peft_qwen.yaml
 # (`manage.py peft --config configs/peft_qwen.yaml` trains a single adapter without the sweep)
 
-# RLSF — configs/rlsf.yaml exists but the `rlsf` command does not; there is no PPO loop yet.
-# The config is not runnable as committed: its spend caps are null and the loader raises
-# until they are set (see Bounded, below).
 python manage.py rlsf_dev --target 500 --seed 42             # dev slice: 499 / 10,361 (done)
+python manage.py rlsf_smoke --segments 4 --skip_judge        # reward path end to end, no paid calls
+python manage.py rlsf_smoke --segments 12 --group_size 4 --yes   # same, 
+python manage.py rlsf_smoke --hyps_file outputs/rlsf/smoke_hyps.jsonl --yes
 # python manage.py rlsf   --config configs/rlsf.yaml
 # python manage.py infer  --condition rlsf --config configs/rlsf.yaml
 ```
