@@ -113,6 +113,13 @@ API call.
   rate, which is what replaces the token-count estimate in `docs/budget.md`.
 * `notebooks/rlsf_smoke_colab.ipynb` (new) — the runbook: setup, pre-flight assertions,
   a free `--skip_judge` pass, the paid pass, and what each failing check means.
+* `configs/rlsf.yaml` — `rollout.max_new_tokens: 512` removed. `complete_many` takes only
+  `n`, `temperature` and `top_p`; generated length comes from the client's `max_tokens`
+  at construction, so the field was never read. Beyond being dead, 512 would have been
+  wrong to wire through: every condition config generates at `max_tokens: 1024`, and
+  halving it for RLSF alone makes the arm non-comparable on length against the conditions
+  it is measured against — which matters more here than elsewhere, because length is what
+  the feasibility band gates on. `generator.max_tokens` governs.
 * `tests/test_rlsf_smoke.py` (new) — 14 cases; `tests/test_rlsf_config.py` +1. 172 in the
   suite.
 

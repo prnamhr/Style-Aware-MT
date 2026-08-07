@@ -24,7 +24,6 @@ rlsf:
     top_p: 0.95
     prompts_per_step: 16
     group_size: 4                         # samples per prompt; 16 x 4 = 64 judge calls/step
-    max_new_tokens: 512
 
 
   reference:
@@ -40,8 +39,6 @@ rlsf:
     logging_steps: 1                      # one StepLog JSON line per step (reward.py:154)
 
 
-  # omega_1..3 in the README. Components are z-normalized within each group before
-  # weighting, so weights are relative and need not sum to 1. Fields match RewardConfig.
   reward:
     w_kiwi: 1.0                           # omega_1, adequacy: COMET-Kiwi, reference-free
     w_bleu: 1.0                           # omega_2, overlap
