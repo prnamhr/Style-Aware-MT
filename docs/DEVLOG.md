@@ -86,6 +86,93 @@ their history.
 
 ---
 
+## 2026-08-07 — Judge client wired into the reward path; smoke stage added, not run
+
+### Summary
+
+The reward path can now build its own judge client from the config, and
+`manage.py rlsf_smoke` (new) exercises the whole path on a few dev-slice groups without a
+PPO update. Implemented and statically verified only: the smoke has not been run, no
+judge call has been made, no model loaded, and nothing under `outputs/` written. What did
+run is `--help` and the two refusal paths, both of which exit before any model load or
+API call.
+
+### What changed
+
+* `src/rlsf/config.py:make_judge_client` — builds the judge from the `judge:` block via
+  `src.infer.run.make_client`, and raises if the configured model is one of the two
+  evaluation raters. The check precedes the lazy torch import so it is unit-testable.
+* `src/rlsf/reward.py:judge_scores` — sends `src.eval.judge._JUDGE_SYSTEM` as the system
+  message instead of an empty string, so the training and evaluation judges differ in
+  rubric and nothing else. Reusing the existing constant avoids a second un-hashed prompt
+  artefact alongside the frozen template.
+* `src/rlsf/smoke.py` (new, `manage.py rlsf_smoke`) — samples G completions per segment
+  from the policy, scores them on BLEU, COMET-Kiwi and the training judge, computes
+  rewards, writes one `StepLog` line, and reports four checks.
+* `tests/test_rlsf_smoke.py` (new) — 14 cases; `tests/test_rlsf_config.py` +1. 172 in the
+  suite.
+
+### Rationale
+
+The four checks are the failure modes that would otherwise surface only after a long
+paid run had already produced nothing useful:
+
+1. **Kiwi handshake.** The worker is a subprocess in a second interpreter with a 600 s
+   handshake timeout, so it fails slowly and at a distance from its cause.
+2. **Within-group variance.** This is the one that silently wastes money.
+   `group_normalize` returns all zeros when a group's scores are identical or fewer than
+   two samples are feasible, so the samples carry no advantage and the step contributes
+   no gradient. Training would proceed, log plausible-looking rewards, and learn nothing.
+   The report is per group and never pooled: two internally flat groups at different
+   levels have a healthy pooled sd and no usable signal, and a pooled statistic would
+   call that fine.
+3. **StepLog writes.** The step log is the only record of a run's reward trajectory.
+4. **Length band.** `on_violation: floor` assigns violators the group's worst reward
+   minus a margin. If the band rejects most of the batch, the reward is dominated by the
+   floor rather than by the components, and the thresholds — not the weights — are what
+   the policy is learning.
+
+Thresholds are stated rather than inferred: a quarter of groups degenerate fails, and
+more than half the samples must clear the length band.
+
+**The pilot loads the config with `require_caps=False`.** The training caps are null and
+gate PPO; this pilot is what measures the per-call rate needed to declare them, so
+gating it on them would be circular. It is bounded instead by its own ceiling from the
+config's `pilot:` block, checked before any call, plus a `--yes` confirmation.
+
+### Verification
+
+```bash
+.venv/bin/python -m ruff check src tests manage.py    # All checks passed
+.venv/bin/python -m pytest tests/ -q                  # 172 passed
+.venv/bin/python manage.py rlsf_smoke --help
+.venv/bin/python manage.py rlsf_smoke --segments 20   # refused: 80 calls over the 50 ceiling
+.venv/bin/python manage.py rlsf_smoke --segments 12   # refused: no --yes
+```
+
+The unit tests cover the checks themselves against cases the smoke cannot be relied on to
+produce: a flat group, a group with one feasible sample, two flat groups at different
+levels, and an empty batch. Both refusal paths exit before `_load_rows` and `make_client`.
+
+### Limitations and risks
+
+* **Unrun.** Nothing is known about whether the rubric discriminates within a group, only
+  that the code that would measure it exists and its arithmetic is tested.
+* **It cannot run on this machine.** The policy is `Qwen2.5-7B-Instruct` in bf16, which
+  the 8 GB development GPU cannot hold, and `.venv-comet` does not exist locally, so the
+  Kiwi handshake is untestable here. Colab, per the standing compute constraint.
+* **The requested shape exceeds the declared pilot ceiling.** 20 segments at G = 4 is 80
+  judge calls against a `pilot.judge_calls` of 50. Raising it is a deliberate act and
+  belongs on the command line as `--max_judge_calls 80`, where it is visible, rather than
+  as a quiet edit to the config.
+* **`--skip_judge` holds the judge component flat**, which makes its group variance
+  degenerate by construction. That check is meaningless in that mode and the run's
+  variance verdict should be read as covering BLEU and Kiwi only.
+* **A passing smoke says the wiring works, not that the reward is sound.** It cannot tell
+  whether the judge is discriminating register or returning noise with a healthy spread.
+
+---
+
 ## 2026-08-07 — RLSF dev slice carved from train.jsonl
 
 ### Summary

@@ -83,11 +83,12 @@ def judge_scores(
     fixed size, and silently shrinking it would change the normalization denominator
     mid-training.
     """
-    from src.eval.judge import build_prompt, parse_score
+    from src.eval.judge import _JUDGE_SYSTEM, build_prompt, parse_score
 
     out: list[float] = []
     for src, ref, hyp in zip(sources, refs, hyps):
-        text = client.complete("", build_prompt(template, src, ref, hyp))
+        # Same system message as the evaluation judge, so the two differ only in rubric.
+        text = client.complete(_JUDGE_SYSTEM, build_prompt(template, src, ref, hyp))
         score = parse_score(text)
         out.append(float(default if score is None else score))
     return out

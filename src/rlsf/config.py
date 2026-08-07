@@ -56,6 +56,29 @@ def assert_group_size_within_ceiling(cfg: dict) -> None:
         )
 
 
+def make_judge_client(cfg: dict):
+    """Build the training-time judge client from the config's `judge:` block."""
+    judge = cfg["judge"]
+    if judge["model"] in _rater_models():
+        raise ValueError(
+            f"the reward judge is {judge['model']}, which is also an evaluation rater. "
+            f"Training against a rater spends it on the one condition that most needs a "
+            f"rater it was not trained against; pick a model distinct from both."
+        )
+    from src.infer.run import make_client  # lazy: importing run pulls torch
+
+    return make_client(judge)
+
+
+def _rater_models() -> set[str]:
+    """Models used as evaluation raters, read from their configs."""
+    out = set()
+    for path in (Path("configs/judge_eval.yaml"), Path("configs/judge_eval_gpt.yaml")):
+        if path.exists():
+            out.add(yaml.safe_load(path.read_text(encoding="utf-8"))["judge"]["model"])
+    return out
+
+
 def reward_config(cfg: dict) -> RewardConfig:
     """Build the reward from the config's `reward:` block, ignoring its sub-blocks."""
     block = cfg["rlsf"]["reward"]

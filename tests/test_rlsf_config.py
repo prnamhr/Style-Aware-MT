@@ -12,6 +12,7 @@ from src.rlsf.config import (
     assert_group_size_within_ceiling,
     grid_reward_configs,
     load_config,
+    make_judge_client,
     priced_worst_case,
     reward_config,
     worst_case_judge_calls,
@@ -137,6 +138,15 @@ def test_reward_judge_is_model_distinct_from_both_evaluation_raters():
         yaml.safe_load(open(p, encoding="utf-8"))["judge"]["model"] for p in _JUDGE_CONFIGS
     }
     assert reward_model not in raters
+
+
+def test_make_judge_client_refuses_a_model_that_is_an_evaluation_rater():
+    cfg = load_config(require_caps=False)
+    cfg["judge"]["model"] = yaml.safe_load(open(_JUDGE_CONFIGS[0], encoding="utf-8"))["judge"][
+        "model"
+    ]
+    with pytest.raises(ValueError, match="also an evaluation rater"):
+        make_judge_client(cfg)
 
 
 def test_reward_judge_is_reproducible():
