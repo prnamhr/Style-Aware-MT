@@ -30,9 +30,10 @@ from src.rlsf.reward import (
 _PRICING = (0.15, 0.60)  # gpt-4o-mini, matching src/infer/openai_client.py
 _EST_TOKENS = (700, 40)  # prompt, completion; midpoint of the docs/budget.md range
 
-# A group whose scores are identical normalizes to all zeros, so its samples carry no
-# advantage and contribute no gradient. Some is tolerable, a quarter is not.
+# A group whose combined rewards are identical carries no advantage and contributes no
+# gradient. Some is tolerable, a quarter is not.
 _MAX_DEGENERATE = 0.25
+_MIN_SD = 1e-9
 # "Not flooring most of the batch": more than half the samples must clear the band.
 _MIN_FEASIBLE = 0.5
 
@@ -213,7 +214,14 @@ def main() -> None:
         print(f"  [{'PASS' if ok else 'FAIL'}] {name}: {detail}")
         failed += not ok
     if judge is not None:
-        print(f"\njudge usage: {judge.usage.summary()}")
+        # The measured per-call rate; docs/budget.md carries only an estimate until this.
+        usage = judge.usage.summary()
+        usage["per_call_usd"] = usage["cost_usd"] / usage["calls"] if usage["calls"] else 0.0
+        usage["model"] = cfg["judge"]["model"]
+        (out_path.parent / "smoke_usage.json").write_text(
+            json.dumps(usage, indent=2) + "\n", encoding="utf-8"
+        )
+        print(f"\njudge usage: {usage}")
     raise SystemExit(1 if failed else 0)
 
 

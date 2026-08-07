@@ -109,6 +109,10 @@ API call.
 * `src/rlsf/smoke.py` (new, `manage.py rlsf_smoke`) — samples G completions per segment
   from the policy, scores them on BLEU, COMET-Kiwi and the training judge, computes
   rewards, writes one `StepLog` line, and reports four checks.
+* `src/rlsf/smoke.py` — writes `outputs/rlsf/smoke_usage.json` with the measured per-call
+  rate, which is what replaces the token-count estimate in `docs/budget.md`.
+* `notebooks/rlsf_smoke_colab.ipynb` (new) — the runbook: setup, pre-flight assertions,
+  a free `--skip_judge` pass, the paid pass, and what each failing check means.
 * `tests/test_rlsf_smoke.py` (new) — 14 cases; `tests/test_rlsf_config.py` +1. 172 in the
   suite.
 
