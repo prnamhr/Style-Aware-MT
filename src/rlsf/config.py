@@ -89,10 +89,12 @@ def _rater_models() -> set[str]:
 
 
 def reward_config(cfg: dict) -> RewardConfig:
-    """Build the reward from the config's `reward:` block, ignoring its sub-blocks."""
+    """Build the reward from the config's `reward:` block at unit ||omega||, ignoring sub-blocks."""
     block = cfg["rlsf"]["reward"]
     fields = RewardConfig.__dataclass_fields__
-    return RewardConfig(**{k: v for k, v in block.items() if k in fields})
+    # Normalized for the same reason the grid cells are: unnormalized, the weights set here
+    # double as a step size, so learning_rate means something different under each omega.
+    return RewardConfig(**{k: v for k, v in block.items() if k in fields}).unit_omega()
 
 
 def drift_rule(cfg: dict) -> DriftRule:

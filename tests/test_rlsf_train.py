@@ -134,7 +134,7 @@ def test_trainer_scaling_would_rescale_every_group_to_unit_advantage():
 
 
 def test_the_reward_reaching_the_trainer_is_a_combined_z_score():
-    # One live component, so the combined reward is that component's z: unit group sd.
+    # One live component, so the combined reward is that component's z at its own weight.
     rc = reward_config(load_config(require_caps=False))
     n, group_size = 16, 4
     rng = np.random.default_rng(1)
@@ -150,7 +150,7 @@ def test_the_reward_reaching_the_trainer_is_a_combined_z_score():
         },
         centroid=CENTROID,
     )
-    assert rewards.reshape(-1, group_size).std(axis=1) == pytest.approx(1.0)
+    assert rewards.reshape(-1, group_size).std(axis=1) == pytest.approx(rc.w_bleu)
 
 
 # step accounting

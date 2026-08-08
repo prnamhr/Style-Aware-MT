@@ -111,7 +111,8 @@ def test_the_step_caps_bind_before_the_call_and_dollar_caps():
 def test_reward_config_reads_the_weights_and_ignores_sub_blocks():
     cfg = load_config(require_caps=False)
     rc = reward_config(cfg)
-    assert (rc.w_kiwi, rc.w_bleu, rc.w_judge) == (1.0, 1.0, 1.0)
+    # Delivered at unit ||omega||, so the three equal declared weights arrive equal, not at 1.
+    assert rc.w_kiwi == rc.w_bleu == rc.w_judge == pytest.approx(1 / math.sqrt(3))
     assert rc.overlap_metric == "bleu"
     assert rc.on_violation == "floor"
 
@@ -124,10 +125,12 @@ def test_weight_grid_varies_only_omega_3_and_includes_the_ablation():
     assert [rc.w_judge / rc.w_bleu for _, rc in cells] == pytest.approx([0.0, 0.5, 1.0, 2.0])
 
 
-def test_grid_cells_are_delivered_at_unit_omega_norm():
-    # Otherwise the w3_2.0 cell takes 1.68x larger optimizer steps than the ablation and an
-    # online grid reads a learning-rate sweep as a weighting sweep.
-    for _, rc in grid_reward_configs(load_config(require_caps=False)):
+def test_the_reward_and_every_grid_cell_are_delivered_at_unit_omega_norm():
+    # Both constructors, or the weights double as a step size: an online grid would read a
+    # learning-rate sweep as a weighting sweep, and the final run would train the cell that
+    # won at a different effective rate from the one it won at.
+    cfg = load_config(require_caps=False)
+    for rc in [reward_config(cfg)] + [rc for _, rc in grid_reward_configs(cfg)]:
         assert math.hypot(rc.w_bleu, rc.w_kiwi, rc.w_judge) == pytest.approx(1.0)
 
 
