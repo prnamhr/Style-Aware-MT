@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -71,6 +73,36 @@ def overlap_scores(hyps: list[str], refs: list[str], metric: str = "bleu") -> li
     return [float(scorer.sentence_score(h, [r]).score) for h, r in zip(hyps, refs)]
 
 
+@dataclass
+class JudgeTiming:
+    """Wall clock of a judge block and the call time inside it."""
+
+    wall_s: float = 0.0
+    call_s: float = 0.0
+    calls: int = 0
+    _lock: threading.Lock = field(default_factory=threading.Lock, repr=False, compare=False)
+
+    def record(self, seconds: float) -> None:
+        # Locked for the same reason Usage is: the fanned-out threads share one timing object.
+        with self._lock:
+            self.call_s += seconds
+            self.calls += 1
+
+    @property
+    def achieved_parallelism(self) -> float:
+        """Call time over wall time: what the fan-out bought, against max_workers asked for."""
+        return self.call_s / self.wall_s if self.wall_s else 0.0
+
+    def summary(self) -> dict:
+        return {
+            "wall_s": round(self.wall_s, 3),
+            "call_s": round(self.call_s, 3),
+            "mean_call_s": round(self.call_s / self.calls, 3) if self.calls else 0.0,
+            "calls_per_s": round(self.calls / self.wall_s, 3) if self.wall_s else 0.0,
+            "achieved_parallelism": round(self.achieved_parallelism, 2),
+        }
+
+
 def judge_scores(
     client,
     template: str,
@@ -79,11 +111,13 @@ def judge_scores(
     hyps: list[str],
     *,
     max_workers: int = 1,
+    timing: JudgeTiming | None = None,
 ) -> list[float]:
     """Training-time Phi, one paid call per sample; nan where the verdict did not parse.
 
     The calls are latency-bound and independent, so ``max_workers`` above 1 fans them out
     over threads rather than holding the rented GPU idle for a step's worth of verdicts.
+    A ``timing`` is filled in with the block's wall clock and the summed call time.
     """
     from src.eval.judge import _JUDGE_SYSTEM, build_prompt, parse_score
 
@@ -91,16 +125,24 @@ def judge_scores(
 
     def score_one(prompt: str) -> float:
         # Same system message as the evaluation judge, so the two differ only in rubric.
+        started = time.perf_counter()
         score = parse_score(client.complete(_JUDGE_SYSTEM, prompt))
+        if timing is not None:
+            timing.record(time.perf_counter() - started)
         # An unreadable verdict is an unmeasured sample, not a 1; compute_rewards marks it
         # infeasible, as the evaluation path drops unparseable segments rather than scoring them.
         return float("nan") if score is None else float(score)
 
+    started = time.perf_counter()
     if max_workers <= 1:
-        return [score_one(prompt) for prompt in prompts]
-    with ThreadPoolExecutor(max_workers=max_workers) as pool:
-        # map yields in submission order, so a verdict cannot be attributed to another sample.
-        return list(pool.map(score_one, prompts))
+        scores = [score_one(prompt) for prompt in prompts]
+    else:
+        with ThreadPoolExecutor(max_workers=max_workers) as pool:
+            # map yields in submission order, so a verdict cannot be attributed to another sample.
+            scores = list(pool.map(score_one, prompts))
+    if timing is not None:
+        timing.wall_s = time.perf_counter() - started
+    return scores
 
 
 def frozen_digest(

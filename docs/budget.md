@@ -88,6 +88,14 @@ new authorisation requiring a re-priced entry here.
 
 For scale: the ceiling is under a dollar of the $6.75 spent to date, so **dollars are not
 the binding constraint on this arm** — GPU rental hours and in-loop judge latency are.
+Latency is unmeasured: `outputs/rlsf/smoke_usage.json` records calls, 
+tokens and cost from
+the 2026-08-07 pass but no wall clock, so the rental estimate rests on `judge.concurrency:
+8` buying a fan-out nothing has checked. The smoke now times the judge block and writes
+`wall_s`, `mean_call_s` and `achieved_parallelism` alongside the usage; the next paid pass
+replaces the estimate with the measurement. Until then, treat GPU-idle-per-step as unknown
+rather than small.
+
 The reward judge was selected on validity grounds rather than cost: `gpt-4o-mini` is
 model-distinct from both evaluation raters, so neither Φ_A nor Φ_B is spent on the one
 condition trained against a judge. See DEVLOG 2026-08-07.

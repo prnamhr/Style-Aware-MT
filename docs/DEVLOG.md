@@ -86,6 +86,60 @@ their history.
 
 ---
 
+## 2026-08-08 — The judge block is timed, so concurrency stops being an assumption
+
+### Summary
+
+`judge.concurrency: 8` was chosen on the argument that judge calls are latency-bound and
+independent. Nothing measured what the fan-out returned. `outputs/rlsf/smoke_usage.json`
+carries calls, tokens and cost from the 2026-08-07 pass and no wall clock, so the claim
+that the loop does not hold the rented GPU idle rests on an untested 8×. The smoke now
+times the block. Instrumented only: no paid pass has run since, so the file still has no
+latency fields.
+
+### What changed
+
+* `src/rlsf/reward.py:77` — `JudgeTiming`, a thread-safe accumulator alongside `Usage`.
+  It holds the block's wall clock, the summed per-call time, and the call count.
+* `src/rlsf/reward.py:106` — `judge_scores` takes an optional `timing` and fills it in.
+  Default `None` leaves the scoring path as it was.
+* `src/rlsf/smoke.py:326` — `smoke_usage.json` gains `concurrency`, `wall_s`, `call_s`,
+  `mean_call_s`, `calls_per_s` and `achieved_parallelism`; the run prints the same.
+* `docs/budget.md:91` — the latency gap is stated where the rental estimate is made.
+
+### Rationale
+
+Wall time alone would not settle the question. A block that takes 40 s for 80 calls is
+fast or slow depending on what one call costs, and the ratio that answers "8× or 2×" is
+the summed call time over the wall clock. Timing each call as well as the block yields
+both from one pass, so no serial control run is needed and nothing extra is paid for.
+
+`achieved_parallelism` is the number to read against `judge.concurrency`. At 8 workers, 8
+means the fan-out is clean; 2 means six workers are blocked on something — a provider rate
+limit, a connection pool, or the client serialising. It also converts directly into the
+figure the budget needs: GPU idle per step is `wall_s`, not `call_s`.
+
+The accumulator locks its counters for the reason `Usage` does. Threads share one object,
+and a lost increment understates the latency the same way it would understate the bill.
+
+### Verification
+
+`pytest tests/` passes, 214 tests, 2 of them new. A stub judge with fixed per-call delays
+reads above 2× fanned out over 8 workers and 1× serial, which pins that the number tracks
+obtained fan-out rather than workers requested.
+
+### Limitations and risks
+
+* Nothing is measured yet. The next paid smoke produces the first reading; until then the
+  rental estimate stays an estimate and `docs/budget.md` says so.
+* The smoke runs one step. Per-step latency across a training run may differ once the
+  provider sees sustained load, so one reading is a floor on the cost, not a mean.
+* Timing wraps `client.complete`, so retries and backoff inside the client are counted as
+  call time. That is the right total for the GPU-idle question and the wrong one for
+  reading provider latency alone.
+
+---
+
 ## 2026-08-08 — An unreadable judge verdict is unmeasured, not a 1
 
 ### Summary
@@ -177,7 +231,7 @@ used it.
 * `src/rlsf/stop.py` (new) — `DriftRule`, `DriftMonitor`, `DriftVerdict`. The monitor takes
   one StepLog per step and returns a verdict; the training loop stops on a tripped one.
 * `configs/rlsf.yaml:65` — the `stop:` block: `baseline_steps: 5`, `window: 3`,
-  `k_sigma: 3.0`, `min_delta: 0.5`.
+  `k_sigma: 3.0`, `min_delta: 0.23`.
 * `src/rlsf/config.py:90` — `drift_rule` builds the rule from that block.
 * `src/rlsf/smoke.py:282` — the smoke prints the step's z with its error and says that one
   step is a draw of the baseline, not the baseline.
@@ -203,6 +257,23 @@ the window mean's excess has to clear `k_sigma` pooled standard errors, so a dri
 cannot resolve does not halt it. The floor is there because statistical separation is not
 the same as a reason to stop: with enough steps a long run resolves excursions too small to
 care about.
+
+The floor is sized against the val ladder rather than picked. Per-condition `marker_rate` z
+runs from 0.136 (peft) to 0.547 (zeroshot), so 0.41 separates the condition closest to the
+reference register from the furthest. `min_delta: 0.23` is the peft-to-random_fewshot gap:
+the policy is PEFT-initialized, so a drift that size has given back the marker-rate margin
+that separates it from random few-shot prompting. The 0.5 it replaces was wider than the
+whole ladder and would have caught only gross marker-stuffing. One caveat on the anchor:
+the ladder is greedy decoding over 1,323 val segments and a training step is 80 samples at
+T = 1.0, so a between-condition difference transfers to a within-run drift as a scale, not
+as an exact quantity.
+
+Which arm the floor binds in depends on the error. At the smoke's clustered per-step se of
+0.295 the pooled error is 0.215 and the 3σ band is 0.65, so the statistical arm sets the
+threshold; `min_delta` would take over only below a per-step se of 0.23, which needs a
+larger batch than the smoke's 80 samples. The sustained arm uses the floor whatever the
+error — every window step must sit above `baseline + min_delta` — and that is the arm this
+value moves today.
 
 The error is clustered on the prompt because a group's four samples answer one source.
 Pooling all 80 as independent reads 0.163 where the clustered figure is 0.295 — a band

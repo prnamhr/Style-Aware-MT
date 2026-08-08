@@ -28,6 +28,7 @@ from src.rlsf.config import (
 )
 from src.rlsf.kiwi import KiwiScorer
 from src.rlsf.reward import (
+    JudgeTiming,
     compute_rewards,
     group_normalize,
     judge_scores,
@@ -263,12 +264,19 @@ def main() -> None:
         raw["kiwi"] = kiwi.score(src_rep, hyps)
 
     judge = None
+    timing = JudgeTiming()
     if args.skip_judge:
         raw["judge"] = [1.0] * len(hyps)
     else:
         judge = make_judge_client(cfg)
         raw["judge"] = judge_scores(
-            judge, load_train_template(), src_rep, ref_rep, hyps, max_workers=workers
+            judge,
+            load_train_template(),
+            src_rep,
+            ref_rep,
+            hyps,
+            max_workers=workers,
+            timing=timing,
         )
 
     rewards, feasible, log = compute_rewards(
@@ -315,10 +323,17 @@ def main() -> None:
         usage = judge.usage.summary()
         usage["per_call_usd"] = usage["cost_usd"] / usage["calls"] if usage["calls"] else 0.0
         usage["model"] = cfg["judge"]["model"]
+        usage["concurrency"] = workers
+        usage.update(timing.summary())
         (out_path.parent / "smoke_usage.json").write_text(
             json.dumps(usage, indent=2) + "\n", encoding="utf-8"
         )
         print(f"\njudge usage: {usage}")
+        print(
+            f"judge latency: {timing.wall_s:.1f}s for {usage['calls']} calls at concurrency "
+            f"{workers}, {timing.achieved_parallelism:.1f}x achieved. GPU idle per step is "
+            f"the wall clock, not the call time."
+        )
     raise SystemExit(1 if failed else 0)
 
 

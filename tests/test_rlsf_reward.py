@@ -12,6 +12,7 @@ import pytest
 from src.data.rlsf_dev import partition, select_works, work_sizes
 from src.eval.judge import build_prompt, template_digest
 from src.rlsf.reward import (
+    JudgeTiming,
     RewardConfig,
     compute_rewards,
     frozen_digest,
@@ -212,6 +213,31 @@ def test_fanned_out_verdicts_stay_aligned_with_their_samples():
         judge, "{source}|{reference}|{prediction}", ["s"] * n, ["r"] * n, hyps, max_workers=n
     )
     assert out == pytest.approx([float(s) for s in scores])
+
+
+def test_timing_separates_the_wall_clock_from_the_call_time():
+    n = 8
+    hyps = [f"h{i}" for i in range(n)]
+    judge = _StubJudge({h: "Score: 3" for h in hyps}, delays={h: 0.02 for h in hyps})
+    timing = JudgeTiming()
+    judge_scores(
+        judge, "{source}|{reference}|{prediction}", ["s"] * n, ["r"] * n, hyps,
+        max_workers=n, timing=timing,
+    )
+    assert timing.calls == n
+    assert timing.call_s > timing.wall_s
+    # The claim the number exists to check: workers asked for is not fan-out obtained.
+    assert 2.0 < timing.achieved_parallelism <= n
+
+
+def test_a_serial_judge_block_reads_as_no_fan_out():
+    hyps = ["h0", "h1"]
+    judge = _StubJudge({h: "Score: 3" for h in hyps}, delays={h: 0.02 for h in hyps})
+    timing = JudgeTiming()
+    judge_scores(
+        judge, "{source}|{reference}|{prediction}", ["s"] * 2, ["r"] * 2, hyps, timing=timing
+    )
+    assert timing.achieved_parallelism == pytest.approx(1.0, abs=0.15)
 
 
 def test_unmeasured_component_is_infeasible_not_a_low_score():

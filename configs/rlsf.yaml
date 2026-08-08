@@ -67,7 +67,7 @@ rlsf:
     baseline_steps: 5                     # opening steps averaged into the baseline
     window: 3                             # consecutive steps that must all sit above the band
     k_sigma: 3.0                          # band width, in pooled standard errors
-    min_delta: 0.5                        # centroid std devs; smaller drift does not halt a run
+    min_delta: 0.23                       # centroid std devs; val ladder's peft-to-random_fewshot gap
 
 
   caps:
