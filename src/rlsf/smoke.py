@@ -19,7 +19,13 @@ from pathlib import Path
 import numpy as np
 
 from src.infer.run import build_zeroshot_user, make_client
-from src.rlsf.config import load_config, make_judge_client, reward_config
+from src.rlsf.config import (
+    drift_rule,
+    judge_concurrency,
+    load_config,
+    make_judge_client,
+    reward_config,
+)
 from src.rlsf.kiwi import KiwiScorer
 from src.rlsf.reward import (
     compute_rewards,
@@ -115,7 +121,8 @@ def verdicts(
             "length band",
             feasible_frac > _MIN_FEASIBLE,
             f"{log['n_feasible']}/{log['n_samples']} feasible "
-            f"({feasible_frac:.0%}), ratio mean {log['length_ratio_mean']:.2f}",
+            f"({feasible_frac:.0%}), ratio mean {log['length_ratio_mean']:.2f}, "
+            f"{log.get('n_unmeasured', 0)} unmeasured",
         ),
     ]
 
@@ -170,6 +177,9 @@ def main() -> None:
     parser.add_argument("--group_size", type=int, default=None, help="default: config rollout")
     parser.add_argument("--max_judge_calls", type=int, default=None, help="default: pilot block")
     parser.add_argument("--skip_judge", action="store_true", help="no paid calls; judge held flat")
+    parser.add_argument(
+        "--judge_concurrency", type=int, default=None, help="default: config judge.concurrency"
+    )
     parser.add_argument("--yes", action="store_true", help="confirm the spend and proceed")
     parser.add_argument("--out", default="outputs/rlsf/smoke_steps.jsonl")
     parser.add_argument(
@@ -184,13 +194,19 @@ def main() -> None:
     cfg = load_config(args.config, require_caps=False)
     group_size = args.group_size or cfg["rlsf"]["rollout"]["group_size"]
     ceiling = args.max_judge_calls or cfg["rlsf"]["pilot"]["judge_calls"]
+    if args.judge_concurrency is not None:
+        cfg["judge"]["concurrency"] = args.judge_concurrency  # validated by the reader below
+    workers = judge_concurrency(cfg)
 
     p = plan(args.segments, group_size)
     print(f"plan: {args.segments} segments x G={group_size} = {p['samples']} samples")
     if args.skip_judge:
         print("      judge skipped: 0 paid calls, judge component held flat")
     else:
-        print(f"      {p['judge_calls']} judge calls, ~${p['est_usd']} (ceiling {ceiling})")
+        print(
+            f"      {p['judge_calls']} judge calls at concurrency {workers}, "
+            f"~${p['est_usd']} (ceiling {ceiling})"
+        )
         if p["judge_calls"] > ceiling:
             raise SystemExit(
                 f"{p['judge_calls']} judge calls exceeds the pilot ceiling of {ceiling}. "
@@ -251,7 +267,9 @@ def main() -> None:
         raw["judge"] = [1.0] * len(hyps)
     else:
         judge = make_judge_client(cfg)
-        raw["judge"] = judge_scores(judge, load_train_template(), src_rep, ref_rep, hyps)
+        raw["judge"] = judge_scores(
+            judge, load_train_template(), src_rep, ref_rep, hyps, max_workers=workers
+        )
 
     rewards, feasible, log = compute_rewards(
         src_rep,
@@ -276,6 +294,14 @@ def main() -> None:
         print(f"  {name:6s} degenerate groups {stats['degenerate']}/{stats['groups']}")
     print(f"  {'reward':6s} degenerate groups {degeneracy['degenerate']}/{degeneracy['groups']}"
           f"  (min group sd {degeneracy['min_group_sd']})")
+
+    # One draw of the drift baseline, not the baseline: the rule averages the run's first
+    # steps, and a single step's error is wide enough that one draw cannot stand for it.
+    rule = drift_rule(cfg)
+    print(f"\ndrift stop: {rule.feature} z {log.z[rule.feature]:+.3f} +/- "
+          f"{log.z_se[rule.feature]:.3f} over {args.segments} prompts. The rule opens its "
+          f"baseline on the first {rule.baseline_steps} training steps and fires only after "
+          f"{rule.window} consecutive steps past it.")
 
     print()
     failed = 0

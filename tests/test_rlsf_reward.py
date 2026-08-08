@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import math
+import time
 
 import numpy as np
 import pytest
@@ -15,6 +16,7 @@ from src.rlsf.reward import (
     compute_rewards,
     frozen_digest,
     group_normalize,
+    judge_scores,
     length_feasible,
     load_train_template,
     overlap_scores,
@@ -142,6 +144,7 @@ def test_infeasible_sample_gets_group_floor():
     assert rewards[2] < rewards[0] and rewards[2] < rewards[1]
     assert np.isfinite(rewards).all()
     assert log.n_feasible == 2
+    assert log.n_unmeasured == 0
 
 
 def test_infeasible_sample_dropped_as_nan():
@@ -169,6 +172,76 @@ def test_all_infeasible_group_does_not_raise():
     assert not feasible.any()
     assert log.n_feasible == 0
     assert np.isfinite(rewards).all()
+
+
+class _StubJudge:
+    """Replies keyed by hypothesis, so a verdict stays identifiable when calls are fanned out."""
+
+    def __init__(self, replies, delays=None):
+        self.replies = replies
+        self.delays = delays or {}
+
+    def complete(self, system, prompt):
+        # The stub templates below end in the hypothesis.
+        hyp = prompt.rsplit("|", 1)[-1]
+        time.sleep(self.delays.get(hyp, 0.0))
+        return self.replies[hyp]
+
+
+def test_unreadable_verdict_scores_nan_not_the_rubric_minimum():
+    # 1 is a verdict the judge can return; a refusal or a stray format is not one.
+    out = judge_scores(
+        _StubJudge({"h0": "Score: 4", "h1": "I cannot rate this."}),
+        "{source}|{reference}|{prediction}",
+        ["s"] * 2, ["r"] * 2, ["h0", "h1"],
+    )
+    assert out[0] == pytest.approx(4.0)
+    assert math.isnan(out[1])
+
+
+def test_fanned_out_verdicts_stay_aligned_with_their_samples():
+    n = 8
+    hyps = [f"h{i}" for i in range(n)]
+    scores = [(i % 5) + 1 for i in range(n)]
+    # Earliest sample replies last, so a result-ordered collection would misattribute verdicts.
+    judge = _StubJudge(
+        {h: f"Score: {s}" for h, s in zip(hyps, scores)},
+        delays={h: 0.01 * (n - i) for i, h in enumerate(hyps)},
+    )
+    out = judge_scores(
+        judge, "{source}|{reference}|{prediction}", ["s"] * n, ["r"] * n, hyps, max_workers=n
+    )
+    assert out == pytest.approx([float(s) for s in scores])
+
+
+def test_unmeasured_component_is_infeasible_not_a_low_score():
+    n = 3
+    scores = _components(n, judge=[5.0, 4.0, float("nan")])
+    cfg = RewardConfig(w_bleu=0.0, w_kiwi=0.0, w_judge=1.0, on_violation="floor")
+    rewards, feasible, log = compute_rewards(
+        ["s"] * n, ["a b c"] * n, ["a b c"] * n,
+        cfg=cfg, group_size=n, component_scores=scores, centroid=CENTROID,
+    )
+    assert list(feasible) == [True, True, False]
+    assert log.n_feasible == 2 and log.n_unmeasured == 1
+    # The unmeasured sample neither joins the group's statistics nor ranks above one that did.
+    assert rewards[0] == pytest.approx(1.0) and rewards[1] == pytest.approx(-1.0)
+    assert rewards[2] < rewards[1]
+
+
+def test_unmeasured_component_dropped_as_nan():
+    n = 2
+    scores = _components(n, judge=[4.0, float("nan")])
+    rewards, feasible, log = compute_rewards(
+        ["s"] * n, ["a b c"] * n, ["a b c"] * n,
+        cfg=RewardConfig(on_violation="drop"), group_size=n,
+        component_scores=scores, centroid=CENTROID,
+    )
+    assert list(feasible) == [True, False]
+    assert math.isnan(rewards[1])
+    # The logged raw mean is over what was measured, so one failure cannot make it nan.
+    assert log.raw["judge"] == pytest.approx(4.0)
+    assert log.n_unmeasured == 1
 
 
 def test_multiple_groups_normalized_independently():

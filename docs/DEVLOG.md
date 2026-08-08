@@ -86,6 +86,156 @@ their history.
 
 ---
 
+## 2026-08-08 — An unreadable judge verdict is unmeasured, not a 1
+
+### Summary
+
+`judge_scores` scored a judge response it could not parse as 1.0, the bottom of the 1–5
+rubric. A formatting failure therefore entered the group as the strongest available
+negative signal, and PPO would move weights away from the sample. Unparseable verdicts now
+score nan and `compute_rewards` marks the sample infeasible, which is the path length
+violations already take. Implemented only: no training run has used it.
+
+### What changed
+
+* `src/rlsf/reward.py:73` — `judge_scores` returns nan where `parse_score` returns `None`.
+  Its `default` parameter is gone; there is no score to fall back to.
+* `src/rlsf/reward.py:276` — `compute_rewards` intersects the length band with a
+  finite-score mask over every component, so any unmeasured term drops the sample through
+  the configured `on_violation` path rather than through its own.
+* `src/rlsf/reward.py:224` — `StepLog.n_unmeasured`, written on every step, separating
+  samples dropped for a missing score from samples dropped for length.
+* `src/rlsf/reward.py:159` — `_measured_mean`, so one unparsed verdict does not make the
+  step's logged raw judge mean nan.
+* `src/rlsf/smoke.py:119` — the length-band check reports the unmeasured count alongside
+  the feasible fraction.
+
+### Rationale
+
+The evaluation path has never done this. `src/eval/judge.py:parse_score` returns `None`
+and every consumer drops the segment: `judge_batch` records a null, `judge_agreement` and
+`judge_ci` carry NaN, `paired_bootstrap` drops the pair rather than imputing it (2026-07-31
+entry). The reward path was the one place a parse failure was converted into a number, and
+it converted it into the worst number on the scale.
+
+The rate is not negligible. On `results/judge_gpt_val.json` — Φ_B, the cross-family
+confirmation judge — coverage runs from 0.9803 to 0.9902 across the seven conditions: 129
+unparseable of 9,261 segments, 1.4%. That is on well-formed evaluation output at
+temperature 0. RLSF samples at T = 1.0 from a policy being updated, where degenerate and
+truncated generations are exactly the ones a judge answers oddly about, so 1.4% is a floor
+rather than an estimate. At 64 judge calls a step the weight grid alone is 12,800 calls;
+with a final run of comparable length the affected count is on the order of 300 samples,
+each of them a fabricated minimum.
+
+Under `on_violation: floor` the sample still receives `worst - 1.0`, which is lower than
+the 1.0 it used to get. The difference is that the value is now attributed: it comes from
+the feasibility rule the config chose, it is counted in `n_unmeasured`, and switching to
+`drop` removes the sample from the update entirely. A 1.0 written into the judge component
+was indistinguishable from a verdict the judge actually returned, and it entered the
+group's mean and standard deviation, moving the advantages of the three samples beside it.
+
+### Verification
+
+`pytest tests/` passes, 204 tests, 3 of them new in `tests/test_rlsf_reward.py`: an
+unreadable verdict scores nan rather than 1; a nan component marks the sample infeasible
+and leaves its group-mates' rewards at exactly ±1, which pins that the failure entered
+neither the mean nor the standard deviation; and under `drop` the sample's reward is nan
+while the logged raw judge mean is still the mean of what parsed. The existing
+length-violation test now also asserts `n_unmeasured == 0`, so the two drop reasons stay
+distinct.
+
+### Limitations and risks
+
+* The 1.4% figure is measured on Φ_B's evaluation run against `prompts/judge_eval.txt`,
+  not on `prompts/judge_train.txt` at T = 1.0. The training rubric's own rate is unmeasured
+  until a run logs `n_unmeasured`.
+* No retry is attempted. A verdict lost to a transient formatting slip costs a paid call
+  and yields no measurement; whether one re-ask is worth the latency inside the loop is
+  unanswered.
+* Nothing yet bounds the rate. A judge failing on a third of a step would quietly shrink
+  every group without tripping a check, since the smoke's length-band threshold is 50%.
+
+---
+
+## 2026-08-08 — Register-drift stop rule, stated against the run's own baseline
+
+### Summary
+
+The drift stop for RLSF training compared a step's `marker_rate` z against the val-set
+constant for zero-shot, 0.547. Read that way it fires at step 0 of the smoke, which
+measured 0.577 before a single PPO update. The rule is now stated against the run's own
+opening steps and requires several consecutive steps outside the band, and each step now
+logs the standard error the band is sized from. Implemented only: no training run has
+used it.
+
+### What changed
+
+* `src/rlsf/reward.py:179` — `z_step_stats` returns the per-feature mean z **and** its
+  standard error, clustered on the prompt. `z_deviations` is now a wrapper over it, so the
+  logged z is unchanged (0.577 recomputed from `outputs/rlsf/smoke_hyps.jsonl`).
+* `src/rlsf/reward.py:222` — `StepLog.z_se`, written on every step.
+* `src/rlsf/stop.py` (new) — `DriftRule`, `DriftMonitor`, `DriftVerdict`. The monitor takes
+  one StepLog per step and returns a verdict; the training loop stops on a tripped one.
+* `configs/rlsf.yaml:65` — the `stop:` block: `baseline_steps: 5`, `window: 3`,
+  `k_sigma: 3.0`, `min_delta: 0.5`.
+* `src/rlsf/config.py:90` — `drift_rule` builds the rule from that block.
+* `src/rlsf/smoke.py:282` — the smoke prints the step's z with its error and says that one
+  step is a draw of the baseline, not the baseline.
+
+### Rationale
+
+The two numbers being compared were not the same measurement. Zero-shot's 0.547 is
+1,323 val segments decoded greedily; the smoke's 0.577 is 80 samples at T = 1.0 from the
+PEFT-initialized policy. The smoke figure also sits inside zero-shot's own bootstrap
+interval, [0.476, 0.622], so the excursion it reported was not separable from the constant
+it was measured against. A threshold carried over from the conditions table measures the
+sampling regime, not the policy.
+
+The baseline is now the run's own first steps, in the same regime as everything it will be
+compared with. Step 0 alone is a legal baseline and a poor one: its clustered error on the
+smoke is 0.295, so a single step cannot distinguish a half-sigma drift from a quiet one.
+Five steps at an lr of 1e-6 is roughly 80 prompts of accumulated update, which buys a
+baseline error of 0.13 at a drift cost small enough to accept.
+
+Two conditions must hold together. Every step in the window has to sit at least `min_delta`
+above the baseline, so one spiking batch cannot carry the window mean over on its own; and
+the window mean's excess has to clear `k_sigma` pooled standard errors, so a drift the run
+cannot resolve does not halt it. The floor is there because statistical separation is not
+the same as a reason to stop: with enough steps a long run resolves excursions too small to
+care about.
+
+The error is clustered on the prompt because a group's four samples answer one source.
+Pooling all 80 as independent reads 0.163 where the clustered figure is 0.295 — a band
+1.8× too narrow, and the rule would fire on prompt-draw noise.
+
+### Verification
+
+`pytest tests/` passes, 201 tests, 16 of them new in `tests/test_rlsf_stop.py`. The case
+that prompted the change is pinned: a run held flat at 0.577 never trips, though every step
+of it sits above 0.547. Also pinned: a single spike does not trip, an excursion inside the
+noise does not trip, a clean excursion below `min_delta` does not trip, downward drift does
+not trip, and the baseline does not absorb the drift it is measuring.
+
+Replaying the committed `smoke_hyps.jsonl` through `compute_rewards` reproduces
+`z.marker_rate = 0.577` and records `z_se.marker_rate = 0.295`. At that error the rule's
+band is 0.65, and a synthetic +1.2 excursion held for three steps trips it.
+
+### Limitations and risks
+
+* No training loop calls the monitor yet; `src/rlsf/smoke.py` reports the baseline and
+  nothing consumes a verdict.
+* The band uses a normal quantile over roughly 16 clusters per step. With that many groups
+  a t quantile would be wider, so the rule fires slightly more readily than 3σ implies.
+* Steps are pooled as independent draws. If the training loop reuses one prompt set across
+  steps, the between-step variance is smaller than the within-step estimate and the band is
+  conservative.
+* The rule watches `marker_rate` alone, one-sided. Register loss and drift in the other
+  three centroid features are visible in the step log but do not stop a run.
+* `baseline_steps: 5` absorbs whatever drift occurs in the first five steps. At a higher
+  learning rate that assumption fails and the baseline should be shortened.
+
+---
+
 ## 2026-08-07 — Judge client wired into the reward path; smoke stage added, not run
 
 ### Summary

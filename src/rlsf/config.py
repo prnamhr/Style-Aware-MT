@@ -7,6 +7,7 @@ import yaml
 
 from src.infer.run import make_client
 from src.rlsf.reward import RewardConfig
+from src.rlsf.stop import DriftRule
 
 _CONFIG = Path("configs/rlsf.yaml")
 
@@ -70,6 +71,14 @@ def make_judge_client(cfg: dict):
     return make_client(judge)
 
 
+def judge_concurrency(cfg: dict) -> int:
+    """Threads the judge fan-out may use. Provider-side retries absorb the 429s it invites."""
+    n = cfg["judge"].get("concurrency", 1)
+    if not isinstance(n, int) or isinstance(n, bool) or n < 1:
+        raise ValueError(f"judge.concurrency must be a positive integer, got {n!r}")
+    return n
+
+
 def _rater_models() -> set[str]:
     """Models used as evaluation raters, read from their configs."""
     out = set()
@@ -84,6 +93,13 @@ def reward_config(cfg: dict) -> RewardConfig:
     block = cfg["rlsf"]["reward"]
     fields = RewardConfig.__dataclass_fields__
     return RewardConfig(**{k: v for k, v in block.items() if k in fields})
+
+
+def drift_rule(cfg: dict) -> DriftRule:
+    """Build the register-drift stop rule from the config's `stop:` block."""
+    block = cfg["rlsf"].get("stop") or {}
+    fields = DriftRule.__dataclass_fields__
+    return DriftRule(**{k: v for k, v in block.items() if k in fields})
 
 
 def grid_reward_configs(cfg: dict) -> list[tuple[str, RewardConfig]]:

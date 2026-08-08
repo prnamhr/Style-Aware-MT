@@ -11,6 +11,7 @@ from src.rlsf.config import (
     assert_caps_declared,
     assert_group_size_within_ceiling,
     grid_reward_configs,
+    judge_concurrency,
     load_config,
     make_judge_client,
     priced_worst_case,
@@ -154,6 +155,25 @@ def test_reward_judge_is_reproducible():
     judge = load_config(require_caps=False)["judge"]
     assert judge["temperature"] == 0.0
     assert judge["seed"] == 42
+
+
+def test_judge_concurrency_defaults_to_serial_when_unset():
+    cfg = load_config(require_caps=False)
+    del cfg["judge"]["concurrency"]
+    assert judge_concurrency(cfg) == 1
+
+
+@pytest.mark.parametrize("bad", [0, -4, 1.5, True, "8"])
+def test_non_positive_judge_concurrency_is_rejected(bad):
+    cfg = load_config(require_caps=False)
+    cfg["judge"]["concurrency"] = bad
+    with pytest.raises(ValueError, match="positive integer"):
+        judge_concurrency(cfg)
+
+
+def test_committed_judge_concurrency_fans_out():
+    # Serial, a step's 64 calls are 64 round trips the rented GPU waits through.
+    assert judge_concurrency(load_config(require_caps=False)) > 1
 
 
 def test_policy_is_the_locked_base_unquantized():

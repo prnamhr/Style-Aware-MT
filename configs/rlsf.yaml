@@ -62,6 +62,13 @@ rlsf:
       - {name: w3_1.0, w_kiwi: 1.0, w_bleu: 1.0, w_judge: 1.0}
       - {name: w3_2.0, w_kiwi: 1.0, w_bleu: 1.0, w_judge: 2.0}
 
+  stop:
+    feature: marker_rate                  # the direction the register reward can be gamed in
+    baseline_steps: 5                     # opening steps averaged into the baseline
+    window: 3                             # consecutive steps that must all sit above the band
+    k_sigma: 3.0                          # band width, in pooled standard errors
+    min_delta: 0.5                        # centroid std devs; smaller drift does not halt a run
+
 
   caps:
     max_steps: null                       # PPO step cap, final run
@@ -81,6 +88,8 @@ judge:
   temperature: 0.0
   seed: 42
   max_tokens: 128
+  concurrency: 8                          # judge calls in flight; the loop is latency-bound
+                                          #  and a step's 64 calls block the GPU serially
 
 template_file: prompts/judge_train.txt    # frozen; digest verified on load
 

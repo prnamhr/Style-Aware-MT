@@ -3,12 +3,13 @@ from __future__ import annotations
 
 import hashlib
 import json
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
 
 import numpy as np
 
-from src.eval.stylometrics import CENTROID_FEATURES, features, signed_z
+from src.eval.stylometrics import features, signed_z
 
 _CENTROID_PATH = Path("results/stylometrics_centroid.json")
 _TRAIN_TEMPLATE = Path("prompts/judge_train.txt")
@@ -77,18 +78,29 @@ def judge_scores(
     refs: list[str],
     hyps: list[str],
     *,
-    default: float = 1.0,
+    max_workers: int = 1,
 ) -> list[float]:
-    """Training-time Phi, one paid call per sample."""
+    """Training-time Phi, one paid call per sample; nan where the verdict did not parse.
+
+    The calls are latency-bound and independent, so ``max_workers`` above 1 fans them out
+    over threads rather than holding the rented GPU idle for a step's worth of verdicts.
+    """
     from src.eval.judge import _JUDGE_SYSTEM, build_prompt, parse_score
 
-    out: list[float] = []
-    for src, ref, hyp in zip(sources, refs, hyps):
+    prompts = [build_prompt(template, src, ref, hyp) for src, ref, hyp in zip(sources, refs, hyps)]
+
+    def score_one(prompt: str) -> float:
         # Same system message as the evaluation judge, so the two differ only in rubric.
-        text = client.complete(_JUDGE_SYSTEM, build_prompt(template, src, ref, hyp))
-        score = parse_score(text)
-        out.append(float(default if score is None else score))
-    return out
+        score = parse_score(client.complete(_JUDGE_SYSTEM, prompt))
+        # An unreadable verdict is an unmeasured sample, not a 1; compute_rewards marks it
+        # infeasible, as the evaluation path drops unparseable segments rather than scoring them.
+        return float("nan") if score is None else float(score)
+
+    if max_workers <= 1:
+        return [score_one(prompt) for prompt in prompts]
+    with ThreadPoolExecutor(max_workers=max_workers) as pool:
+        # map yields in submission order, so a verdict cannot be attributed to another sample.
+        return list(pool.map(score_one, prompts))
 
 
 def frozen_digest(
@@ -156,6 +168,12 @@ def group_normalize(values: np.ndarray, valid: np.ndarray) -> np.ndarray:
     return out
 
 
+def _measured_mean(values: np.ndarray) -> float:
+    """Mean over the entries that were measured; nan when none were."""
+    ok = np.isfinite(values)
+    return float(values[ok].mean()) if ok.any() else float("nan")
+
+
 def length_feasible(hyps: list[str], refs: list[str], cfg: RewardConfig) -> np.ndarray:
 
     out = np.ones(len(hyps), dtype=bool)
@@ -176,17 +194,33 @@ def load_centroid(path: str | Path = _CENTROID_PATH) -> dict:
     return json.loads(Path(path).read_text(encoding="utf-8"))
 
 
+def z_step_stats(
+    hyps: list[str], centroid: dict, *, group_size: int = 1
+) -> tuple[dict[str, float], dict[str, float]]:
+    """Mean signed z-deviation per centroid feature over a step's samples, and its error."""
+    names = centroid["features"]
+    if not hyps:
+        return dict.fromkeys(names, float("nan")), dict.fromkeys(names, float("nan"))
+    if group_size < 1 or len(hyps) % group_size:
+        raise ValueError(f"{len(hyps)} samples is not a whole number of groups of {group_size}")
+
+    matrix = np.asarray([[features(h)[name] for name in names] for h in hyps], dtype=float)
+    means = signed_z(dict(zip(names, matrix.mean(axis=0).tolist())), centroid)
+
+    per_sample = (matrix - np.asarray(centroid["mean"], dtype=float)) / np.asarray(
+        centroid["std"], dtype=float
+    )
+    group_means = per_sample.reshape(len(hyps) // group_size, group_size, len(names)).mean(axis=1)
+    n_groups = group_means.shape[0]
+    if n_groups < 2:
+        return means, dict.fromkeys(names, float("nan"))
+    ses = (group_means.std(axis=0, ddof=1) / np.sqrt(n_groups)).tolist()
+    return means, dict(zip(names, ses))
+
+
 def z_deviations(hyps: list[str], centroid: dict) -> dict[str, float]:
     """Mean signed z-deviation per centroid feature over a step's samples."""
-    if not hyps:
-        return dict.fromkeys(CENTROID_FEATURES, float("nan"))
-    per_feature = {name: [] for name in CENTROID_FEATURES}
-    for hyp in hyps:
-        feats = features(hyp)
-        for name in CENTROID_FEATURES:
-            per_feature[name].append(feats[name])
-    means = {name: float(np.mean(vals)) for name, vals in per_feature.items()}
-    return signed_z(means, centroid)
+    return z_step_stats(hyps, centroid)[0]
 
 
 @dataclass
@@ -198,11 +232,14 @@ class StepLog:
     n_feasible: int
     reward_mean: float
     reward_sd: float
+    # Samples dropped for a missing component score, not for a length violation.
+    n_unmeasured: int = 0
     raw: dict[str, float] = field(default_factory=dict)
     normalized: dict[str, float] = field(default_factory=dict)
     length_mean: float = 0.0
     length_ratio_mean: float = 0.0
     z: dict[str, float] = field(default_factory=dict)
+    z_se: dict[str, float] = field(default_factory=dict)
 
     def as_dict(self) -> dict:
         return {
@@ -211,11 +248,13 @@ class StepLog:
             "n_feasible": self.n_feasible,
             "reward_mean": self.reward_mean,
             "reward_sd": self.reward_sd,
+            "n_unmeasured": self.n_unmeasured,
             "raw": self.raw,
             "normalized": self.normalized,
             "length_mean": self.length_mean,
             "length_ratio_mean": self.length_ratio_mean,
             "z": self.z,
+            "z_se": self.z_se,
         }
 
 
@@ -245,8 +284,9 @@ def compute_rewards(
         if len(values) != n:
             raise ValueError(f"component {name!r} has {len(values)} scores for {n} samples")
 
-    feasible = length_feasible(hyps, refs, cfg)
     raw = {name: np.asarray(component_scores[name], dtype=float) for name in cfg.weights}
+    measured = np.logical_and.reduce([np.isfinite(values) for values in raw.values()])
+    feasible = length_feasible(hyps, refs, cfg) & measured
 
     rewards = np.full(n, np.nan, dtype=float)
     normalized_all = {name: np.zeros(n, dtype=float) for name in cfg.weights}
@@ -268,16 +308,19 @@ def compute_rewards(
     lengths = np.asarray([len(h.split()) for h in hyps], dtype=float)
     ref_lengths = np.asarray([max(len(r.split()), 1) for r in refs], dtype=float)
     finite = rewards[np.isfinite(rewards)]
+    z, z_se = z_step_stats(hyps, centroid, group_size=group_size)
     log = StepLog(
         step=step,
         n_samples=n,
         n_feasible=int(feasible.sum()),
         reward_mean=float(finite.mean()) if finite.size else float("nan"),
         reward_sd=float(finite.std(ddof=0)) if finite.size else float("nan"),
-        raw={name: float(values.mean()) for name, values in raw.items()},
+        n_unmeasured=int((~measured).sum()),
+        raw={name: _measured_mean(values) for name, values in raw.items()},
         normalized={name: float(values.mean()) for name, values in normalized_all.items()},
         length_mean=float(lengths.mean()) if n else float("nan"),
         length_ratio_mean=float((lengths / ref_lengths).mean()) if n else float("nan"),
-        z=z_deviations(hyps, centroid),
+        z=z,
+        z_se=z_se,
     )
     return rewards, feasible, log
