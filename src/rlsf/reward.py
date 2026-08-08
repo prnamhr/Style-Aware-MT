@@ -3,10 +3,11 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 import numpy as np
@@ -55,6 +56,18 @@ class RewardConfig:
     def weights(self) -> dict[str, float]:
         # Keyed by the metric in use, so a chrF grid cell is not logged under a BLEU label.
         return {self.overlap_metric: self.w_bleu, "kiwi": self.w_kiwi, "judge": self.w_judge}
+
+    def unit_omega(self) -> RewardConfig:
+        """A copy with the three weights rescaled to unit L2 norm, ratios preserved."""
+        norm = math.hypot(self.w_bleu, self.w_kiwi, self.w_judge)
+        if norm == 0:
+            raise ValueError("all three weights are zero, so the reward carries no signal")
+        return replace(
+            self,
+            w_bleu=self.w_bleu / norm,
+            w_kiwi=self.w_kiwi / norm,
+            w_judge=self.w_judge / norm,
+        )
 
 
 # components 

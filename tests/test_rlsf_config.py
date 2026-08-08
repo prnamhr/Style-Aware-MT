@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import math
 
 import pytest
 import yaml
@@ -118,8 +119,16 @@ def test_reward_config_reads_the_weights_and_ignores_sub_blocks():
 def test_weight_grid_varies_only_omega_3_and_includes_the_ablation():
     cells = grid_reward_configs(load_config(require_caps=False))
     assert [name for name, _ in cells] == ["w3_0.0", "w3_0.5", "w3_1.0", "w3_2.0"]
-    assert all(rc.w_kiwi == 1.0 and rc.w_bleu == 1.0 for _, rc in cells)
-    assert [rc.w_judge for _, rc in cells] == [0.0, 0.5, 1.0, 2.0]
+    assert all(rc.w_kiwi == pytest.approx(rc.w_bleu) for _, rc in cells)
+    # The cells are delivered at unit ||omega||, so the name is the ratio, not the weight.
+    assert [rc.w_judge / rc.w_bleu for _, rc in cells] == pytest.approx([0.0, 0.5, 1.0, 2.0])
+
+
+def test_grid_cells_are_delivered_at_unit_omega_norm():
+    # Otherwise the w3_2.0 cell takes 1.68x larger optimizer steps than the ablation and an
+    # online grid reads a learning-rate sweep as a weighting sweep.
+    for _, rc in grid_reward_configs(load_config(require_caps=False)):
+        assert math.hypot(rc.w_bleu, rc.w_kiwi, rc.w_judge) == pytest.approx(1.0)
 
 
 def test_grid_cells_inherit_the_base_feasibility_band():

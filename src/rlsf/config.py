@@ -103,13 +103,16 @@ def drift_rule(cfg: dict) -> DriftRule:
 
 
 def grid_reward_configs(cfg: dict) -> list[tuple[str, RewardConfig]]:
-    """The RQ3 weight grid as (cell name, reward config) pairs."""
+    """The RQ3 weight grid as (cell name, reward config) pairs, each at unit ||omega||.
+    """
     base = cfg["rlsf"]["reward"]
     fields = RewardConfig.__dataclass_fields__
     out = []
     for cell in cfg["rlsf"]["weight_grid"]["cells"]:
         merged = {k: v for k, v in {**base, **cell}.items() if k in fields}
-        out.append((cell["name"], RewardConfig(**merged)))
+        # As declared the cells' weight vectors differ in norm by 1.68x, which an online grid
+        # would spend as a larger optimizer step rather than as a different weighting.
+        out.append((cell["name"], RewardConfig(**merged).unit_omega()))
     return out
 
 

@@ -30,9 +30,14 @@ def cfg():
     return load_config(require_caps=False)
 
 
+# GRPOConfig defaults to bf16 and rejects it before any guard here runs unless use_cpu is
+# set, which would make every config-building test in this file green only on a bf16 GPU.
+CPU = {"use_cpu": True}
+
+
 @pytest.fixture(scope="module")
 def args(cfg, tmp_path_factory):
-    return grpo_args(cfg, output_dir=tmp_path_factory.mktemp("grpo"), rollout_steps=10)
+    return grpo_args(cfg, output_dir=tmp_path_factory.mktemp("grpo"), rollout_steps=10, **CPU)
 
 
 # the normalization contract
@@ -48,7 +53,7 @@ def test_the_trainer_does_not_rescale_an_already_normalized_reward(args):
 def test_re_enabling_the_trainer_scaling_is_refused(cfg, tmp_path, bad):
     # `True` included because GRPOConfig maps it to "group" before the guard sees it.
     with pytest.raises(ValueError, match="already z-scores"):
-        grpo_args(cfg, output_dir=tmp_path, rollout_steps=1, scale_rewards=bad)
+        grpo_args(cfg, output_dir=tmp_path, rollout_steps=1, scale_rewards=bad, **CPU)
 
 
 def test_the_guard_is_readable_without_building_a_trainer_config():
@@ -57,10 +62,12 @@ def test_the_guard_is_readable_without_building_a_trainer_config():
         assert_single_normalization(SimpleNamespace(scale_rewards="group"))
 
 
-def test_group_scaling_erases_the_omega_magnitude_the_grid_varies():
-    """The reason the choice matters: under a second group normalization every weight
-    cell reaches the optimizer at the same advantage scale."""
+def test_the_grid_cells_reach_the_optimizer_at_one_advantage_scale():
+    """As declared, the cells separate by 1.68x in advantage magnitude, ordered by the norm
+    of their weight vector -- an online grid would spend that as a larger optimizer step
+    rather than as a different weighting. grid_reward_configs holds ||omega|| at 1."""
     from src.rlsf.config import grid_reward_configs
+    from src.rlsf.reward import RewardConfig
 
     rng = np.random.default_rng(0)
     prompts, group_size = 200, 4
@@ -73,8 +80,7 @@ def test_group_scaling_erases_the_omega_magnitude_the_grid_varies():
         "judge": rng.integers(1, 6, n).astype(float).tolist(),
     }
 
-    unscaled, rescaled = [], []
-    for _, rc in grid_reward_configs(load_config(require_caps=False)):
+    def advantages(rc) -> np.ndarray:
         rewards, _, _ = compute_rewards(
             ["s"] * n, hyps, refs,
             cfg=rc,
@@ -83,16 +89,48 @@ def test_group_scaling_erases_the_omega_magnitude_the_grid_varies():
             centroid=CENTROID,
         )
         grouped = rewards.reshape(prompts, group_size)
-        advantage = grouped - grouped.mean(axis=1, keepdims=True)
-        scaled = advantage / (advantage.std(axis=1, keepdims=True) + 1e-4)
-        unscaled.append(advantage.std(axis=1).mean())
-        rescaled.append(scaled.std(axis=1).mean())
+        return grouped - grouped.mean(axis=1, keepdims=True)
 
-    # Passed raw, the cells separate by 1.7x, ordered by the norm of their weight vector.
-    assert unscaled == sorted(unscaled)
-    assert unscaled[-1] / unscaled[0] == pytest.approx(1.68, abs=0.02)
-    # Rescaled, all four collapse onto the same scale: the omega axis is gone.
-    assert all(sd == pytest.approx(1.0, abs=1e-3) for sd in rescaled)
+    cfg = load_config(require_caps=False)
+    base = cfg["rlsf"]["reward"]
+    omega = ("w_kiwi", "w_bleu", "w_judge")
+    declared = [
+        advantages(RewardConfig(**{k: cell.get(k, base[k]) for k in omega})).std(axis=1).mean()
+        for cell in cfg["rlsf"]["weight_grid"]["cells"]
+    ]
+    assert declared == sorted(declared)
+    assert declared[-1] / declared[0] == pytest.approx(1.68, abs=0.02)
+
+    # The 1.68x is gone; the 3.5% left is the judge's integer scale going flat inside a
+    # group, which varies with the weight direction rather than with ||omega||.
+    delivered = [advantages(rc).std(axis=1).mean() for _, rc in grid_reward_configs(cfg)]
+    assert max(delivered) / min(delivered) < 1.05
+
+
+def test_trainer_scaling_would_rescale_every_group_to_unit_advantage():
+    """Why the trainer's own scaling stays off: it divides each group by that group's own
+    reward spread, so a group the policy has already flattened is amplified to unit scale."""
+    rng = np.random.default_rng(0)
+    group_size = 4
+    wide = rng.normal(30, 8, group_size)
+    flat = np.full(group_size, 30.0) + rng.normal(0, 1e-3, group_size)
+    hyps = [" ".join(["w"] * 12)] * (2 * group_size)
+
+    rewards, _, _ = compute_rewards(
+        ["s"] * len(hyps), hyps, hyps,
+        cfg=reward_config(load_config(require_caps=False)),
+        group_size=group_size,
+        component_scores={
+            "bleu": np.concatenate([wide, flat]).tolist(),
+            "kiwi": [1.0] * len(hyps),
+            "judge": [1.0] * len(hyps),
+        },
+        centroid=CENTROID,
+    )
+    grouped = rewards.reshape(2, group_size)
+    advantage = grouped - grouped.mean(axis=1, keepdims=True)
+    scaled = advantage / (advantage.std(axis=1, keepdims=True) + 1e-4)
+    assert scaled.std(axis=1) == pytest.approx([1.0, 1.0], abs=1e-3)
 
 
 def test_the_reward_reaching_the_trainer_is_a_combined_z_score():
@@ -141,7 +179,7 @@ def test_a_micro_batch_that_does_not_divide_the_rollout_is_refused(cfg, tmp_path
     cfg = copy.deepcopy(cfg)
     cfg["rlsf"]["train"]["per_device_train_batch_size"] = 5
     with pytest.raises(ValueError, match="micro-batches"):
-        grpo_args(cfg, output_dir=tmp_path, rollout_steps=1)
+        grpo_args(cfg, output_dir=tmp_path, rollout_steps=1, **CPU)
 
 
 def test_the_config_carries_grpo_field_names_not_ppo_ones(cfg):
