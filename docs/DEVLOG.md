@@ -86,6 +86,113 @@ their history.
 
 ---
 
+## 2026-08-08 — Smoke green on a rented GPU; RLSF spend caps declared from the measured rate
+
+### Summary
+
+The reward-path smoke ran end to end on an RTX 4090 and passed all four checks. It also
+produced the two numbers the arm had been blocked on: the judge costs **$7.375e-5 per
+call** and returns **7.63×** parallelism at `judge.concurrency: 8`. Both had been estimates.
+With a measured rate the RLSF caps in `configs/rlsf.yaml` are no longer guesses, so they are
+set, and `src/rlsf/config.py:assert_caps_declared` stops refusing to load. `degenerate_frac`
+now goes into `steps.jsonl` rather than to stdout.
+
+### What changed
+
+* `configs/rlsf.yaml:73` — caps declared: `max_steps: 600`, `max_grid_steps: 200`,
+  `max_judge_calls: 340000`, `max_judge_spend_usd: 25.0`.
+* `docs/budget.md` — the *Declared cap* section states the $25 figure; a new
+  *RLSF arm — caps declared (2026-08-08)* section derives it. The 2026-08-07 envelope is
+  kept and marked superseded. Both smoke passes are in the spend table.
+* `src/rlsf/reward.py:238` — `reward_degeneracy` moves here from `smoke.py`, and
+  `compute_rewards` calls it. `StepLog` gains `n_groups`, `degenerate_groups`,
+  `degenerate_frac` and `min_group_sd`; all four are written per step.
+* `src/rlsf/smoke.py` — reads those fields off the log instead of recomputing them, so the
+  verdict and the persisted record cannot disagree.
+
+### Rationale
+
+**Why the caps could be set now.** `docs/budget.md` had said the cap must be transcribed
+verbatim from `docs/proposal.pdf` because an approximation of a pre-registered figure is
+not a cap. The proposal states no numeric spend cap, so there was nothing to transcribe and
+the rule could not be satisfied as written. What it was protecting is that a cap be a
+recorded commitment rather than a number picked at the moment of spending. Deriving it from
+a measured rate and dating it meets that; carrying on with `null` caps did not.
+
+**Why $25 against a $2.65 plan.** The plan is 500 PPO steps ($2.36) plus a 3,992-call
+dev-slice best-of-N pool ($0.29), with the ω grid re-scored offline over that pool at no
+extra cost. The step caps bind first: 800 capped steps are $3.78 at group size 4 and $7.55
+at the authorized ceiling of 8. The dollar and call caps sit ~3.3× above that on purpose.
+They are not a second opinion on the step count — they catch the *rate* moving. A longer
+rubric or a completion-length regression that tripled the per-call price would satisfy
+every step cap and triple the bill, and nothing else in the loop would see it.
+
+**Why the grid stopped costing PPO steps.** The 2026-08-07 envelope priced the four ω cells
+as 50 PPO steps each. Ranking them over one fixed pool of sampled completions re-weights
+component scores that were already paid for, so the same comparison costs nothing beyond
+the pool. `max_grid_steps: 200` stays declared because training the grid online is still a
+reachable design, and a cap that has to be added later is a cap that was not declared.
+
+**Why `degenerate_frac` belongs in `steps.jsonl`.** It is the reading that says whether a
+step trained anything: a group whose combined reward is flat across its feasible samples
+has zero advantages and contributes no gradient. The smoke printed it and dropped it, which
+is tolerable for a one-step pilot and useless over 500 steps, where the question is whether
+the fraction climbs as the policy converges on the reward. Moving the function into
+`reward.py` and having `compute_rewards` call it means the smoke's verdict and the
+persisted number are the same computation rather than two that agree today.
+
+### Verification
+
+`pytest tests/` passes, 216 tests, two net new. The smoke's paid pass on 2026-08-08:
+
+```
+  [PASS] kiwi handshake: worker ready
+  [PASS] reward variance: 5% of groups have no reward spread across their feasible samples
+  [PASS] steplog written: n_samples=80
+  [PASS] length band: 75/80 feasible (94%), ratio mean 0.95, 0 unmeasured
+```
+
+80 calls, 417 prompt and 18 completion tokens each, $0.0059, 10.63 s wall clock, mean call
+1.014 s, 7.63× achieved parallelism (`outputs/rlsf/smoke_usage.json`). Component
+degeneracy was 1/20 groups for BLEU, 1/20 for Kiwi, 2/20 for the judge, and 1/20 for the
+combined reward — the judge going flat in a group twice while the combined reward went flat
+once is the case the per-component report exists to show.
+
+The cap tests were inverted with the config: `tests/test_rlsf_config.py` previously asserted
+the committed config *refuses* to load, and now asserts it loads and that nulling any one
+cap still refuses.
+
+### Reproduction
+
+```bash
+python manage.py rlsf_smoke --config configs/rlsf.yaml --segments 4 --skip_judge \
+    --out outputs/rlsf/smoke_free.jsonl
+python manage.py rlsf_smoke --config configs/rlsf.yaml --segments 20 --group_size 4 --yes
+```
+
+The paid pass is the second line and costs $0.0059. `notebooks/rlsf_smoke_colab.ipynb` is
+the runbook; both passes above are its sections 3 and 4.
+
+### Limitations and risks
+
+* **The measured rate is one pass of 80 calls on 20 dev segments.** Prompt length tracks
+  segment length, and the dev slice is four works. A training run over `rlsf_train.jsonl`
+  can draw longer segments and pay more per call. The caps have room for roughly 3× of
+  that; a larger move needs a new entry in `docs/budget.md`.
+* **7.63× is one reading under no sustained load.** A 500-step run holds the connection for
+  hours, and provider rate limiting would show up as a fall in `achieved_parallelism` and a
+  rise in GPU idle, not as a higher bill. The per-step wall clock is the thing to watch.
+* **Declaring the caps makes the config loadable, which is the point and also the risk.**
+  Nothing now stops `manage.py rlsf` at load time except the caps themselves. The PPO loop
+  is not written, so the caps are not yet enforced anywhere at run time — enforcing them
+  against `judge.usage` is work the training loop still owes.
+* The smoke notebook asserted the caps were null as its guard against being used once
+  training was authorised. That assertion is now inverted to check the pilot ceiling
+  instead, which is a weaker guard: it no longer distinguishes the pilot from a training
+  run by the config alone.
+
+---
+
 ## 2026-08-08 — The judge block is timed, so concurrency stops being an assumption
 
 ### Summary

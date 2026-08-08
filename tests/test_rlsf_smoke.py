@@ -5,13 +5,12 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from src.rlsf.reward import RewardConfig, compute_rewards
+from src.rlsf.reward import RewardConfig, compute_rewards, reward_degeneracy
 from src.rlsf.smoke import (
     _dump_hyps,
     _load_hyps,
     group_variance_report,
     plan,
-    reward_degeneracy,
     verdicts,
 )
 

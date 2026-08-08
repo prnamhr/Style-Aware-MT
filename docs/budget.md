@@ -14,25 +14,34 @@ inferential analysis, and the test suite.
 
 ## Declared cap
 
-**Not transcribed here yet.** The cap is stated in `docs/proposal.pdf`, which could not be
-read in the environment where this file was written (no PDF text extraction available).
-It must be copied here verbatim from the proposal rather than reconstructed, because the
-figure is a pre-registered commitment and an approximation of it is not a cap. Until that
-transcription happens, this file records actual spend only, and the cap is enforced by the
-per-run confirmation rule below rather than by a number on this page.
+**$25 of judge spend on the RLSF arm, declared 2026-08-08.** It is set in
+`configs/rlsf.yaml` as `caps.max_judge_spend_usd`, together with `max_steps: 600`,
+`max_grid_steps: 200` and `max_judge_calls: 340000`, so
+`src/rlsf/config.py:assert_caps_declared` no longer refuses to load. The derivation is in
+*RLSF arm — caps declared* below.
+
+This page previously said the cap had to be copied verbatim from `docs/proposal.pdf` and
+that an approximation of it was not a cap. The proposal has since been read on this point:
+**it states no numeric spend cap.** There is nothing to transcribe, so the figure is set
+here instead. What the verbatim rule was protecting — that a cap be a recorded commitment
+rather than a number chosen at the moment of spending — is met by deriving it from a
+measured rate and dating it, which is what the section below does. No other paid arm has a
+cap on this page; the per-run confirmation rule still governs those.
 
 ## Spend to date
 
 All figures are provider-reported token counts priced through
 `src/infer/openai_client.py` / `src/infer/anthropic_client.py` and persisted at run time.
-Every paid call to date is on the **validation** split; the test split is sealed and has
-had no paid call made against it.
+Every paid call to date is on the **validation** split or on the RLSF dev slice carved
+from `train.jsonl`; the test split is sealed and has had no paid call made against it.
 
 | Date | Purpose | Model | Calls | Cost | Record |
 |---|---|---|---:|---:|---|
 | 2026-08-04 | `commercial_haiku` generation (external reference baseline) | `claude-haiku-4-5` | 1,323 | $0.6316 | `outputs/commercial_haiku_val_usage.json` |
 | 2026-08-05 | Cross-family second judge Φ_B, 7 conditions, Batch API at 50 % discount | `gpt-5.6-terra` | 9,261 | $6.1173 | `results/judge_gpt_val_usage.json` |
-| **Recorded total** | | | **10,584** | **$6.7489** | |
+| 2026-08-07 | RLSF reward-path smoke, 20 dev segments × G=4 | `gpt-4o-mini` | 80 | $0.0059 | `outputs/rlsf/smoke_usage.json` @ `a988c57` |
+| 2026-08-08 | Same smoke re-run once the judge block was timed | `gpt-4o-mini` | 80 | $0.0059 | `outputs/rlsf/smoke_usage.json` |
+| **Recorded total** | | | **10,744** | **$6.7607** | |
 
 Two qualifications on that total:
 
@@ -56,13 +65,65 @@ training-time judge term (`ω₃ · Φ`), so PPO consumes one judge call per sam
 completion: cost scales as PPO steps × rollout batch size, not with the size of the
 validation split.
 
+### RLSF arm — caps declared (2026-08-08)
+
+The smoke has now run twice and reports a **measured** per-call rate of **$7.375e-5**
+(`outputs/rlsf/smoke_usage.json`: 80 calls, 417 prompt and 18 completion tokens each,
+$0.0059). That is 0.65× the low end of the $1.14e-4 – $1.44e-4 range the 2026-08-07
+envelope assumed: the rubric plus segment came in near 417 prompt tokens rather than
+600–800, and the justification ran to 18 completion tokens rather than 40. Every figure
+below is priced at the measured rate.
+
+At the operative rollout — 16 prompts × group size 4 — a step is 64 judge calls, $0.0047.
+
+| Line item | Judge calls | Cost |
+|---|---:|---:|
+| Final PPO run, 500 steps | 32,000 | $2.36 |
+| Dev-slice best-of-N pool, 499 segments × 8 samples | 3,992 | $0.29 |
+| ω grid, re-scored offline over that pool | 0 | $0.00 |
+| **Planned total** | **35,992** | **$2.65** |
+
+The ω grid is the reason this is cheaper than the 2026-08-07 envelope. Ranking the four
+cells over one fixed pool of sampled completions re-weights scores that were already paid
+for, so the grid costs nothing beyond the pool; the envelope had priced it as 200 PPO
+steps of its own.
+
+The caps are set above that plan, at two different distances and for two different reasons:
+
+| Cap | Value | Worst case it admits |
+|---|---:|---|
+| `max_steps` | 600 | final run, 100 steps of headroom |
+| `max_grid_steps` | 200 | 4 cells × 50, spent only if the grid is trained online after all |
+| `max_judge_calls` | 340,000 | $25.08 |
+| `max_judge_spend_usd` | 25.0 | $25.00 |
+
+**The step caps bind first and are the operative constraint.** 800 capped steps at the
+operative group size are 51,200 calls and $3.78; at the authorized ceiling of group size 8
+they are 102,400 calls and $7.55 (`src/rlsf/config.py:worst_case_judge_calls` computes the
+call figure at the ceiling, not at the operative size).
+
+The call and dollar caps sit ~3.3× above that, which is deliberate: they are not a second
+opinion on the step count, they are a backstop against the *rate* moving. A model swap, a
+longer rubric, or a completion-length regression that tripled the per-call price would
+still satisfy every step cap while tripling the bill, and nothing else in the loop would
+notice. $25 is 9.4× the planned $2.65 and 3.3× the step-capped worst case. `max_judge_calls`
+is rounded up past its own $25 line, so the dollar cap is the one that actually trips.
+
+Going beyond 600 steps, beyond group size 8, or beyond $25 is a new authorisation
+requiring a re-priced entry here, not a config edit.
+
+**Dollars are still not what constrains this arm.** The 2026-08-08 pass timed the judge
+block: 80 calls in 10.63 s wall clock at `judge.concurrency: 8`, mean call 1.01 s, 7.63×
+achieved parallelism. A 64-call step therefore holds the rented GPU idle for roughly 8.5 s,
+and the planned 500 steps for about 1.2 GPU-hours of judge latency alone. That is the
+number to watch, and it is bounded by the same step caps.
+
 ### RLSF arm — authorized envelope (2026-08-07)
 
-The shape of the arm and its priced worst case, as required above. **The caps in
-`configs/rlsf.yaml` are null and `src/rlsf/config.py:assert_caps_declared` refuses to
-load until they are set**, so recording this envelope does not itself authorise a run:
-rule 1 still requires the declared cap to be transcribed from `docs/proposal.pdf` first,
-and that transcription has not happened.
+**Superseded by the entry above.** It is kept because it is the record the 2026-08-07
+decisions were made against. Two things changed: the ω grid moved off PPO and onto the
+best-of-N pool, and the per-call price stopped being an estimate. Its group-size ceiling of
+8 carries forward unchanged.
 
 | Quantity | Operative | Ceiling |
 |---|---:|---:|
@@ -88,13 +149,7 @@ new authorisation requiring a re-priced entry here.
 
 For scale: the ceiling is under a dollar of the $6.75 spent to date, so **dollars are not
 the binding constraint on this arm** — GPU rental hours and in-loop judge latency are.
-Latency is unmeasured: `outputs/rlsf/smoke_usage.json` records calls, 
-tokens and cost from
-the 2026-08-07 pass but no wall clock, so the rental estimate rests on `judge.concurrency:
-8` buying a fan-out nothing has checked. The smoke now times the judge block and writes
-`wall_s`, `mean_call_s` and `achieved_parallelism` alongside the usage; the next paid pass
-replaces the estimate with the measurement. Until then, treat GPU-idle-per-step as unknown
-rather than small.
+Latency was unmeasured when this section was written; the 2026-08-08 pass measured it.
 
 The reward judge was selected on validity grounds rather than cost: `gpt-4o-mini` is
 model-distinct from both evaluation raters, so neither Φ_A nor Φ_B is spent on the one
@@ -126,6 +181,7 @@ validation pass once the condition set is final.
 ## Related records
 
 * `README.md` — Constraints, and the Φ reliability open issue.
-* `docs/DEVLOG.md` — 2026-08-05 (both entries), 2026-08-04, for the runs priced above.
+* `docs/DEVLOG.md` — 2026-08-08 (smoke green, caps declared), 2026-08-05 (both entries),
+  2026-08-04, for the runs priced above.
 * `results/judge_gpt_val_usage.json`, `outputs/*_val_usage.json` — the primary artefacts;
   authoritative over this summary.

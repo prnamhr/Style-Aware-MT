@@ -20,6 +20,9 @@ _TEMPLATE_HASHES = Path("prompts/hashes.json")
 
 _FLOOR_MARGIN = 1.0
 
+# Below this a group's rewards are flat, so its advantages are zero and it trains nothing.
+_MIN_GROUP_SD = 1e-9
+
 
 @dataclass
 class RewardConfig:
@@ -232,6 +235,25 @@ def length_feasible(hyps: list[str], refs: list[str], cfg: RewardConfig) -> np.n
 
 
 
+def reward_degeneracy(rewards: np.ndarray, feasible: np.ndarray, group_size: int) -> dict:
+    """Fraction of groups whose combined reward has no spread across feasible samples."""
+    rewards = np.asarray(rewards, dtype=float)
+    sds = []
+    for start in range(0, len(rewards), group_size):
+        sl = slice(start, start + group_size)
+        # Infeasible entries are excluded, not floored in: `worst - 1.0` would manufacture
+        # spread in a flat group. Below two feasible samples there is no spread to measure.
+        values = rewards[sl][feasible[sl]]
+        sds.append(float(values.std(ddof=0)) if values.size >= 2 else 0.0)
+    degenerate = sum(sd < _MIN_GROUP_SD for sd in sds)
+    return {
+        "groups": len(sds),
+        "degenerate": degenerate,
+        "degenerate_frac": round(degenerate / len(sds), 3) if sds else 1.0,
+        "min_group_sd": round(min(sds), 6) if sds else 0.0,
+    }
+
+
 def load_centroid(path: str | Path = _CENTROID_PATH) -> dict:
     return json.loads(Path(path).read_text(encoding="utf-8"))
 
@@ -276,6 +298,11 @@ class StepLog:
     reward_sd: float
     # Samples dropped for a missing component score, not for a length violation.
     n_unmeasured: int = 0
+    n_groups: int = 0
+    # Groups whose combined reward is flat across their feasible samples: no gradient.
+    degenerate_groups: int = 0
+    degenerate_frac: float = 1.0
+    min_group_sd: float = 0.0
     raw: dict[str, float] = field(default_factory=dict)
     normalized: dict[str, float] = field(default_factory=dict)
     length_mean: float = 0.0
@@ -291,6 +318,10 @@ class StepLog:
             "reward_mean": self.reward_mean,
             "reward_sd": self.reward_sd,
             "n_unmeasured": self.n_unmeasured,
+            "n_groups": self.n_groups,
+            "degenerate_groups": self.degenerate_groups,
+            "degenerate_frac": self.degenerate_frac,
+            "min_group_sd": self.min_group_sd,
             "raw": self.raw,
             "normalized": self.normalized,
             "length_mean": self.length_mean,
@@ -346,6 +377,7 @@ def compute_rewards(
             worst = np.nanmin(group) if g_valid.any() else 0.0
             group[~g_valid] = worst - _FLOOR_MARGIN
         rewards[sl] = group
+    degeneracy = reward_degeneracy(rewards, feasible, group_size)
 
     lengths = np.asarray([len(h.split()) for h in hyps], dtype=float)
     ref_lengths = np.asarray([max(len(r.split()), 1) for r in refs], dtype=float)
@@ -358,6 +390,10 @@ def compute_rewards(
         reward_mean=float(finite.mean()) if finite.size else float("nan"),
         reward_sd=float(finite.std(ddof=0)) if finite.size else float("nan"),
         n_unmeasured=int((~measured).sum()),
+        n_groups=degeneracy["groups"],
+        degenerate_groups=degeneracy["degenerate"],
+        degenerate_frac=degeneracy["degenerate_frac"],
+        min_group_sd=degeneracy["min_group_sd"],
         raw={name: _measured_mean(values) for name, values in raw.items()},
         normalized={name: float(values.mean()) for name, values in normalized_all.items()},
         length_mean=float(lengths.mean()) if n else float("nan"),

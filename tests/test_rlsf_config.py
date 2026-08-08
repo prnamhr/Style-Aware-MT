@@ -21,35 +21,30 @@ from src.rlsf.config import (
 
 _JUDGE_CONFIGS = ("configs/judge_eval.yaml", "configs/judge_eval_gpt.yaml")
 
+# outputs/rlsf/smoke_usage.json, 2026-08-08: 80 calls, $0.0059.
+_MEASURED_USD_PER_CALL = 7.375e-5
+
 
 def _declared(**overrides):
-    """The committed config with its caps filled in, as a run would have to set them."""
-    cfg = load_config(require_caps=False)
-    cfg["rlsf"]["caps"].update(
-        {
-            "max_steps": 150,
-            "max_grid_steps": 200,
-            "max_judge_calls": 44_800,
-            "max_judge_spend_usd": 6.50,
-        }
-    )
+    """The committed config, with any cap overridden for the case under test."""
+    cfg = copy.deepcopy(load_config(require_caps=False))
     cfg["rlsf"]["caps"].update(overrides)
     return cfg
 
 
-# caps 
+# caps
 
 
-def test_committed_config_refuses_to_load_while_caps_are_null():
-    # The committed state must not be runnable: budget rule 1 forbids a paid run before
-    # its volume is recorded, and the declared cap is still untranscribed.
+def test_committed_config_loads_with_its_caps_declared():
+    # Declared 2026-08-08 from the smoke's measured per-call rate; see docs/budget.md.
+    caps = load_config()["rlsf"]["caps"]
+    assert caps["max_steps"] == 600
+    assert caps["max_judge_spend_usd"] == 25.0
+
+
+def test_nulling_any_one_cap_puts_the_config_back_out_of_bounds():
     with pytest.raises(ValueError, match="undeclared"):
-        load_config()
-
-
-def test_committed_config_is_inspectable_without_caps():
-    cfg = load_config(require_caps=False)
-    assert cfg["rlsf"]["caps"]["max_judge_calls"] is None
+        assert_caps_declared(_declared(max_judge_calls=None))
 
 
 def test_every_spend_cap_is_reported_not_just_the_first():
@@ -84,12 +79,12 @@ def test_group_size_above_the_ceiling_is_a_widening_not_a_tweak():
 
 
 def test_worst_case_calls_default_to_the_ceiling_not_the_operative_group_size():
-    cfg = _declared()
+    cfg = load_config()
     at_ceiling = worst_case_judge_calls(cfg)
     operative = worst_case_judge_calls(cfg, group_size=cfg["rlsf"]["rollout"]["group_size"])
-    # 350 capped steps x 16 prompts x 8, and the same at the operative group size of 4.
-    assert at_ceiling == 44_800
-    assert operative == 22_400
+    # 800 capped steps x 16 prompts x 8, and the same at the operative group size of 4.
+    assert at_ceiling == 102_400
+    assert operative == 51_200
     assert at_ceiling > operative
 
 
@@ -97,6 +92,16 @@ def test_priced_worst_case_matches_hand_arithmetic():
     # gpt-4o-mini at [0.15, 0.60] per Mtok, 600 prompt + 40 completion tokens.
     cost = priced_worst_case(44_800, (0.15, 0.60), prompt_tokens=600, completion_tokens=40)
     assert cost == pytest.approx(5.1072)
+
+
+def test_the_step_caps_bind_before_the_call_and_dollar_caps():
+    # docs/budget.md, 2026-08-08: the call and spend caps are a backstop against the
+    # per-call rate moving, not a second opinion on the step count.
+    caps = load_config()["rlsf"]["caps"]
+    calls = worst_case_judge_calls(load_config())
+    assert calls * _MEASURED_USD_PER_CALL == pytest.approx(7.55, abs=0.01)
+    assert calls < caps["max_judge_calls"]
+    assert calls * _MEASURED_USD_PER_CALL < caps["max_judge_spend_usd"]
 
 
 # reward block 

@@ -43,7 +43,6 @@ _EST_TOKENS = (700, 40)  # prompt, completion; midpoint of the docs/budget.md ra
 # A group whose combined rewards are identical carries no advantage and contributes no
 # gradient. Some is tolerable, a quarter is not.
 _MAX_DEGENERATE = 0.25
-_MIN_SD = 1e-9
 # "Not flooring most of the batch": more than half the samples must clear the band.
 _MIN_FEASIBLE = 0.5
 
@@ -77,27 +76,6 @@ def group_variance_report(
             "min_group_sd": round(min(sds), 4) if sds else 0.0,
         }
     return out
-
-
-def reward_degeneracy(
-    rewards: np.ndarray, feasible: np.ndarray, group_size: int
-) -> dict:
-    """Fraction of groups whose combined reward has no spread across feasible samples."""
-    rewards = np.asarray(rewards, dtype=float)
-    sds = []
-    for start in range(0, len(rewards), group_size):
-        sl = slice(start, start + group_size)
-        # Infeasible entries are excluded, not floored in: `worst - 1.0` would manufacture
-        # spread in a flat group. Below two feasible samples there is no spread to measure.
-        values = rewards[sl][feasible[sl]]
-        sds.append(float(values.std(ddof=0)) if values.size >= 2 else 0.0)
-    degenerate = sum(sd < _MIN_SD for sd in sds)
-    return {
-        "groups": len(sds),
-        "degenerate": degenerate,
-        "degenerate_frac": round(degenerate / len(sds), 3) if sds else 1.0,
-        "min_group_sd": round(min(sds), 6) if sds else 0.0,
-    }
 
 
 def verdicts(
@@ -279,7 +257,7 @@ def main() -> None:
             timing=timing,
         )
 
-    rewards, feasible, log = compute_rewards(
+    _, feasible, log = compute_rewards(
         src_rep,
         hyps,
         ref_rep,
@@ -296,12 +274,11 @@ def main() -> None:
     # Per component: diagnostics for reading which term went flat, never the verdict.
     # A component can normalize to zeros while the combined reward still spreads.
     variance = group_variance_report(raw, feasible, group_size)
-    degeneracy = reward_degeneracy(rewards, feasible, group_size)
     print(f"\nreward mean {log.reward_mean:.3f} sd {log.reward_sd:.3f}, wrote {out_path}")
     for name, stats in variance.items():
         print(f"  {name:6s} degenerate groups {stats['degenerate']}/{stats['groups']}")
-    print(f"  {'reward':6s} degenerate groups {degeneracy['degenerate']}/{degeneracy['groups']}"
-          f"  (min group sd {degeneracy['min_group_sd']})")
+    print(f"  {'reward':6s} degenerate groups {log.degenerate_groups}/{log.n_groups}"
+          f"  (min group sd {log.min_group_sd})")
 
     # One draw of the drift baseline, not the baseline: the rule averages the run's first
     # steps, and a single step's error is wide enough that one draw cannot stand for it.
@@ -314,7 +291,7 @@ def main() -> None:
     print()
     failed = 0
     for name, ok, detail in verdicts(
-        kiwi_ready, degeneracy["degenerate_frac"], out_path.exists(), written
+        kiwi_ready, written["degenerate_frac"], out_path.exists(), written
     ):
         print(f"  [{'PASS' if ok else 'FAIL'}] {name}: {detail}")
         failed += not ok

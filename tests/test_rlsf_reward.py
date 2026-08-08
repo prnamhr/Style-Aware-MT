@@ -358,6 +358,20 @@ def test_step_log_records_components_length_and_z():
     assert set(d["z"]) == set(CENTROID["features"])
 
 
+def test_group_degeneracy_is_persisted_not_just_printed():
+    # Two groups, one flat and one spread: over 500 steps the trend in this fraction is
+    # the reading that says whether the policy still has a gradient to learn from.
+    n = 4
+    _, _, log = compute_rewards(
+        ["s"] * n, ["a b c"] * n, ["a b c"] * n,
+        cfg=RewardConfig(), group_size=2,
+        component_scores=_components(n, bleu=[10.0, 10.0, 10.0, 20.0]), centroid=CENTROID,
+    )
+    d = log.as_dict()
+    assert (d["n_groups"], d["degenerate_groups"], d["degenerate_frac"]) == (2, 1, 0.5)
+    assert d["min_group_sd"] == 0.0
+
+
 def test_the_overlap_term_is_logged_under_the_metric_in_use():
     # The chrF grid cell must not write its scores under a "bleu" key in steps.jsonl.
     n = 2

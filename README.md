@@ -146,7 +146,7 @@ The index is built over the **source** side (not the English targets) so that th
   ```
   with `Φ` an LLM-as-Judge style score using the **training-time** judge template. Weights are dev-tuned over a small grid that intentionally varies ω₃ relative to (ω₁, ω₂) — four cells including a `ω₃ = 0` ablation, in [`configs/rlsf.yaml`](configs/rlsf.yaml).
 - **Reward judge:** `gpt-4o-mini`, **model-distinct from both evaluation raters** (Φ_A `claude-haiku-4-5`, Φ_B `gpt-5.6-terra`). RLSF is the only arm optimized against a judge, so it is the arm whose Φ most needs raters it was not trained against; training on either would spend one of them. It is also the only candidate honouring both `temperature: 0` and `seed: 42`, which matters here because group normalization turns rater noise into gradient noise. A Qwen judge is excluded as self-preference bias against a Qwen policy.
-- **Bounded:** the arm's authorized envelope is priced in [`docs/budget.md`](docs/budget.md) — 350 steps × 16 prompts × group size 8 = 44,800 judge calls, ~$5.11–$6.45 estimated. **The caps in the config are `null` and `src/rlsf/config.py` refuses to load until they are set**: budget rule 1 forbids a paid run before its volume is recorded, and the declared cap itself is still untranscribed from the proposal. Recording the envelope is not authorising the run.
+- **Bounded:** capped at **$25 of judge spend**, declared 2026-08-08 and derived in [`docs/budget.md`](docs/budget.md) from the smoke's measured $7.375e-5 per call. The plan under it is 500 PPO steps plus a dev-slice best-of-N pool, $2.65; the step caps (600 final, 200 grid) bind first at $7.55 worst case, and the call and dollar caps are a backstop against the per-call rate moving. `src/rlsf/config.py:assert_caps_declared` refuses to load the config if any cap is nulled again.
 - **Fallback:** if PPO does not converge under budget, RLSF is reported using **best-of-N reranking** of PEFT-checkpoint samples, scored with the same reward.
 
 ---
@@ -362,7 +362,7 @@ selection and freeze records are in `results/{afsp,peft}_{sweep,verify}_val.json
 ## Constraints
 
 - **Compute:** Colab for every GPU stage (sweeps, training, full-split inference) — the 8 GB development GPU cannot hold `Qwen2.5-7B-Instruct` in bf16, and quantizing it would change the frozen-base definition. LoRA default; QLoRA fallback.
-- **API budget:** judge calls and the commercial reference baseline are the only paid components so far — **$6.75 recorded to date**, of which $6.12 is the 2026-08-05 cross-family judge pass (9,261 calls, Batch API at 50 % discount). RLSF judge calls will dominate once implemented. Spend, rules, and the fallback are in [`docs/budget.md`](docs/budget.md); the declared cap itself still has to be transcribed there from the proposal. If approached, switch to best-of-N reranking.
+- **API budget:** judge calls and the commercial reference baseline are the only paid components so far — **$6.76 recorded to date**, of which $6.12 is the 2026-08-05 cross-family judge pass (9,261 calls, Batch API at 50 % discount). RLSF judge calls will dominate once implemented, and are capped at $25 (declared 2026-08-08). Spend, the derivation of that cap, the per-run rules and the fallback are in [`docs/budget.md`](docs/budget.md). If the cap is approached, switch to best-of-N reranking.
 - **Scope:** the project does not claim to fully capture literary or sacred style. It documents trade-offs across three adaptation families on one specific corpus and language combination not previously addressed in published LLM-MT work.
 
 ---
@@ -415,9 +415,13 @@ python manage.py infer --condition peft --config configs/peft_qwen.yaml
 # (`manage.py peft --config configs/peft_qwen.yaml` trains a single adapter without the sweep)
 
 python manage.py rlsf_dev --target 500 --seed 42             # dev slice: 499 / 10,361 (done)
-python manage.py rlsf_smoke --segments 4 --skip_judge        # reward path end to end, no paid calls
-python manage.py rlsf_smoke --segments 12 --group_size 4 --yes   # same, 
-python manage.py rlsf_smoke --hyps_file outputs/rlsf/smoke_hyps.jsonl --yes
+
+# Reward-path smoke: Kiwi handshake, within-group reward spread, StepLog write, length band.
+# Bounded by rlsf.pilot.judge_calls (80), separately from the training caps.
+python manage.py rlsf_smoke --segments 4 --skip_judge             # free: judge held flat
+python manage.py rlsf_smoke --segments 20 --group_size 4 --yes    # paid: 80 judge calls, $0.0059
+python manage.py rlsf_smoke --hyps_file outputs/rlsf/smoke_hyps.jsonl --yes  # re-score, no sampling
+
 # python manage.py rlsf   --config configs/rlsf.yaml
 # python manage.py infer  --condition rlsf --config configs/rlsf.yaml
 ```
@@ -477,7 +481,7 @@ python manage.py bootstrap --metric $M --conditions $CONDS --split val --adjacen
 - Full thesis proposal: [`docs/proposal.pdf`](docs/proposal.pdf) — H1–H4 and support criteria
 - Engineering and decision log: [`docs/DEVLOG.md`](docs/DEVLOG.md) — what was built, why, and how to reproduce it
 - AFSP mechanism specification: [`docs/afsp_strategies.md`](docs/afsp_strategies.md)
-- Compute and API budget: [`docs/budget.md`](docs/budget.md) — spend to date, per-run rules, fallback. The declared cap is still only in the proposal and has to be transcribed
+- Compute and API budget: [`docs/budget.md`](docs/budget.md) — spend to date, the declared $25 RLSF cap and its derivation, per-run rules, fallback
 - Not yet written: `docs/methodology.md` (long-form methodology)
 
 ---
