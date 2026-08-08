@@ -123,6 +123,92 @@ def worst_case_judge_calls(cfg: dict, *, group_size: int | None = None) -> int:
     return steps * rlsf["rollout"]["prompts_per_step"] * group_size
 
 
+# GRPO wiring
+# compute_rewards hands GRPOTrainer a combined z-score, so the trainer's own group
+# normalization has to be off. See assert_single_normalization.
+_REWARD_SCALING = "none"
+
+
+def rollout_batch(cfg: dict) -> int:
+    """Completions generated per rollout step, and so judge calls per rollout step."""
+    rollout = cfg["rlsf"]["rollout"]
+    return rollout["prompts_per_step"] * rollout["group_size"]
+
+
+def optimizer_steps(cfg: dict, rollout_steps: int) -> int:
+    """Optimizer steps for a number of rollouts: GRPO reuses each rollout mu times."""
+    return rollout_steps * cfg["rlsf"]["train"]["num_iterations"]
+
+
+def assert_single_normalization(args) -> None:
+    """Refuse a GRPOConfig that would z-score an already z-scored reward."""
+    if args.scale_rewards != _REWARD_SCALING:
+        raise ValueError(
+            f"scale_rewards is {args.scale_rewards!r}. compute_rewards already z-scores each "
+            f"component within its group before the omega weights are applied, so the trainer "
+            f"would divide that combined z-score by a second standard deviation. The run would "
+            f"not crash; it would train on a distorted advantage and the omega grid would stop "
+            f"meaning what docs/budget.md says it means. Set train.scale_rewards to "
+            f"{_REWARD_SCALING!r}, or hand the trainer the raw omega-weighted sum instead."
+        )
+
+
+def grpo_args(
+    cfg: dict,
+    *,
+    output_dir: str | Path,
+    rollout_steps: int | None = None,
+    **overrides,
+):
+    """Build the ``GRPOConfig`` for a run of ``rollout_steps`` rollouts (default: the cap)."""
+    from trl import GRPOConfig
+
+    rlsf = cfg["rlsf"]
+    rollout, train = rlsf["rollout"], rlsf["train"]
+    generation_batch_size = rollout_batch(cfg)
+    micro = train["per_device_train_batch_size"]
+    if generation_batch_size % micro:
+        raise ValueError(
+            f"a rollout of {generation_batch_size} completions does not divide into micro-batches "
+            f"of {micro}; TRL slices the generation batch by per_device_train_batch_size"
+        )
+    steps = rlsf["caps"]["max_steps"] if rollout_steps is None else rollout_steps
+
+    fields = {
+        "output_dir": str(output_dir),
+        "seed": rlsf["seed"],
+        "learning_rate": train["learning_rate"],
+        "num_iterations": train["num_iterations"],
+        "epsilon": train["epsilon"],
+        "beta": rlsf["reference"]["beta"],
+        "loss_type": train["loss_type"],
+        "scale_rewards": train["scale_rewards"],
+        "num_generations": rollout["group_size"],
+        "temperature": rollout["temperature"],
+        "top_p": rollout["top_p"],
+        "max_completion_length": cfg["generator"]["max_tokens"],
+        "generation_batch_size": generation_batch_size,
+        "per_device_train_batch_size": micro,
+        # Held equal to TRL's derived steps_per_generation so one rollout is exactly
+        # num_iterations optimizer steps, which is what optimizer_steps assumes.
+        "gradient_accumulation_steps": generation_batch_size // micro,
+        "max_steps": optimizer_steps(cfg, steps),
+        "logging_steps": train["logging_steps"],
+        "save_strategy": "no",
+        "report_to": [],
+    }
+    args = GRPOConfig(**{**fields, **overrides})
+    assert_single_normalization(args)
+    if args.steps_per_generation != args.gradient_accumulation_steps:
+        raise ValueError(
+            f"TRL derived steps_per_generation={args.steps_per_generation} against "
+            f"gradient_accumulation_steps={args.gradient_accumulation_steps}, so a rollout is no "
+            f"longer num_iterations optimizer steps and caps.max_steps stops counting rollouts. "
+            f"This happens under multi-process training; grpo_args assumes one process."
+        )
+    return args
+
+
 def priced_worst_case(
     calls: int,
     pricing: tuple[float, float],

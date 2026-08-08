@@ -1,4 +1,4 @@
-# RLSF (PPO/GRPO-style group-relative updates) 
+# RLSF (GRPO, group-relative updates via trl.GRPOTrainer)
 
 generator:
   provider: local
@@ -18,25 +18,30 @@ rlsf:
   seed: 42
 
   # Not the locked greedy decoding: at temperature 0 a group has no variance and
-  # group_normalize returns all zeros (reward.py:115). Greedy still governs inference.
+  # group_normalize returns all zeros (reward.py:203). Greedy still governs inference.
   rollout:
-    temperature: 1.0
-    top_p: 0.95
+    temperature: 1.0                      # -> GRPOConfig.temperature
+    top_p: 0.95                           # -> GRPOConfig.top_p
     prompts_per_step: 16
-    group_size: 4                         # samples per prompt; 16 x 4 = 64 judge calls/step
+    group_size: 4                         # -> GRPOConfig.num_generations; 16 x 4 = 64 calls/step
 
 
   reference:
     adapter_path: models/peft_lora_r32_lr2e-4/checkpoint-1358   # frozen copy of the init
-    kl_coef: 0.05
+    beta: 0.05                            # -> GRPOConfig.beta, the KL coefficient
 
 
+  # GRPO field names throughout: TRL has no ppo_epochs or clip_range, and a PPO-shaped
+  # config would not describe the update this arm actually runs.
   train:
     learning_rate: 0.000001
-    ppo_epochs: 4
-    clip_range: 0.2
-    gradient_accumulation_steps: 1
-    logging_steps: 1                      # one StepLog JSON line per step (reward.py:154)
+    num_iterations: 4                     # mu: optimization passes per rollout. At 1 the
+                                          #  ratio is identically 1 and epsilon is inert.
+    epsilon: 0.2                          # clip range on the importance ratio
+    loss_type: dapo                       # token-normalized over the batch; no length bias
+    scale_rewards: none
+    per_device_train_batch_size: 4        # memory knob; grad accum is derived from it
+    logging_steps: 1                      # one StepLog JSON line per rollout (reward.py:334)
 
 
   reward:
@@ -71,7 +76,7 @@ rlsf:
 
 
   caps:
-    max_steps: 600                        # PPO step cap, final run; the plan is 500
+    max_steps: 600                        # final run; the plan is 500
     max_grid_steps: 200
     max_judge_calls: 340000               # backstop against a rate regression, not the plan
     max_judge_spend_usd: 25.0
@@ -103,4 +108,5 @@ data:
 
 output:
   dir: outputs
-  step_log: outputs/rlsf/steps.jsonl      # one StepLog line per step
+  step_log: outputs/rlsf/steps.jsonl      # one StepLog line per rollout step
+  adapter_dir: models/rlsf_grpo           # trained adapter, written once at the end

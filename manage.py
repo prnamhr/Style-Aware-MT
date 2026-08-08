@@ -16,6 +16,7 @@ COMMANDS = {
     "split": "src.data.split",
     "rlsf_dev": "src.data.rlsf_dev",
     "rlsf_smoke": "src.rlsf.smoke",
+    "rlsf_train": "src.rlsf.train",
     "build_index": "src.retrieval.build_index",
     "peft": "src.peft.train",
     "peft_sweep": "src.peft.sweep",

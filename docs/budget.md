@@ -60,10 +60,13 @@ Two qualifications on that total:
 
 ## What remains to be spent
 
-**RLSF is the dominant future cost and is not yet implemented.** Its reward includes a
-training-time judge term (`ω₃ · Φ`), so PPO consumes one judge call per sampled
-completion: cost scales as PPO steps × rollout batch size, not with the size of the
-validation split.
+**RLSF is the dominant future cost and has not yet been run.** Its reward includes a
+training-time judge term (`ω₃ · Φ`), so the loop consumes one judge call per sampled
+completion: cost scales as rollout steps × rollout batch size, not with the size of the
+validation split. The loop exists as of 2026-08-08 (`src/rlsf/train.py`) and enforces the
+caps below at run time through `JudgeBudget`, which refuses a judge block that would cross
+`max_judge_calls` and refuses to start one once `judge.usage` reports spend at
+`max_judge_spend_usd`.
 
 ### RLSF arm — caps declared (2026-08-08)
 
@@ -101,6 +104,11 @@ The caps are set above that plan, at two different distances and for two differe
 operative group size are 51,200 calls and $3.78; at the authorized ceiling of group size 8
 they are 102,400 calls and $7.55 (`src/rlsf/config.py:worst_case_judge_calls` computes the
 call figure at the ceiling, not at the operative size).
+
+A step here is a **rollout**, which is what costs money: 16 prompts × G completions, each
+one judge call. It is not TRL's `max_steps`. GRPO reuses a rollout `num_iterations` times,
+so the optimizer-step count handed to the trainer is 4× the figures in this table while the
+judge-call count is unchanged (`src/rlsf/config.py:optimizer_steps`).
 
 The call and dollar caps sit ~3.3× above that, which is deliberate: they are not a second
 opinion on the step count, they are a backstop against the *rate* moving. A model swap, a

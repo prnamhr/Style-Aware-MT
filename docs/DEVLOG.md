@@ -86,6 +86,200 @@ their history.
 
 ---
 
+## 2026-08-08 — GRPO training loop: one normalization, and a config that names GRPO fields
+
+### Summary
+
+RLSF has a training loop. `src/rlsf/train.py` drives `trl.GRPOTrainer` over the frozen PEFT
+checkpoint with the reward from `src/rlsf/reward.py`, and `manage.py rlsf_train` runs it.
+Two decisions in the wiring are recorded here because neither is visible at run time. The
+reward is normalized once rather than twice: `compute_rewards` already z-scores each
+component within its group, so the trainer's own group scaling is turned off. And the
+`train:` block now carries GRPO field names, because `ppo_epochs` and `clip_range` have no
+GRPOTrainer counterpart and named an update this arm does not run. A CPU dry run on
+`Qwen2.5-0.5B-Instruct` checked the wiring before any GPU was rented.
+
+### What changed
+
+* `src/rlsf/train.py` — new. Builds the prompt dataset, loads the policy as a trainable
+  `PeftModel`, and hands `GRPOTrainer` a single reward function that calls
+  `compute_rewards`, appends a `StepLog` line, and reads the register-drift rule. A
+  `TrainerCallback` ends the run when that rule fires. `JudgeBudget` checks the declared
+  call and dollar caps before each judge block.
+* `src/rlsf/config.py:126` — `rollout_batch`, `optimizer_steps`,
+  `assert_single_normalization`, and `grpo_args`, which builds the `GRPOConfig` from the
+  `rollout:`, `train:` and `reference:` blocks.
+* `configs/rlsf.yaml` — `train.ppo_epochs` → `train.num_iterations`, `train.clip_range` →
+  `train.epsilon`, `reference.kl_coef` → `reference.beta`. Added `train.scale_rewards`,
+  `train.loss_type` and `train.per_device_train_batch_size`, plus `output.adapter_dir`.
+  `train.gradient_accumulation_steps` is gone: it is derived from the rollout size.
+* `manage.py` — `rlsf_train`.
+* `tests/test_rlsf_train.py` — new.
+
+### Rationale
+
+**Why the reward is normalized once.** `compute_rewards` z-scores each component within its
+group and then applies the ω weights, so what leaves it is already a combined z-score.
+GRPOTrainer group-normalizes whatever it is handed. Wired together with both active, the
+advantage is divided by a second standard deviation that has nothing to do with the first.
+Nothing crashes. The run trains, the logs look ordinary, and the ω grid stops measuring what
+it claims to.
+
+The size of that is worth stating, because it is not a rounding effect. Over 200 synthetic
+groups of four — component scores drawn from a fixed seed, not measured — the four grid
+cells separate by 1.68× when the combined z-score is passed through unscaled, ordered by the
+norm of their weight vector. Rescaled, they collapse:
+
+| ω cell | ‖ω‖ | advantage sd, `scale_rewards: none` | advantage sd, `scale_rewards: group` |
+|---|---:|---:|---:|
+| `w3_0.0` | 1.414 | 1.371 | 1.000 |
+| `w3_0.5` | 1.500 | 1.433 | 1.000 |
+| `w3_1.0` | 1.732 | 1.622 | 1.000 |
+| `w3_2.0` | 2.449 | 2.302 | 1.000 |
+
+The second normalization projects ω onto the unit sphere. Direction survives — the cells
+still rank samples differently — but magnitude does not, so every cell reaches the optimizer
+at the same advantage scale and the ablation cell `w3_0.0` takes the same size of step as
+`w3_2.0`. RQ3 varies ω₃ in order to ask how hard the register term can push. That question
+has no answer under a second normalization.
+
+**Why `scale_rewards: none` and not the raw ω-weighted sum.** Both are defensible and both
+normalize once. Handing GRPOTrainer the raw sum of `ω₁·kiwi + ω₂·BLEU + ω₃·Φ` and letting it
+normalize would mean the ω weights act on three quantities on unrelated scales — BLEU on
+0–100, Kiwi on roughly 0–1, Φ on 1–5 — where ω₃ = 2.0 buys less movement than ω₂ = 1.0 does.
+Per-component z-scoring first is what makes the weights commensurable, and it is the
+semantics the grid is written against. The trainer still subtracts the group mean, which is
+close to a no-op on a mean-zero reward and is not one when the length band has floored a
+sample; that is the intended behaviour, since a floored sample should sit below its group.
+`src/rlsf/config.py:assert_single_normalization` refuses any other value of
+`scale_rewards`, so re-enabling the second normalization is an error rather than a silent
+change of meaning.
+
+**Why the caps still count rollouts.** `docs/budget.md` prices a step as 16 prompts × G = 64
+judge calls. GRPO reuses each rollout μ times, so with `num_iterations: 4` the optimizer
+takes four steps per rollout and TRL's `max_steps` is 4× the number the budget priced.
+`caps.max_steps` keeps its budgeted meaning — 600 rollouts — and `optimizer_steps` does the
+conversion at the boundary. Handing `caps.max_steps` straight to `GRPOConfig` would have run
+a quarter of the authorized rollouts while appearing to run all of them.
+
+**Why the reference is a copied adapter and not the base model.** `reference.adapter_path`
+names the frozen PEFT checkpoint, and the KL term is meant to hold the policy near that, not
+near `Qwen2.5-7B-Instruct`. TRL takes two different paths here: given a `peft_config` it
+wraps a fresh adapter and computes reference log-probs with adapters disabled, which is the
+base model; given a model that is already a `PeftModel`, with `beta` non-zero and no
+`target_parameters` in the LoRA config, it copies the loaded adapter into a frozen second
+adapter named `ref` (`trl/trainer/grpo_trainer.py:465`). The frozen checkpoint's
+`adapter_config.json` sets `target_parameters: null`, so `load_policy` loads the adapter
+itself and lets the trainer take the second path.
+
+The same function loads that adapter with `is_trainable=True`. The saved config carries
+`inference_mode: true`, which freezes every LoRA parameter on load; without the override the
+run would complete, log rewards, and update nothing.
+
+**Why the judge budget is checked before each block.** The 2026-08-08 caps entry left
+enforcement to the training loop, noting the caps were declared but unenforced at run time.
+`JudgeBudget.reserve` now refuses a block that would take the run past `max_judge_calls`,
+and refuses to start another once measured spend has reached `max_judge_spend_usd`. It reads
+the provider-reported figure from `judge.usage`, not an estimate, and it raises rather than
+degrading quietly, because a cap that lets the run continue is a warning.
+
+### Verification
+
+`tests/test_rlsf_train.py` covers the normalization contract, the rollout-to-optimizer-step
+conversion, and the budget refusals. The ω-collapse table above is a test rather than a
+one-off script, but note what it does and does not pin: it computes `compute_rewards` for
+real and then reproduces TRL's advantage formula by hand
+(`trl/trainer/grpo_trainer.py:2705`), because that arithmetic is inline in
+`_generate_and_score_completions` and cannot be called without a trainer. It will catch a
+change on the reward side. It will not notice if TRL changes how it forms advantages.
+
+The dry run is `manage.py rlsf_train --dry_run`: `Qwen2.5-0.5B-Instruct` on CPU, a fresh LoRA
+of the frozen checkpoint's shape, two prompts per rollout, two rollouts, judge and Kiwi held
+flat. It exercises the same branches the GPU run takes — the copied `ref` adapter, μ > 1 and
+its buffered rollout reuse, the `StepLog` append, the drift monitor, `save_model` — at zero
+cost. It completed its eight optimizer steps in 1 h 52 m:
+
+```text
+plan: 2 rollouts x 2 prompts x G=4 = 8 completions/rollout, 8 optimizer steps at mu=4
+  rollout 0: reward -0.000 sd 1.000, 8/8 feasible, 0/2 degenerate, 0 judge calls ($0.0000)
+  rollout 1: reward +0.000 sd 1.000, 8/8 feasible, 0/2 degenerate, 0 judge calls ($0.0000)
+{'loss': '0.191', 'grad_norm': '7.946', 'kl': '0.001694', 'clip_ratio/low_mean': '0', ...}
+```
+
+Four readings in that carry information beyond "it ran".
+
+`reward_sd 1.000` is the normalization decision, visible. With Kiwi and the judge held flat
+their z-scores are zero, so the combined reward is BLEU's z-score alone and its within-group
+standard deviation is one by construction. That is the value GRPOTrainer receives, and it is
+exactly what a second group normalization would have divided by.
+
+`kl` is non-zero, so the frozen `ref` adapter exists and is being scored against. Had TRL
+fallen through to the adapters-disabled path the KL would have been measured against
+`Qwen2.5-0.5B-Instruct` itself rather than against the run's initialization.
+
+`grad_norm 7.946` is the `is_trainable=True` fix. Without it the LoRA parameters load frozen
+under the saved `inference_mode: true`, and the run reports rewards and a loss while
+updating nothing.
+
+`clip_ratio/low_mean` reached 0.01136 on step 7. The importance ratio does depart from one
+within a rollout, so `epsilon` binds rather than being inert — the consequence of μ = 4 that
+would not appear at TRL's default of 1.
+
+Two rollouts produced two `StepLog` lines, which is the intended cardinality: the reward runs
+once per rollout, not once per optimizer step, so the judge is paid four times less than the
+optimizer-step count suggests. `save_model` wrote the trained `default` adapter at the root
+of `output.adapter_dir` with the frozen `ref` beside it in a subdirectory;
+`PeftModel.from_pretrained` on that directory loads `default` alone, so
+`src/infer/local_client.py` reads the trained adapter and ignores the copy.
+
+### Reproduction
+
+```bash
+python manage.py rlsf_train --dry_run
+python manage.py rlsf_train --steps 500 --yes
+```
+
+The dry run needs no GPU, no `.venv-comet` and no API key, and makes no paid call. It is
+slow: 1 h 52 m for eight optimizer steps, about 875 s each. CPU backward passes over a
+151,936-token vocabulary dominate, which is also why the dry run drops
+`per_device_train_batch_size` to 1 — at 4 the fp32 logits push a 16 GB box into swap, and the
+first attempt spent 12 min a step thrashing.
+
+### Limitations and risks
+
+* **The dry run proves signatures, not the run.** It samples two prompts per rollout at a
+  128-token completion budget against the 16 and 1024 of the configured arm, so it says
+  nothing about memory on a 4090, about throughput, or about whether the length band behaves
+  on full-length completions. Nothing has yet run the loop on the locked 7B base.
+* **The three-component reward has been combined only on synthetic scores.** The dry run
+  holds Kiwi and the judge flat, so only BLEU drove it; the ω table is drawn from a fixed
+  seed. What has never run is `compute_rewards` inside the training loop with all three
+  components live, which is the first thing the GPU run does.
+* **`num_iterations: 4` is carried over from `ppo_epochs: 4`, not chosen.** It was the PPO
+  epoch count and is now μ. At μ > 1 the importance ratio departs from one within a rollout
+  and `epsilon` starts to bind, which is the regime the clip exists for, but no reading
+  supports 4 over 1 and 1 is TRL's default. It also multiplies optimizer steps per rollout
+  by four, which is the wall-clock cost of the choice.
+* **The frozen `ref` adapter doubles LoRA parameter memory** and adds a forward pass per
+  micro-step. Neither is measured on the rental GPU.
+* **Kiwi blocks the loop the way the judge does.** COMET runs in a separate interpreter, so
+  each rollout waits on a subprocess round trip as well as on the judge's 8.5 s. The judge
+  block is timed; the Kiwi block is not.
+* **Nothing stops a run whose groups have gone flat.** `degenerate_frac` is logged per
+  rollout and read by the smoke's verdict, but the training loop only halts on the
+  register-drift rule. A policy that converges onto the reward until every group is flat
+  would keep spending judge calls on zero-gradient steps.
+* **The saved adapter carries a 70 MB copy of itself.** `save_model` writes the frozen `ref`
+  adapter into a subdirectory beside the trained one. Loading is unaffected — checked — but
+  the artifact is twice the size it needs to be, and a reader who opens `ref/` will find a
+  second `adapter_config.json` that is not the trained one.
+* **The dry run's own margin is thin.** The register-drift rule cannot fire in two rollouts,
+  `z_se` for `marker_rate` came out 0.0 on the second because both groups scored identically,
+  and the length band passed 8/8 on 128-token completions. None of that predicts behaviour
+  over 500 rollouts of full-length output.
+
+---
+
 ## 2026-08-08 — Smoke green on a rented GPU; RLSF spend caps declared from the measured rate
 
 ### Summary
