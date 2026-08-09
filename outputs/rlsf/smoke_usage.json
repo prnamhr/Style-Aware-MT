@@ -1,14 +1,14 @@
 {
   "calls": 80,
   "prompt_tokens": 33332,
-  "completion_tokens": 1479,
+  "completion_tokens": 1489,
   "cost_usd": 0.0059,
   "per_call_usd": 7.375e-05,
   "model": "gpt-4o-mini",
   "concurrency": 8,
-  "wall_s": 10.63,
-  "call_s": 81.133,
-  "mean_call_s": 1.014,
-  "calls_per_s": 7.526,
-  "achieved_parallelism": 7.63
+  "wall_s": 10.623,
+  "call_s": 81.756,
+  "mean_call_s": 1.022,
+  "calls_per_s": 7.531,
+  "achieved_parallelism": 7.7
 }
