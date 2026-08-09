@@ -11,6 +11,7 @@ import yaml
 from src.rlsf.config import (
     assert_caps_declared,
     assert_group_size_within_ceiling,
+    drift_rule,
     grid_reward_configs,
     judge_concurrency,
     load_config,
@@ -203,3 +204,14 @@ def test_rollout_sampling_is_stochastic():
     # Greedy rollouts give a group zero variance, which group_normalize turns into all
     # zeros -- the reward would be identically flat and no update would be informative.
     assert load_config(require_caps=False)["rlsf"]["rollout"]["temperature"] > 0.0
+
+
+def test_the_drift_stop_is_the_operating_point_it_was_priced_at():
+    rule = drift_rule(load_config(require_caps=False))
+    assert (rule.feature, rule.baseline_steps, rule.window, rule.k_sigma, rule.min_delta) == (
+        "marker_rate",
+        20,
+        5,
+        4.0,
+        0.23,
+    )

@@ -15,10 +15,10 @@ class DriftRule:
     """Where the drift band sits, in centroid standard deviations."""
 
     feature: str = "marker_rate"
-    baseline_steps: int = 5
-    window: int = 3
-    k_sigma: float = 3.0
-    min_delta: float = 0.23 
+    baseline_steps: int = 20
+    window: int = 5
+    k_sigma: float = 4.0
+    min_delta: float = 0.23
 
     def __post_init__(self) -> None:
         if self.feature not in CENTROID_FEATURES:

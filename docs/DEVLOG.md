@@ -86,6 +86,112 @@ their history.
 
 ---
 
+## 2026-08-09 — Drift stop: the band set from a simulated false-alarm rate
+
+### Summary
+
+The register-drift rule was priced as a single comparison: a pooled error of 0.24, a 3σ band
+of 0.72, against a val ladder whose entire `marker_rate` spread is 0.41. Read that way the
+band is wider than the effect it exists to catch. But the rule is not read once. The monitor
+returns a verdict on every rollout, so a 500-step run re-tests one baseline draw about 495
+times, and what the rule does over a run is not what its per-check threshold says. Simulated
+at the smoke's measured error, the committed rule halts **20.4 % of drift-free runs**.
+Lowering `k_sigma` to 1.5 raises that to 81.5 %. The fix is the anchor, not the band:
+`baseline_steps` 5 → 20, `window` 3 → 5, `k_sigma` 3.0 → 4.0, `min_delta` unchanged. Against
+the drift path this arm is most likely to produce — a slow climb rather than a step — the new
+rule is better than the old one on both axes at once: 90.6 % caught against 88.1 %, at 1.3 %
+false alarms against 20.4 %. Set before any GPU spend, and pinned by a test so it is not
+revisited after one.
+
+### What changed
+
+* `configs/rlsf.yaml:70` — the `stop:` block: `baseline_steps: 20`, `window: 5`,
+  `k_sigma: 4.0`. `min_delta` stays at 0.23.
+* `src/rlsf/stop.py:18` — the `DriftRule` defaults follow the config, so a caller with no
+  `stop:` block does not silently get the 20 % rule.
+* `src/rlsf/drift_oc.py` (new) and `manage.py` — `drift_oc`, the simulation every number
+  below comes from.
+* `tests/test_rlsf_config.py` — the committed operating point is pinned to these four values.
+
+### Rationale
+
+**Why the static reading is incomplete.** The threshold is `max(min_delta, k_sigma · se)`
+against `window_mean − baseline`, and at a per-step error of 0.330 that is 0.66 to 0.72. The
+val ladder runs from 0.136 (peft) to 0.547 (zeroshot), so the band does exceed the full
+condition spread. What that reading omits is repetition. The baseline is drawn once from the
+opening steps and never re-estimated, and every later rollout is compared against it: the
+band is sized for one independent comparison and then spent on several hundred correlated
+ones. A baseline that draws low biases all of them in the same direction, and at 5 steps its
+own error is 0.148 — half the band it anchors.
+
+**The simulation.** Per-prompt sd 1.319, backed out of the smoke's clustered `z_se` of 0.295
+over 20 prompts. A training step is 16 prompts, not 20, so a step's error is 0.330 and the
+smoke's own figure understates it. 500 rollouts, 1,000 runs, seed 42. *Null* is no drift at
+all; *step* is a sustained shift beginning at rollout 50; *ramp* is a linear climb from
+rollout 50 to the stated size at rollout 500. Cells are halt rate at median halt step.
+
+| rule | band | null | step +0.23 | step +0.35 | ramp +0.50 |
+|---|---:|---:|---:|---:|---:|
+| b5 w3 k3.0 (previous) | 0.723 | 20.4 % @175 | 68.5 % @105 | 90.2 % @74 | 88.1 % @283 |
+| b5 w3 k1.5 | 0.361 | 81.5 % @53 | 98.4 % @54 | 99.8 % @52 | 100.0 % @78 |
+| b20 w3 k4.0 | 0.817 | 2.3 % @238 | 53.1 % @192 | 90.1 % @115 | 90.2 % @359 |
+| **b20 w5 k4.0 (set)** | **0.660** | **1.3 % @336** | **45.4 % @194** | **88.8 % @112** | **90.6 % @371** |
+| b30 w5 k4.0 | 0.637 | 1.5 % @228 | 55.2 % @187 | 95.2 % @105 | 95.1 % @359 |
+
+**Why not lower the band.** At `k_sigma: 1.5` the rule halts four drift-free runs in five, at
+a median rollout 53 — three after the simulated drift begins and long before any of it has
+accrued. A rule that halts almost every run says nothing about the run it halted, and its
+90 %-plus detection columns are mostly the same false alarms landing on top of a real shift.
+Making `min_delta` the primary arm is the same move further: the threshold would sit at 0.23
+against a per-step error of 0.330.
+
+**What 4.0 is not.** It is not a claim of evidence at 4σ. The band is the free parameter that
+sets the false-alarm rate over the whole run, and 4.0 is where that rate is 1.3 % at the
+measured error. Quoted as a per-check significance level it would be a misreading of what
+was fitted.
+
+**What the rule gives up.** Against a +0.23 step — the `min_delta` floor, the
+peft-to-random_fewshot gap — it fires 45 % of the time, at a median 144 rollouts after the
+shift. That is accepted rather than fixed. The trained adapter is evaluated on the full val
+ladder, where `marker_rate` z carries a bootstrap half-width near 0.06, so a drift that size
+is measured in the reported table whether or not the monitor fired. The monitor exists to
+stop a run that has already left the regime, not to be the only detector.
+
+**The runner-up.** `baseline_steps: 30` at the same window and band: 1.5 % false alarms,
+55.2 % at +0.23, 95.1 % on the ramp. Better on every power column for 0.2 pp more false
+alarms. It was not taken because 30 rollouts is 6 % of the planned run absorbed into an
+anchor that is supposed to stand for the regime the policy started in, and the ramp figure
+it improves is already above 90 %.
+
+### Verification
+
+`pytest tests/` passes, 236 tests. The pinning test fails on any edit to the four values.
+Nothing about the rule's logic changed, so the 16 degenerate-case tests in
+`tests/test_rlsf_stop.py` cover it unchanged.
+
+### Reproduction
+
+```
+python manage.py drift_oc
+python manage.py drift_oc --runs 5000 --sigma_prompt 1.4
+```
+
+### Limitations and risks
+
+* The null model draws each rollout independently. A real policy's `marker_rate` wanders
+  between steps, and autocorrelation inflates false alarms, so 1.3 % is a floor rather than
+  an estimate of what the run will do.
+* The per-prompt sd is one 20-prompt draw from the smoke. If a training step's spread is
+  wider every rate in the table moves, and `--sigma_prompt` exists to re-price it against the
+  first real steps. Re-pricing after a run has seen drift is what the pinning test refuses.
+* The rule watches `marker_rate` alone. A policy that games the register reward through a
+  feature the centroid does not carry is invisible to it at any band.
+* The band still uses a normal quantile over roughly 16 clusters per step, carried over from
+  the 2026-08-08 entry. A t quantile would be wider; the simulation prices the rule as
+  implemented, not as it would be with the correction.
+
+---
+
 ## 2026-08-08 — GRPO training loop: one normalization, and a config that names GRPO fields
 
 ### Summary
@@ -593,6 +699,11 @@ Replaying the committed `smoke_hyps.jsonl` through `compute_rewards` reproduces
 band is 0.65, and a synthetic +1.2 excursion held for three steps trips it.
 
 ### Limitations and risks
+
+*Superseded (2026-08-09).* `baseline_steps`, `window` and `k_sigma` were set here from a
+per-check σ level. That reading treats the rule as one comparison when it is read at every
+rollout; the values and the reasoning for them are in the 2026-08-09 entry. `min_delta` and
+the two-arm structure stand as written.
 
 * No training loop calls the monitor yet; `src/rlsf/smoke.py` reports the baseline and
   nothing consumes a verdict.

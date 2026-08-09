@@ -17,6 +17,7 @@ COMMANDS = {
     "rlsf_dev": "src.data.rlsf_dev",
     "rlsf_smoke": "src.rlsf.smoke",
     "rlsf_train": "src.rlsf.train",
+    "drift_oc": "src.rlsf.drift_oc",
     "build_index": "src.retrieval.build_index",
     "peft": "src.peft.train",
     "peft_sweep": "src.peft.sweep",
