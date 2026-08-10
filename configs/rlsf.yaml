@@ -86,6 +86,11 @@ rlsf:
     judge_calls: 80                       # 20 segments x G=4, the smoke's brief. Diagnostic:
                                           #  is the rubric discriminative within one group?
 
+  pool:
+    n: 8                                  # samples per segment; at the group_size_ceiling
+    judge_calls: 3992                     # 499 dev segments x 8, priced $0.29 in docs/budget.md
+    chunk: 25                             # segments scored before the pool file is appended to
+
 
 judge:
   provider: openai
@@ -109,4 +114,5 @@ data:
 output:
   dir: outputs
   step_log: outputs/rlsf/steps.jsonl      # one StepLog line per rollout step
+  pool: outputs/rlsf/pool.jsonl           # one row per dev segment: N completions and scores
   adapter_dir: models/rlsf_grpo           # trained adapter, written once at the end

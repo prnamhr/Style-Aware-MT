@@ -16,6 +16,8 @@ COMMANDS = {
     "split": "src.data.split",
     "rlsf_dev": "src.data.rlsf_dev",
     "rlsf_smoke": "src.rlsf.smoke",
+    "rlsf_pool": "src.rlsf.pool",
+    "rlsf_omega": "src.rlsf.omega",
     "rlsf_train": "src.rlsf.train",
     "drift_oc": "src.rlsf.drift_oc",
     "build_index": "src.retrieval.build_index",
