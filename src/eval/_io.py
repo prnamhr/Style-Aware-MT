@@ -14,17 +14,7 @@ def condition_path(out_dir: str | Path, condition: str, split: str) -> Path:
 
 
 def merge_results(path: str | Path, new: dict[str, dict]) -> list[str]:
-    """Merge per-condition results into the JSON map at ``path``.
 
-    Scoring one condition must never discard the others: the writers used to
-    rewrite the whole file from just the conditions of the current run, silently
-    dropping every condition they did not re-score. Conditions in ``new``
-    replace their old entry; every other key is carried through untouched.
-    Returns the sorted names of the carried-through conditions.
-
-    The write goes to a sibling temp file that is then atomically renamed, so an
-    interrupted or failing write leaves the previous results intact.
-    """
     path = Path(path)
     existing: dict = {}
     if path.exists():
@@ -77,7 +67,7 @@ def read_completed_jsonl(path: str | Path) -> list[dict]:
 def load_condition(
     out_dir: str | Path, condition: str, split: str
 ) -> tuple[list[str], list[str], list[str]]:
-    """Return ``(sources, predictions, references)`` for one condition, in file order."""
+    """Return (sources, predictions, references) for one condition, in file order."""
     path = condition_path(out_dir, condition, split)
     with path.open(encoding="utf-8") as f:
         rows = [json.loads(line) for line in f if line.strip()]

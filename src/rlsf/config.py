@@ -104,18 +104,29 @@ def drift_rule(cfg: dict) -> DriftRule:
     return DriftRule(**{k: v for k, v in block.items() if k in fields})
 
 
-def grid_reward_configs(cfg: dict) -> list[tuple[str, RewardConfig]]:
-    """The RQ3 weight grid as (cell name, reward config) pairs, each at unit ||omega||.
-    """
+def _cells(cfg: dict, key: str) -> list[tuple[str, RewardConfig]]:
+    """Named cells under `weight_grid.<key>`, each merged onto the base reward at unit ||omega||."""
     base = cfg["rlsf"]["reward"]
     fields = RewardConfig.__dataclass_fields__
     out = []
-    for cell in cfg["rlsf"]["weight_grid"]["cells"]:
+    for cell in cfg["rlsf"]["weight_grid"].get(key) or []:
         merged = {k: v for k, v in {**base, **cell}.items() if k in fields}
         # As declared the cells' weight vectors differ in norm by 1.68x, which an online grid
         # would spend as a larger optimizer step rather than as a different weighting.
         out.append((cell["name"], RewardConfig(**merged).unit_omega()))
     return out
+
+
+def grid_reward_configs(cfg: dict) -> list[tuple[str, RewardConfig]]:
+    """The RQ3 weight grid as (cell name, reward config) pairs, each at unit ||omega||.
+    """
+    return _cells(cfg, "cells")
+
+
+def exploratory_reward_configs(cfg: dict) -> list[tuple[str, RewardConfig]]:
+    """Cells read off the cached pool only. Kept out of `cells` so the pre-registered grid
+    stays the grid that was pre-registered, and so no exploratory cell can be selected."""
+    return _cells(cfg, "exploratory")
 
 
 def worst_case_judge_calls(cfg: dict, *, group_size: int | None = None) -> int:

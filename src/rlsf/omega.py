@@ -12,17 +12,25 @@ from __future__ import annotations
 
 import argparse
 import json
+from functools import partial
 from pathlib import Path
 
 import numpy as np
 
 from src.eval.stylometrics import aggregate, distance_to_centroid, features
-from src.rlsf.config import drift_rule, grid_reward_configs, load_config
+from src.rlsf.config import (
+    drift_rule,
+    exploratory_reward_configs,
+    grid_reward_configs,
+    load_config,
+)
 from src.rlsf.pool import read_pool, sidecar
 from src.rlsf.reward import compute_rewards, group_normalize, load_centroid
 
 # The same quarter-of-groups threshold the reward-path smoke fails on, declared once there.
 from src.rlsf.smoke import _MAX_DEGENERATE
+
+_PRE_REGISTERED = "pre-registered"
 
 
 def flatten(rows: list[dict]) -> tuple[int, list[str], list[str], list[str], dict]:
@@ -144,6 +152,32 @@ def pick_reading(
     }
 
 
+def cell_picks(rc, sources, hyps, refs, raw, *, n: int, centroid: dict) -> list[int | None]:
+    """One cell's argmax picks, without the rest of its reading."""
+    rewards, feasible, _ = compute_rewards(
+        sources, hyps, refs, cfg=rc, group_size=n, component_scores=raw, centroid=centroid
+    )
+    return argmax_picks(rewards, feasible, n)
+
+
+def paired_stylo(
+    baseline: list[int | None], cell: list[int | None], hyps: list[str], centroid: dict
+) -> dict:
+    """Register distance of two selection rules over only the groups where both picked."""
+    pairs = [(b, c) for b, c in zip(baseline, cell) if b is not None and c is not None]
+    if not pairs:
+        return {"groups": 0, "baseline_stylo": float("nan"), "cell_stylo": float("nan")}
+    return {
+        "groups": len(pairs),
+        "baseline_stylo": float(
+            distance_to_centroid(aggregate([hyps[b] for b, _ in pairs])["mean"], centroid)
+        ),
+        "cell_stylo": float(
+            distance_to_centroid(aggregate([hyps[c] for _, c in pairs])["mean"], centroid)
+        ),
+    }
+
+
 def component_degeneracy(raw: dict[str, list[float]], feasible: np.ndarray, n: int) -> dict:
     """Per component, the fraction of groups it cannot separate on its own."""
     out = {}
@@ -172,23 +206,27 @@ def cell_reading(
     centroid: dict,
     z_all: np.ndarray,
     feature: str,
+    evidence_class: str = _PRE_REGISTERED,
 ) -> dict:
     """One omega cell: how well its reward separates a group, and what its argmax picks."""
     rewards, feasible, log = compute_rewards(
         sources, hyps, refs, cfg=rc, group_size=n, component_scores=raw, centroid=centroid
     )
+    picks = argmax_picks(rewards, feasible, n)
     reading = {
         "cell": name,
+        "evidence_class": evidence_class,
         "weights": {k: round(v, 4) for k, v in rc.weights.items()},
+        "judge_gate": rc.judge_gate,
         "n": n,
         "feasible": log.n_feasible,
         "unmeasured": log.n_unmeasured,
         "degenerate_frac": log.degenerate_frac,
         "degenerate_groups": log.degenerate_groups,
         "groups": log.n_groups,
-        "picks": pick_reading(
-            hyps, refs, raw, argmax_picks(rewards, feasible, n),
-            n=n, centroid=centroid, z_all=z_all, feature=feature,
+        # A gate strict enough to empty every group is a reading about the gate, not a crash.
+        "picks": None if all(p is None for p in picks) else pick_reading(
+            hyps, refs, raw, picks, n=n, centroid=centroid, z_all=z_all, feature=feature,
         ),
     }
     if subgroup and subgroup < n and n % subgroup == 0:
@@ -216,6 +254,14 @@ def select(
     feature: str,
 ) -> dict:
     """The cell that feeds the training run, and why each other one does not."""
+    exploratory = [
+        r["cell"] for r in readings if r.get("evidence_class", _PRE_REGISTERED) != _PRE_REGISTERED
+    ]
+    if exploratory:
+        raise ValueError(
+            f"{', '.join(exploratory)} are exploratory cells. Selecting one would make the "
+            f"choice of reward post hoc; they are read off the pool, never selected from."
+        )
     rejected, kept = {}, []
     for r in readings:
         # One hard gate. A cell whose groups have no reward spread trains nothing, whatever
@@ -262,15 +308,20 @@ def select(
     }
 
 
-def _row(reading: dict, feature: str) -> str:
-    p, shift = reading["picks"], reading["picks"][f"{feature}_shift"]
+def _row(reading: dict, feature: str, comps: list[str]) -> str:
     sub = reading.get("subgroup")
-    comp = p["components"]
-    return (
-        f"  {reading['cell']:9s} {reading['degenerate_frac']:7.0%} "
+    head = (
+        f"  {reading['cell']:11s} {reading['degenerate_frac']:7.0%} "
         f"{(sub['degenerate_frac'] if sub else float('nan')):7.0%} "
-        f"{p['picked']:6d} "
-        + " ".join(f"{comp[k]:7.3f}" for k in sorted(comp))
+    )
+    p = reading["picks"]
+    if p is None:
+        return head + f"{0:6d}   no sample cleared the gate in any group"
+    shift = p[f"{feature}_shift"]
+    return (
+        head
+        + f"{p['picked']:6d} "
+        + " ".join(f"{p['components'][k]:7.3f}" for k in comps)
         + f" {p['stylo_dist']:10.3f} {shift['delta']:+8.3f} +/- {shift['se']:.3f}"
     )
 
@@ -325,13 +376,27 @@ def main() -> None:
 
     grid = grid_reward_configs(cfg)
     cells = {c["name"]: c for c in cfg["rlsf"]["weight_grid"]["cells"]}
-    readings = [
-        cell_reading(
-            name, rc, sources, hyps, refs, raw,
-            n=n, subgroup=subgroup, centroid=centroid, z_all=z_all, feature=feature,
-        )
-        for name, rc in grid
-    ]
+    read = partial(
+        cell_reading,
+        sources=sources, hyps=hyps, refs=refs, raw=raw,
+        n=n, subgroup=subgroup, centroid=centroid, z_all=z_all, feature=feature,
+    )
+    readings = [read(name, rc) for name, rc in grid]
+    explore = exploratory_reward_configs(cfg)
+    exploratory = [read(name, rc, evidence_class="exploratory") for name, rc in explore]
+
+    # A gate empties groups, so its picks cover fewer segments than the cell it is read
+    # against. Without pairing, a gate is credited for the segments it dropped.
+    gated = [(r, rc) for r, (_, rc) in zip(exploratory, explore) if rc.gated]
+    if gated:
+        base_name, base_rc = grid[0]
+        base_picks = cell_picks(base_rc, sources, hyps, refs, raw, n=n, centroid=centroid)
+        for reading, rc in gated:
+            picks = cell_picks(rc, sources, hyps, refs, raw, n=n, centroid=centroid)
+            reading["paired"] = {
+                "baseline": base_name,
+                **paired_stylo(base_picks, picks, hyps, centroid),
+            }
 
     # Feasibility does not depend on the weights, so any cell's mask reads the components.
     _, feasible, _ = compute_rewards(
@@ -361,19 +426,38 @@ def main() -> None:
 
     comps = sorted(readings[0]["picks"]["components"])
     print(
-        f"\n{'cell':11s} {'deg@' + str(n):>7s} {'deg@' + str(subgroup):>7s} {'picks':>6s} "
+        f"\n{'cell':13s} {'deg@' + str(n):>7s} {'deg@' + str(subgroup):>7s} {'picks':>6s} "
         + " ".join(f"{c:>7s}" for c in comps)
         + f" {'stylo':>10s} {feature + ' dz':>8s}"
     )
     for reading in readings:
-        print(_row(reading, feature))
+        print(_row(reading, feature, comps))
     for key, anchor in anchors.items():
         shift = anchor[f"{feature}_shift"]
         print(
-            f"  {key:9s} {'':7s} {'':7s} {anchor['picked']:6d} "
+            f"  {key:11s} {'':7s} {'':7s} {anchor['picked']:6d} "
             + " ".join(f"{anchor['components'][c]:7.3f}" for c in comps)
             + f" {anchor['stylo_dist']:10.3f} {shift['delta']:+8.3f} +/- {shift['se']:.3f}"
         )
+
+    if exploratory:
+        print("\nexploratory -- read off the pool after it was built, selected from by nothing:")
+        for reading in exploratory:
+            print(_row(reading, feature, comps))
+        print(
+            "  Groups a gate empties make no pick, so a gated cell's component means are read "
+            "over fewer segments than the cells above and are not paired with them."
+        )
+    if gated:
+        base_name = gated[0][0]["paired"]["baseline"]
+        print(f"\ngated cells against {base_name}, on the groups both pick:")
+        for reading, _ in gated:
+            p = reading["paired"]
+            print(
+                f"  {reading['cell']:11s} {p['groups']:3d} groups  "
+                f"gate {p['cell_stylo']:.3f} vs {p['baseline_stylo']:.3f} "
+                f"({p['cell_stylo'] - p['baseline_stylo']:+.3f})"
+            )
 
     print(
         f"\nDegeneracy at N={n} and at G={subgroup} are not comparable: a larger group "
@@ -411,11 +495,17 @@ def main() -> None:
                 "gates": gates,
                 "per_component_degeneracy": per_component,
                 "cells": readings,
+                "exploratory_cells": exploratory,
                 "anchors": anchors,
                 "selection": verdict,
                 "caveats": [
                     "Dev-slice figures select the reward weights and are never reported as a "
                     "result; val remains the reported split.",
+                    "`exploratory_cells` were added after the pool was built and after the "
+                    "pre-registered grid was read. They are leads for Phase 2's design, not "
+                    "results, and `selection` cannot draw from them.",
+                    "A gated cell's picks are read over only the groups its gate leaves "
+                    "non-empty, so its component means are not paired with the other cells'.",
                     f"Degeneracy at N={n} and at G={subgroup} are not comparable; larger "
                     f"groups degenerate less by construction.",
                     "Best-of-N reranking of a frozen policy is not GRPO. It bounds what the "

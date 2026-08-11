@@ -10,6 +10,7 @@ from src.rlsf.omega import (
     component_degeneracy,
     flatten,
     marker_shift,
+    paired_stylo,
     random_picks,
     select,
 )
@@ -18,6 +19,12 @@ from src.rlsf.pool import pack_rows
 CELLS = {
     "w3_0.0": {"name": "w3_0.0", "w_kiwi": 1.0, "w_bleu": 1.0, "w_judge": 0.0},
     "w3_1.0": {"name": "w3_1.0", "w_kiwi": 1.0, "w_bleu": 1.0, "w_judge": 1.0},
+}
+
+_CENTROID = {
+    "features": ["lex_density", "ttr", "root_ttr", "marker_rate"],
+    "mean": [0.4344, 0.8540, 4.0437, 0.0327],
+    "std": [0.1101, 0.1085, 1.0426, 0.0567],
 }
 
 
@@ -104,3 +111,31 @@ def test_cells_that_tie_on_register_fit_take_the_weaker_style_pressure():
     readings = [_reading("w3_1.0", stylo=1.0), _reading("w3_0.0", stylo=1.0)]
     verdict = select(readings, CELLS, max_degenerate=0.25, warn_shift=0.23, feature="marker_rate")
     assert verdict["cell"] == "w3_0.0"
+
+
+# exploratory cells
+
+
+def test_an_exploratory_cell_cannot_be_selected_however_well_it_reads():
+    # The whole point of the class: a cell added after the pool was built and after the
+    # pre-registered grid was read cannot become the reward the run trains on.
+    readings = [_reading("w3_0.0", stylo=2.0), _reading("judge_only", stylo=0.1)]
+    readings[1]["evidence_class"] = "exploratory"
+    with pytest.raises(ValueError, match="judge_only are exploratory"):
+        select(readings, CELLS, max_degenerate=0.25, warn_shift=0.23, feature="marker_rate")
+
+
+def test_the_paired_reading_only_compares_groups_both_rules_picked():
+    # The gate empties group 1. Reading its distance against a baseline that kept group 1
+    # would score the gate on a subset it never had to translate.
+    hyps = ["aa", "bb", "cc", "dd"]
+    baseline, gated = [0, 2], [0, None]
+    paired = paired_stylo(baseline, gated, hyps, _CENTROID)
+    assert paired["groups"] == 1
+    assert paired["baseline_stylo"] == pytest.approx(paired["cell_stylo"])
+
+
+def test_a_gate_that_empties_every_group_pairs_to_nothing_rather_than_raising():
+    paired = paired_stylo([0, 1], [None, None], ["aa", "bb"], _CENTROID)
+    assert paired["groups"] == 0
+    assert np.isnan(paired["cell_stylo"])

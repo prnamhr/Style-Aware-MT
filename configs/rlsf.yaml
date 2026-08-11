@@ -67,6 +67,15 @@ rlsf:
       - {name: w3_1.0, w_kiwi: 1.0, w_bleu: 1.0, w_judge: 1.0}
       - {name: w3_2.0, w_kiwi: 1.0, w_bleu: 1.0, w_judge: 2.0}
 
+    exploratory:
+      # One component each: which term is doing the work the combined reward gets credit for.
+      - {name: lex_only,  w_kiwi: 0.0, w_bleu: 1.0, w_judge: 0.0}
+      - {name: sem_only,  w_kiwi: 1.0, w_bleu: 0.0, w_judge: 0.0}
+      - {name: judge_only, w_kiwi: 0.0, w_bleu: 0.0, w_judge: 1.0}  
+      - {name: gate_j3, w_kiwi: 1.0, w_bleu: 1.0, w_judge: 0.0, judge_gate: 3.0}
+      - {name: gate_j4, w_kiwi: 1.0, w_bleu: 1.0, w_judge: 0.0, judge_gate: 4.0}
+      - {name: gate_j5, w_kiwi: 1.0, w_bleu: 1.0, w_judge: 0.0, judge_gate: 5.0}
+
   stop:
     feature: marker_rate                  # the direction the register reward can be gamed in
     baseline_steps: 20                    # opening steps averaged into the baseline

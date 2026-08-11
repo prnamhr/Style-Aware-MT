@@ -24,6 +24,9 @@ _FLOOR_MARGIN = 1.0
 # Below this a group's rewards are flat, so its advantages are zero and it trains nothing.
 _MIN_GROUP_SD = 1e-9
 
+# The bands prompts/judge_train.txt rates on, and so the range a judge veto may sit in.
+_JUDGE_MIN, _JUDGE_MAX = 1.0, 5.0
+
 
 @dataclass
 class RewardConfig:
@@ -38,6 +41,9 @@ class RewardConfig:
     on_violation: str = "floor"  # "floor" | "drop"
     # "bleu" (smoothed sentence-BLEU) or "chrf" (chrF++), the swappable grid cell.
     overlap_metric: str = "bleu"
+    # Rubric band a sample must reach to stay feasible. Set, the judge stops being a
+    # summand and becomes a veto: it gates which samples compete, never how they rank.
+    judge_gate: float | None = None
 
     def __post_init__(self) -> None:
         if self.on_violation not in ("floor", "drop"):
@@ -51,11 +57,36 @@ class RewardConfig:
                 f"need 0 < len_min_ratio <= len_max_ratio, got "
                 f"{self.len_min_ratio} and {self.len_max_ratio}"
             )
+        if self.judge_gate is not None:
+            if self.w_judge:
+                raise ValueError(
+                    f"judge_gate={self.judge_gate} with w_judge={self.w_judge}: the judge would "
+                    f"both veto a sample and rank the survivors, so the cell measures neither "
+                    f"design. Set w_judge to 0 to gate, or drop judge_gate to weight."
+                )
+            if not _JUDGE_MIN <= self.judge_gate <= _JUDGE_MAX:
+                raise ValueError(
+                    f"judge_gate must sit on the {_JUDGE_MIN:g}-{_JUDGE_MAX:g} rubric band, "
+                    f"got {self.judge_gate}"
+                )
+
+    @property
+    def gated(self) -> bool:
+        """Whether the judge acts as a veto instead of a term in the sum."""
+        return self.judge_gate is not None
 
     @property
     def weights(self) -> dict[str, float]:
         # Keyed by the metric in use, so a chrF grid cell is not logged under a BLEU label.
-        return {self.overlap_metric: self.w_bleu, "kiwi": self.w_kiwi, "judge": self.w_judge}
+        weights = {self.overlap_metric: self.w_bleu, "kiwi": self.w_kiwi, "judge": self.w_judge}
+        if self.gated:
+            del weights["judge"]
+        return weights
+
+    @property
+    def required_components(self) -> tuple[str, ...]:
+        """Components a sample needs a score for. A gated judge is required but unweighted."""
+        return (*self.weights, "judge") if self.gated else tuple(self.weights)
 
     def unit_omega(self) -> RewardConfig:
         """A copy with the three weights rescaled to unit L2 norm, ratios preserved."""
@@ -363,16 +394,21 @@ def compute_rewards(
         raise ValueError(f"group_size must be >= 1, got {group_size}")
     if n % group_size:
         raise ValueError(f"batch of {n} is not a whole number of groups of {group_size}")
-    missing = set(cfg.weights) - set(component_scores)
+    missing = set(cfg.required_components) - set(component_scores)
     if missing:
         raise ValueError(f"missing component scores: {sorted(missing)}")
     for name, values in component_scores.items():
         if len(values) != n:
             raise ValueError(f"component {name!r} has {len(values)} scores for {n} samples")
 
-    raw = {name: np.asarray(component_scores[name], dtype=float) for name in cfg.weights}
+    raw = {
+        name: np.asarray(component_scores[name], dtype=float)
+        for name in cfg.required_components
+    }
     measured = np.logical_and.reduce([np.isfinite(values) for values in raw.values()])
     feasible = length_feasible(hyps, refs, cfg) & measured
+    if cfg.gated:
+        feasible &= raw["judge"] >= cfg.judge_gate
 
     rewards = np.full(n, np.nan, dtype=float)
     normalized_all = {name: np.zeros(n, dtype=float) for name in cfg.weights}

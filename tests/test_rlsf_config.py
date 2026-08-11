@@ -12,6 +12,7 @@ from src.rlsf.config import (
     assert_caps_declared,
     assert_group_size_within_ceiling,
     drift_rule,
+    exploratory_reward_configs,
     grid_reward_configs,
     judge_concurrency,
     load_config,
@@ -133,6 +134,35 @@ def test_the_reward_and_every_grid_cell_are_delivered_at_unit_omega_norm():
     cfg = load_config(require_caps=False)
     for rc in [reward_config(cfg)] + [rc for _, rc in grid_reward_configs(cfg)]:
         assert math.hypot(rc.w_bleu, rc.w_kiwi, rc.w_judge) == pytest.approx(1.0)
+
+
+def test_the_exploratory_cells_are_not_part_of_the_pre_registered_grid():
+    # Separate keys, or a cell added after the pool was read would sit in the grid the
+    # selection rule draws from and the choice of reward would become post hoc.
+    cfg = load_config(require_caps=False)
+    pre_registered = {name for name, _ in grid_reward_configs(cfg)}
+    exploratory = {name for name, _ in exploratory_reward_configs(cfg)}
+    assert exploratory == {"lex_only", "sem_only", "judge_only", "gate_j3", "gate_j4", "gate_j5"}
+    assert not pre_registered & exploratory
+
+
+def test_each_single_component_cell_carries_exactly_one_term():
+    cells = dict(exploratory_reward_configs(load_config(require_caps=False)))
+    for name, term in (("lex_only", "w_bleu"), ("sem_only", "w_kiwi"), ("judge_only", "w_judge")):
+        weights = {k: getattr(cells[name], k) for k in ("w_bleu", "w_kiwi", "w_judge")}
+        assert weights.pop(term) == pytest.approx(1.0)
+        assert set(weights.values()) == {0.0}
+
+
+def test_the_gated_cells_sweep_the_band_over_one_unchanged_summand():
+    cells = dict(exploratory_reward_configs(load_config(require_caps=False)))
+    gates = [cells[f"gate_j{i}"] for i in (3, 4, 5)]
+    assert [c.judge_gate for c in gates] == [3.0, 4.0, 5.0]
+    # The veto is the only thing that varies, and the only thing separating them from w3_0.0.
+    ablation = dict(grid_reward_configs(load_config(require_caps=False)))["w3_0.0"]
+    for cell in gates:
+        assert cell.gated and not cell.w_judge
+        assert (cell.w_bleu, cell.w_kiwi) == pytest.approx((ablation.w_bleu, ablation.w_kiwi))
 
 
 def test_grid_cells_inherit_the_base_feasibility_band():

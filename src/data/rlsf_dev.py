@@ -57,7 +57,7 @@ def select_works(
     *,
     exclude: set[str] | None = None,
 ) -> list[str]:
-    """Choose whole works whose segment count is closest to ``target``.
+    """Choose whole works whose segment count is closest to target.
     """
     if target < 1:
         raise ValueError(f"target must be >= 1, got {target}")
@@ -132,7 +132,7 @@ def main() -> None:
     splits_dir = Path(args.splits_dir)
     train_path = splits_dir / "train.jsonl"
     if not train_path.exists():
-        raise SystemExit(f"missing {train_path}; run `python manage.py split` first")
+        raise SystemExit(f"missing {train_path}; run python manage.py split first")
 
     records = load_jsonl(train_path)
     sizes = work_sizes(records, args.group_key)

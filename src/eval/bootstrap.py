@@ -22,7 +22,7 @@ def paired_bootstrap(
     alpha: float = 0.05,
     seed: int = 42,
 ) -> dict:
-    """Paired bootstrap of ``mean(a) - mean(b)`` over aligned per-segment scores."""
+    """Paired bootstrap of mean(a) - mean(b) over aligned per-segment scores."""
     arr_a = np.asarray(a, dtype=float)
     arr_b = np.asarray(b, dtype=float)
     if arr_a.shape != arr_b.shape:
@@ -86,7 +86,7 @@ def _load_segment_scores(
         )
         path = Path("results") / f"{stem}.json"
         if not path.exists():
-            raise FileNotFoundError(f"{path} not found; run `manage.py {metric}` first")
+            raise FileNotFoundError(f"{path} not found; run python manage.py {metric}` first")
         stored = json.loads(path.read_text(encoding="utf-8"))
         scores = {c: _nan_segments(stored[c]["segments"]) for c in conditions if c in stored}
         sources = {c: stored[c].get("sources") for c in conditions if c in stored}

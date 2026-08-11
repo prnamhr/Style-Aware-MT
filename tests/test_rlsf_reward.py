@@ -328,6 +328,110 @@ def test_config_rejects_bad_settings():
         RewardConfig(len_min_ratio=2.0, len_max_ratio=1.0)
 
 
+# judge as a veto rather than a summand
+
+
+def _gated(gate=4.0, **overrides):
+    return RewardConfig(w_bleu=1.0, w_kiwi=1.0, w_judge=0.0, judge_gate=gate, **overrides)
+
+
+def test_a_gate_vetoes_below_the_band_without_ranking_the_survivors():
+    # Ranked on bleu alone: the judge decides who competes, never who wins.
+    n = 4
+    scores = _components(n, bleu=[1.0, 2.0, 3.0, 4.0], judge=[5.0, 5.0, 3.0, 3.0])
+    rewards, feasible, _ = compute_rewards(
+        ["s"] * n, ["a b c"] * n, ["a b c"] * n,
+        cfg=_gated(), group_size=n, component_scores=scores, centroid=CENTROID,
+    )
+    assert list(feasible) == [True, True, False, False]
+    # The 4.0 has the best overlap but was vetoed, so the 2.0 is the best feasible sample.
+    assert rewards[1] > rewards[0]
+    assert max(range(n), key=lambda i: rewards[i]) == 1
+
+
+def test_a_gated_judge_is_not_also_a_summand():
+    # Same weights, same scores; only the judge's role differs. Under the gate the judge
+    # cannot reorder samples that all clear it.
+    n = 3
+    scores = _components(n, bleu=[3.0, 2.0, 1.0], judge=[3.0, 4.0, 5.0])
+    common = dict(group_size=n, component_scores=scores, centroid=CENTROID)
+    gated, _, _ = compute_rewards(
+        ["s"] * n, ["a b c"] * n, ["a b c"] * n, cfg=_gated(gate=3.0), **common
+    )
+    summed, _, _ = compute_rewards(
+        ["s"] * n, ["a b c"] * n, ["a b c"] * n,
+        cfg=RewardConfig(w_bleu=1.0, w_kiwi=1.0, w_judge=2.0), **common,
+    )
+    assert gated[0] > gated[1] > gated[2]
+    assert summed[0] < summed[2]
+
+
+def test_a_gate_still_requires_a_judge_score():
+    # The veto has to read the judge, so a pool without one is a missing component, not an
+    # unweighted term that can be skipped.
+    with pytest.raises(ValueError, match="missing component scores: \\['judge'\\]"):
+        compute_rewards(
+            ["s"] * 2, ["a b c"] * 2, ["a b c"] * 2,
+            cfg=_gated(), group_size=2,
+            component_scores={"bleu": [1.0, 2.0], "kiwi": [1.0, 2.0]}, centroid=CENTROID,
+        )
+
+
+def test_an_unreadable_verdict_is_vetoed_not_waved_through():
+    n = 2
+    scores = _components(n, judge=[5.0, float("nan")])
+    _, feasible, log = compute_rewards(
+        ["s"] * n, ["a b c"] * n, ["a b c"] * n,
+        cfg=_gated(), group_size=n, component_scores=scores, centroid=CENTROID,
+    )
+    assert list(feasible) == [True, False]
+    assert log.n_unmeasured == 1
+
+
+def test_a_gate_that_empties_a_group_leaves_it_without_a_gradient():
+    n = 3
+    scores = _components(n, bleu=[1.0, 2.0, 3.0], judge=[1.0, 2.0, 3.0])
+    _, feasible, log = compute_rewards(
+        ["s"] * n, ["a b c"] * n, ["a b c"] * n,
+        cfg=_gated(gate=5.0), group_size=n, component_scores=scores, centroid=CENTROID,
+    )
+    assert not feasible.any()
+    assert log.degenerate_frac == 1.0
+
+
+def test_a_gated_cell_reports_the_judge_it_gated_on():
+    # Unweighted but still measured: the reading has to show what the veto read.
+    assert "judge" not in _gated().weights
+    assert "judge" in _gated().required_components
+    _, _, log = compute_rewards(
+        ["s"] * 2, ["a b c"] * 2, ["a b c"] * 2,
+        cfg=_gated(), group_size=2,
+        component_scores=_components(2, judge=[5.0, 4.0]), centroid=CENTROID,
+    )
+    assert log.raw["judge"] == pytest.approx(4.5)
+
+
+def test_a_judge_that_both_vetoes_and_ranks_is_refused():
+    with pytest.raises(ValueError, match="both veto a sample and rank"):
+        RewardConfig(w_judge=1.0, judge_gate=4.0)
+
+
+def test_a_gate_off_the_rubric_band_is_refused():
+    with pytest.raises(ValueError, match="rubric band"):
+        RewardConfig(w_judge=0.0, judge_gate=6.0)
+    with pytest.raises(ValueError, match="rubric band"):
+        RewardConfig(w_judge=0.0, judge_gate=0.0)
+
+
+def test_gating_leaves_the_summand_at_the_ablation_cell_s_weights():
+    # The gated variant differs from w3_0.0 by the veto alone, so their summands must match
+    # or the comparison reads a reweighting as well.
+    gated = _gated().unit_omega()
+    ablation = RewardConfig(w_bleu=1.0, w_kiwi=1.0, w_judge=0.0).unit_omega()
+    assert gated.w_bleu == pytest.approx(ablation.w_bleu)
+    assert gated.w_kiwi == pytest.approx(ablation.w_kiwi)
+
+
 # logging 
 
 
