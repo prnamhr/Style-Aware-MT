@@ -23,6 +23,7 @@ from src.rlsf.reward import (
     RewardConfig,
     compute_rewards,
     fixed_scale,
+    floor_margin,
     frozen_digest,
     group_normalize,
     judge_scores,
@@ -157,6 +158,34 @@ def test_infeasible_sample_gets_group_floor():
     assert np.isfinite(rewards).all()
     assert log.n_feasible == 2
     assert log.n_unmeasured == 0
+
+
+def test_the_floor_is_a_fixed_gap_in_units_of_the_weight_vector():
+    cfg = RewardConfig(w_bleu=1.0, w_kiwi=1.0, w_judge=1.0)
+    assert floor_margin(cfg) == pytest.approx(math.sqrt(3))
+    assert floor_margin(cfg.unit_omega()) == pytest.approx(1.0)
+
+
+def test_a_reward_with_no_weight_left_has_no_scale_to_floor_below():
+    with pytest.raises(ValueError, match="carries no signal"):
+        floor_margin(RewardConfig(w_bleu=0.0, w_kiwi=0.0, w_judge=0.0))
+
+
+def test_rescaling_omega_rescales_the_whole_reward_including_the_floor():
+    # What unit_omega is for: the same cell before and after normalization must rank and
+    # space the group identically, or learning_rate means something different under each.
+    n = 4
+    hyps = ["a b c", "a b c d", "a b", " ".join(["x"] * 40)]
+    refs = ["a b c d"] * n
+    common = dict(
+        group_size=n,
+        component_scores=_components(n, bleu=[1.0, 2.0, 3.0, 9.0]),
+        centroid=CENTROID,
+    )
+    cfg = RewardConfig(w_bleu=1.0, w_kiwi=1.0, w_judge=1.0)
+    coarse, _, _ = compute_rewards(["s"] * n, hyps, refs, cfg=cfg, **common)
+    fine, _, _ = compute_rewards(["s"] * n, hyps, refs, cfg=cfg.unit_omega(), **common)
+    assert np.allclose(coarse, fine * math.hypot(1.0, 1.0, 1.0))
 
 
 def test_infeasible_sample_dropped_as_nan():

@@ -90,8 +90,11 @@ def z_matrix(hyps: list[str], centroid: dict) -> np.ndarray:
     return (matrix - mean) / std
 
 
-def argmax_picks(rewards: np.ndarray, feasible: np.ndarray, n: int) -> list[int | None]:
-    """Index of each group's highest-reward feasible sample; None where none was feasible."""
+def argmax_picks(
+    rewards: np.ndarray, feasible: np.ndarray, n: int, *, seed: int = 0
+) -> list[int | None]:
+    # A stream of its own, so a tie-break is not one of the draws the random anchor makes.
+    rng = np.random.default_rng([seed, 1])
     picks: list[int | None] = []
     for start in range(0, len(rewards), n):
         candidates = [
@@ -99,7 +102,12 @@ def argmax_picks(rewards: np.ndarray, feasible: np.ndarray, n: int) -> list[int 
             for i in range(n)
             if feasible[start + i] and np.isfinite(rewards[start + i])
         ]
-        picks.append(max(candidates, key=lambda j: rewards[j]) if candidates else None)
+        if not candidates:
+            picks.append(None)
+            continue
+        best = max(rewards[j] for j in candidates)
+        top = [j for j in candidates if rewards[j] == best]
+        picks.append(top[0] if len(top) == 1 else int(rng.choice(top)))
     return picks
 
 
@@ -211,12 +219,14 @@ def derive_components(
     return added
 
 
-def cell_picks(rc, sources, hyps, refs, raw, *, n: int, centroid: dict) -> list[int | None]:
+def cell_picks(
+    rc, sources, hyps, refs, raw, *, n: int, centroid: dict, seed: int = 0
+) -> list[int | None]:
     """One cell's argmax picks, without the rest of its reading."""
     rewards, feasible, _ = compute_rewards(
         sources, hyps, refs, cfg=rc, group_size=n, component_scores=raw, centroid=centroid
     )
-    return argmax_picks(rewards, feasible, n)
+    return argmax_picks(rewards, feasible, n, seed=seed)
 
 
 def paired_stylo(
@@ -277,12 +287,13 @@ def cell_reading(
     feature: str,
     dists: dict[str, dict] | None = None,
     evidence_class: str = _PRE_REGISTERED,
+    seed: int = 0,
 ) -> tuple[dict, list[int | None]]:
     """One omega cell: how well its reward separates a group, and what its argmax picks."""
     rewards, feasible, log = compute_rewards(
         sources, hyps, refs, cfg=rc, group_size=n, component_scores=raw, centroid=centroid
     )
-    picks = argmax_picks(rewards, feasible, n)
+    picks = argmax_picks(rewards, feasible, n, seed=seed)
     reading = {
         "cell": name,
         "evidence_class": evidence_class,
@@ -304,15 +315,22 @@ def cell_reading(
     if subgroup and subgroup < n and n % subgroup == 0:
         # The pool's N samples are exchangeable draws from one segment, so splitting them
         # into groups of the training size estimates the degeneracy training will see.
-        _, _, sub = compute_rewards(
+        sub_rewards, sub_feasible, sub = compute_rewards(
             sources, hyps, refs,
             cfg=rc, group_size=subgroup, component_scores=raw, centroid=centroid,
         )
+        sub_picks = argmax_picks(sub_rewards, sub_feasible, subgroup, seed=seed)
         reading["subgroup"] = {
             "group_size": subgroup,
             "groups": sub.n_groups,
             "degenerate_groups": sub.degenerate_groups,
             "degenerate_frac": sub.degenerate_frac,
+            # Selection ranks on this reading, not the one at N: the degeneracy gate is
+            # already read here, and a best-of-N pick is not one the run at G ever makes.
+            "picks": None if all(p is None for p in sub_picks) else pick_reading(
+                hyps, refs, raw, sub_picks,
+                n=subgroup, centroid=centroid, z_all=z_all, feature=feature, dists=dists,
+            ),
         }
     return reading, picks
 
@@ -339,6 +357,13 @@ def adequacy_floor(readings: list[dict], anchor: dict, component: str = "kiwi") 
     }
 
 
+def ranked_at(reading: dict) -> tuple[int, dict | None]:
+    sub = reading.get("subgroup") or {}
+    if "picks" in sub:
+        return sub["group_size"], sub["picks"]
+    return reading["n"], reading["picks"]
+
+
 def select(
     readings: list[dict],
     cells: dict[str, dict],
@@ -361,10 +386,16 @@ def select(
         # One hard gate. A cell whose groups have no reward spread trains nothing, whatever
         # its argmax would have picked, so it is out before register fit is compared.
         deg = r.get("subgroup", r)["degenerate_frac"]
-        at = r.get("subgroup", {}).get("group_size", r["n"])
+        deg_at = r.get("subgroup", {}).get("group_size", r["n"])
+        rank_at, picks = ranked_at(r)
         if deg > max_degenerate:
             rejected[r["cell"]] = (
-                f"{deg:.0%} of groups have no reward spread at G={at}, past {max_degenerate:.0%}"
+                f"{deg:.0%} of groups have no reward spread at G={deg_at}, "
+                f"past {max_degenerate:.0%}"
+            )
+        elif picks is None:
+            rejected[r["cell"]] = (
+                f"no group had a feasible sample at G={rank_at}, so it ranks on nothing"
             )
         else:
             kept.append(r)
@@ -380,13 +411,15 @@ def select(
         }
     # Register distance already counts `feature` among its four components, so a cell that
     # wins by inflating markers pays for it here; the shift is reported, not vetoed on.
-    winner = min(kept, key=lambda r: (r["picks"]["stylo_dist"], cells[r["cell"]]["w_judge"]))
-    shift = winner["picks"][f"{feature}_shift"]
+    winner = min(kept, key=lambda r: (ranked_at(r)[1]["stylo_dist"], cells[r["cell"]]["w_judge"]))
+    at, picks = ranked_at(winner)
+    shift = picks[f"{feature}_shift"]
     return {
         "cell": winner["cell"],
+        "ranked_at": at,
         "weights": cells[winner["cell"]],
         "reason": (
-            f"lowest register distance ({winner['picks']['stylo_dist']:.3f}) of the "
+            f"lowest register distance ({picks['stylo_dist']:.3f}) at G={at} of the "
             f"{len(kept)} cell{'s' if len(kept) != 1 else ''} that give most groups a gradient"
         ),
         "goodhart": {
@@ -458,6 +491,7 @@ def main() -> None:
     man_path = Path(args.manifest) if args.manifest else sidecar(pool_path, "manifest.json")
     feature = drift_rule(cfg).feature
     subgroup = args.subgroup or cfg["rlsf"]["rollout"]["group_size"]
+    seed = args.seed or cfg["rlsf"]["seed"]
 
     if man_path.exists():
         held = json.loads(man_path.read_text(encoding="utf-8"))["pool"]["held_flat"]
@@ -493,6 +527,7 @@ def main() -> None:
         cell_reading,
         sources=sources, hyps=hyps, refs=refs, raw=raw,
         n=n, subgroup=subgroup, centroid=centroid, z_all=z_all, feature=feature, dists=dists,
+        seed=seed,
     )
     scored = [read(name, rc) for name, rc in grid]
     scored += [read(name, rc, evidence_class="exploratory") for name, rc in explore]
@@ -518,7 +553,6 @@ def main() -> None:
         component_scores=raw, centroid=centroid,
     )
     per_component = component_degeneracy(raw, feasible, n)
-    seed = args.seed or cfg["rlsf"]["seed"]
     anchor_picks = random_picks(feasible, n, seed)
     anchors = {
         key: pick_reading(
@@ -622,6 +656,14 @@ def main() -> None:
         f"G={subgroup} is the training-time figure."
     )
     print(
+        f"\nregister distance selection ranks on, at the training group size. The table "
+        f"above reads at N={n}; the run trains at G={subgroup}:"
+    )
+    for reading in readings:
+        at, p = ranked_at(reading)
+        print(f"  {reading['cell']:11s} G={at}  "
+              + (f"{p['stylo_dist']:.4f} over {p['picked']} picks" if p else "no pick"))
+    print(
         f"\nadequacy floor for Phase 2 arms: {floor['component']} >= {floor['floor']:.4f}, "
         f"the {floor['source']}. Read alongside `selected` below, never into it:"
     )
@@ -656,6 +698,7 @@ def main() -> None:
                 "segments": len(rows),
                 "n": n,
                 "subgroup": subgroup,
+                "seed": seed,
                 "feature": feature,
                 "feature_split": {
                     "centroid": cfg["data"]["split_centroid_file"],
@@ -685,6 +728,11 @@ def main() -> None:
                     "group_z cell's reward values, only with its picks.",
                     f"Degeneracy at N={n} and at G={subgroup} are not comparable; larger "
                     f"groups degenerate less by construction.",
+                    f"`cells` and `anchors` read at N={n}. `selection` ranks on the "
+                    f"`subgroup.picks` reading at G={subgroup}, the size the run trains at.",
+                    f"A group whose reward is flat has its pick drawn uniformly at seed "
+                    f"{seed} rather than taken in sampling order, so those groups are noise "
+                    f"in every cell instead of the same sample in all of them.",
                     "Best-of-N reranking of a frozen policy is not GRPO. It bounds what the "
                     "reward can select for, not what training will do with it.",
                 ],

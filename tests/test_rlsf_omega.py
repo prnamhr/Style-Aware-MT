@@ -31,17 +31,21 @@ _CENTROID = {
 }
 
 
-def _reading(cell, *, deg=0.0, stylo=1.0, shift=0.0, se=0.05, kiwi=0.7):
+def _reading(cell, *, deg=0.0, stylo=1.0, shift=0.0, se=0.05, kiwi=0.7, sub_stylo=None):
+    picks = {
+        "stylo_dist": stylo,
+        "components": {"kiwi": kiwi},
+        "marker_rate_shift": {"delta": shift, "se": se},
+    }
+    subgroup = {"group_size": 4, "degenerate_frac": deg}
+    if sub_stylo is not None:
+        subgroup["picks"] = {**picks, "stylo_dist": sub_stylo}
     return {
         "cell": cell,
         "n": 8,
         "degenerate_frac": 0.0,
-        "subgroup": {"group_size": 4, "degenerate_frac": deg},
-        "picks": {
-            "stylo_dist": stylo,
-            "components": {"kiwi": kiwi},
-            "marker_rate_shift": {"delta": shift, "se": se},
-        },
+        "subgroup": subgroup,
+        "picks": picks,
     }
 
 
@@ -75,6 +79,25 @@ def test_the_pick_is_the_best_feasible_sample_not_the_best_sample():
 def test_a_group_with_nothing_feasible_makes_no_pick():
     rewards = np.array([np.nan, np.nan])
     assert argmax_picks(rewards, np.array([False, False]), 2) == [None]
+
+
+def test_a_flat_group_draws_its_pick_rather_than_taking_the_first_sample():
+    # A reward that cannot separate a group scores every candidate identically. Taking the
+    # first index there would return sampling order, and return it for every cell alike.
+    rewards, feasible = np.zeros(4), np.ones(4, dtype=bool)
+    drawn = {argmax_picks(rewards, feasible, 4, seed=s)[0] for s in range(20)}
+    assert drawn <= {0, 1, 2, 3} and len(drawn) > 1
+
+
+def test_the_tie_break_is_reproducible_under_one_seed():
+    rewards, feasible = np.zeros(8), np.ones(8, dtype=bool)
+    assert argmax_picks(rewards, feasible, 4, seed=7) == argmax_picks(rewards, feasible, 4, seed=7)
+
+
+def test_a_group_the_reward_does_separate_is_not_left_to_the_draw():
+    rewards = np.array([0.1, 0.9, 0.2, 0.3])
+    picks = {argmax_picks(rewards, np.ones(4, dtype=bool), 4, seed=s)[0] for s in range(10)}
+    assert picks == {1}
 
 
 def test_the_random_anchor_only_draws_feasible_samples():
@@ -116,6 +139,25 @@ def test_the_marker_shift_flags_the_winner_rather_than_vetoing_it():
     verdict = select(readings, CELLS, max_degenerate=0.25, warn_shift=0.23, feature="marker_rate")
     assert verdict["cell"] == "w3_1.0"
     assert verdict["goodhart"]["over_threshold"] is True
+
+
+def test_selection_ranks_at_the_training_group_size_not_at_the_pool_size():
+    # w3_1.0 wins the best-of-8 reading and loses the best-of-4 one. The run trains at 4,
+    # and the degeneracy gate above already reads there.
+    readings = [
+        _reading("w3_0.0", stylo=2.0, sub_stylo=0.1),
+        _reading("w3_1.0", stylo=0.1, sub_stylo=2.0),
+    ]
+    verdict = select(readings, CELLS, max_degenerate=0.25, warn_shift=0.23, feature="marker_rate")
+    assert verdict["cell"] == "w3_0.0" and verdict["ranked_at"] == 4
+
+
+def test_a_cell_that_picks_nothing_at_the_training_size_is_rejected_not_a_crash():
+    reading = _reading("w3_0.0", stylo=1.0, sub_stylo=0.1)
+    reading["subgroup"]["picks"] = None
+    verdict = select([reading], CELLS, max_degenerate=0.25, warn_shift=0.23, feature="marker_rate")
+    assert verdict["cell"] is None
+    assert "ranks on nothing" in verdict["rejected"]["w3_0.0"]
 
 
 def test_cells_that_tie_on_register_fit_take_the_weaker_style_pressure():

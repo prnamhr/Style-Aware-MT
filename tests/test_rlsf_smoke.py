@@ -114,7 +114,7 @@ def test_the_false_pass_is_prevented_through_compute_rewards():
         centroid=CENTROID,
     )
     assert list(feasible) == [True, True, True, False]
-    assert rewards[3] == pytest.approx(-1.0)  # floored to worst - margin
+    assert rewards[3] == pytest.approx(-np.sqrt(3))
     assert reward_degeneracy(rewards, feasible, 4)["degenerate"] == 1
     assert np.asarray(rewards).std(ddof=0) > 0.4  # what pooling would have reported
 

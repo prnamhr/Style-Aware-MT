@@ -19,6 +19,10 @@ _TRAIN_TEMPLATE = Path("prompts/judge_train.txt")
 _TEMPLATE_HASHES = Path("prompts/hashes.json")
 
 
+# How far below a group's worst feasible reward an infeasible sample sits, in units of
+# ||omega||. Not a constant: the combined reward is a weighted sum, so it scales with the
+# weight vector and a fixed margin would penalize the same cell differently before and
+# after unit_omega -- the normalization every config path applies.
 _FLOOR_MARGIN = 1.0
 
 # Below this a group's rewards are flat, so its advantages are zero and it trains nothing.
@@ -308,6 +312,17 @@ def fixed_scale(values: np.ndarray, valid: np.ndarray, name: str) -> np.ndarray:
     return out
 
 
+def floor_margin(cfg: RewardConfig) -> float:
+    """The gap an infeasible sample is floored by, scaled to the reward's own units."""
+    norm = math.hypot(*cfg.weights.values())
+    if norm == 0:
+        raise ValueError(
+            "every weight in the sum is zero, so the reward carries no signal and the floor "
+            "has no scale to sit below: an infeasible sample would tie with a feasible one"
+        )
+    return _FLOOR_MARGIN * norm
+
+
 def _measured_mean(values: np.ndarray) -> float:
     """Mean over the entries that were measured; nan when none were."""
     ok = np.isfinite(values)
@@ -462,6 +477,7 @@ def compute_rewards(
         feasible &= raw["judge"] >= cfg.judge_gate
 
     rewards = np.full(n, np.nan, dtype=float)
+    margin = floor_margin(cfg) if cfg.on_violation == "floor" else 0.0
     normalized_all = {name: np.zeros(n, dtype=float) for name in cfg.weights}
     for start in range(0, n, group_size):
         sl = slice(start, start + group_size)
@@ -479,7 +495,7 @@ def compute_rewards(
         group[g_valid] = combined[g_valid]
         if cfg.on_violation == "floor" and (~g_valid).any():
             worst = np.nanmin(group) if g_valid.any() else 0.0
-            group[~g_valid] = worst - _FLOOR_MARGIN
+            group[~g_valid] = worst - margin
         rewards[sl] = group
     degeneracy = reward_degeneracy(rewards, feasible, group_size)
 
