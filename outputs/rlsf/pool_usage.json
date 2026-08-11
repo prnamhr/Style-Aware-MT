@@ -1,0 +1,12 @@
+{
+  "calls": 3992,
+  "prompt_tokens": 1716757,
+  "completion_tokens": 72931,
+  "cost_usd": 0.3013,
+  "per_call_usd": 7.547595190380761e-05,
+  "wall_s": 350.905,
+  "call_s": 2751.009,
+  "mean_call_s": 0.689,
+  "calls_per_s": 11.376,
+  "achieved_parallelism": 7.84
+}
