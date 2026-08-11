@@ -33,6 +33,7 @@ from src.rlsf.reward import (
     load_centroid,
     load_train_template,
     overlap_scores,
+    stylo_scores,
 )
 from src.rlsf.stop import DriftMonitor
 
@@ -159,6 +160,15 @@ def load_policy(*, model_id: str, adapter_path: str | None, dtype: str, device_m
     return model, tokenizer
 
 
+def _stylo_centroid(cfg: dict, rc) -> dict | None:
+    """The reward-side centroid, loaded only for a cell that weights the stylometric term."""
+    if not rc.w_stylo:
+        return None
+    from src.eval.stylometrics import REWARD_FEATURES, subcentroid
+
+    return subcentroid(load_centroid(cfg["data"]["split_centroid_file"]), REWARD_FEATURES)
+
+
 def make_reward_fn(
     *,
     rc,
@@ -167,6 +177,7 @@ def make_reward_fn(
     judge,
     template: str | None,
     centroid: dict,
+    stylo_centroid: dict | None = None,
     monitor: DriftMonitor,
     step_log: Path,
     judge_workers: int,
@@ -187,6 +198,9 @@ def make_reward_fn(
 
         raw = {rc.overlap_metric: overlap_scores(hyps, refs, rc.overlap_metric)}
         raw["kiwi"] = kiwi.score(sources, hyps) if kiwi is not None else [_HELD_FLAT] * len(hyps)
+        if rc.w_stylo:
+            # Counted off the text, so it adds no call and no cap pressure.
+            raw["stylo"] = stylo_scores(hyps, stylo_centroid)
         if judge is None:
             raw["judge"] = [_HELD_FLAT] * len(hyps)
         else:
@@ -346,6 +360,7 @@ def main() -> None:
             judge=judge,
             template=None if skip_judge else load_train_template(),
             centroid=load_centroid(cfg["data"]["centroid_file"]),
+            stylo_centroid=_stylo_centroid(cfg, reward_config(cfg)),
             monitor=DriftMonitor(drift_rule(cfg)),
             step_log=step_log,
             judge_workers=judge_concurrency(cfg),

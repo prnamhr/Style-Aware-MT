@@ -12,7 +12,7 @@ from pathlib import Path
 
 import numpy as np
 
-from src.eval.stylometrics import features, signed_z
+from src.eval.stylometrics import distance_to_centroid, features, signed_z
 
 _CENTROID_PATH = Path("results/stylometrics_centroid.json")
 _TRAIN_TEMPLATE = Path("prompts/judge_train.txt")
@@ -35,6 +35,9 @@ class RewardConfig:
     w_bleu: float = 1.0
     w_kiwi: float = 1.0
     w_judge: float = 1.0
+    # omega_4, register by stylometry rather than by rubric: negated distance to the
+    # centroid over REWARD_FEATURES. Off by default, so an unset cell is the arm as declared.
+    w_stylo: float = 0.0
     # Feasible generated length, as a ratio of the reference's word count.
     len_min_ratio: float = 0.5
     len_max_ratio: float = 2.0
@@ -81,6 +84,10 @@ class RewardConfig:
         weights = {self.overlap_metric: self.w_bleu, "kiwi": self.w_kiwi, "judge": self.w_judge}
         if self.gated:
             del weights["judge"]
+        # Unlike the three above, stylo appears only when it is used: it is derived from the
+        # hypothesis rather than bought, so a cell that does not weight it need not carry it.
+        if self.w_stylo:
+            weights["stylo"] = self.w_stylo
         return weights
 
     @property
@@ -89,15 +96,16 @@ class RewardConfig:
         return (*self.weights, "judge") if self.gated else tuple(self.weights)
 
     def unit_omega(self) -> RewardConfig:
-        """A copy with the three weights rescaled to unit L2 norm, ratios preserved."""
-        norm = math.hypot(self.w_bleu, self.w_kiwi, self.w_judge)
+        """A copy with the weights rescaled to unit L2 norm, ratios preserved."""
+        norm = math.hypot(self.w_bleu, self.w_kiwi, self.w_judge, self.w_stylo)
         if norm == 0:
-            raise ValueError("all three weights are zero, so the reward carries no signal")
+            raise ValueError("every weight is zero, so the reward carries no signal")
         return replace(
             self,
             w_bleu=self.w_bleu / norm,
             w_kiwi=self.w_kiwi / norm,
             w_judge=self.w_judge / norm,
+            w_stylo=self.w_stylo / norm,
         )
 
 
@@ -118,6 +126,15 @@ def overlap_scores(hyps: list[str], refs: list[str], metric: str = "bleu") -> li
         return [float(scorer.sentence_score(h, [r]).score) for h, r in zip(hyps, refs)]
     scorer = sacrebleu.BLEU(effective_order=True, smooth_method="exp")
     return [float(scorer.sentence_score(h, [r]).score) for h, r in zip(hyps, refs)]
+
+
+def stylo_scores(hyps: list[str], centroid: dict) -> list[float]:
+    """Negated per-sample distance to the target register over the centroid's features.
+
+    Negated because every other component is better when larger, and the combination is a
+    weighted sum. Free: stylometrics are counted off the text, so this term costs no call.
+    """
+    return [-distance_to_centroid(features(h), centroid) for h in hyps]
 
 
 @dataclass

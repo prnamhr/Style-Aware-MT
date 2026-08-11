@@ -8,7 +8,9 @@ import pytest
 from src.rlsf.omega import (
     argmax_picks,
     component_degeneracy,
+    derive_components,
     flatten,
+    heldout_draws,
     marker_shift,
     paired_stylo,
     random_picks,
@@ -139,3 +141,39 @@ def test_a_gate_that_empties_every_group_pairs_to_nothing_rather_than_raising():
     paired = paired_stylo([0, 1], [None, None], ["aa", "bb"], _CENTROID)
     assert paired["groups"] == 0
     assert np.isnan(paired["cell_stylo"])
+
+
+# components the pool did not cache
+
+
+def test_chrf_and_stylo_are_derived_locally_rather_than_demanded_of_the_pool():
+    raw = {"bleu": [1.0, 2.0], "kiwi": [0.5, 0.6], "judge": [3.0, 4.0]}
+    added = derive_components(
+        raw, ["the cat sat", "a dog ran"], ["the cat sat", "a dog ran"],
+        {"bleu", "kiwi", "judge", "chrf", "stylo"}, _CENTROID,
+    )
+    assert added == ["chrf", "stylo"]
+    assert len(raw["chrf"]) == len(raw["stylo"]) == 2
+    # Negated distance, so every stylo score is at or below zero.
+    assert all(s <= 0 for s in raw["stylo"])
+
+
+def test_a_component_that_cannot_be_derived_is_an_error_not_a_silent_zero():
+    with pytest.raises(ValueError, match="rebuild the pool|Rebuild the pool"):
+        derive_components({"bleu": [1.0]}, ["a b"], ["a b"], {"comet"}, _CENTROID)
+
+
+def test_a_cached_component_is_never_recomputed_over_the_top_of_the_pool():
+    raw = {"bleu": [7.0], "chrf": [42.0]}
+    assert derive_components(raw, ["a b"], ["a b"], {"bleu", "chrf"}, _CENTROID) == []
+    assert raw["chrf"] == [42.0]
+
+
+def test_the_heldout_bootstrap_pairs_two_pick_sets_on_the_same_resamples():
+    hyps = ["the cat sat", "a dog ran", "birds fly", "fish swim"]
+    a = heldout_draws([0, 1], hyps, _CENTROID, n_resamples=64, seed=7)
+    again = heldout_draws([0, 1], hyps, _CENTROID, n_resamples=64, seed=7)
+    b = heldout_draws([2, 3], hyps, _CENTROID, n_resamples=64, seed=7)
+    assert a.shape == b.shape == (64,)
+    assert np.array_equal(a, again)
+    assert not np.array_equal(a, b)

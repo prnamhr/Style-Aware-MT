@@ -75,6 +75,10 @@ rlsf:
       - {name: gate_j3, w_kiwi: 1.0, w_bleu: 1.0, w_judge: 0.0, judge_gate: 3.0}
       - {name: gate_j4, w_kiwi: 1.0, w_bleu: 1.0, w_judge: 0.0, judge_gate: 4.0}
       - {name: gate_j5, w_kiwi: 1.0, w_bleu: 1.0, w_judge: 0.0, judge_gate: 5.0}
+      - {name: stylo_only, w_kiwi: 0.0, w_bleu: 0.0, w_judge: 0.0, w_stylo: 1.0}
+      - {name: mix_stylo,  w_kiwi: 1.0, w_bleu: 1.0, w_judge: 0.0, w_stylo: 1.0}
+      - {name: chrf_only, w_kiwi: 0.0, w_bleu: 1.0, w_judge: 0.0, overlap_metric: chrf}
+      - {name: mix_chrf,  w_kiwi: 1.0, w_bleu: 1.0, w_judge: 0.0, overlap_metric: chrf}
 
   stop:
     feature: marker_rate                  # the direction the register reward can be gamed in
@@ -117,6 +121,9 @@ data:
   train_file: data/splits/rlsf_train.jsonl   # PPO updates
   dev_file: data/splits/rlsf_dev.jsonl       # weight-grid selection; never reported
   centroid_file: results/stylometrics_centroid.json   # z-deviation logging only
+  # Extends the above with sent_len_mean and sent_len_var, the four shared features
+  # unchanged. Carries both sides of the REWARD_FEATURES / HELDOUT_FEATURES split.
+  split_centroid_file: results/stylometrics_centroid_split.json
   limit: null
 
 

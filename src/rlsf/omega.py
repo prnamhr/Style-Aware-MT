@@ -1,8 +1,5 @@
 """
-Re-argmax the cached best-of-N pool under each omega cell. Free: no GPU, no paid calls.
-
-Ranking is scale-invariant, so a pool paid for once ranks every weighting in the grid.
-
+Re-argmax the cached best-of-N pool under each omega cell.
 Usage:
     python manage.py rlsf_omega
     python manage.py rlsf_omega --pool outputs/rlsf/pool.jsonl --subgroup 4
@@ -17,7 +14,17 @@ from pathlib import Path
 
 import numpy as np
 
-from src.eval.stylometrics import aggregate, distance_to_centroid, features
+from src.eval.stylometrics import (
+    HELDOUT_FEATURES,
+    REWARD_FEATURES,
+    aggregate,
+    bootstrap_draws,
+    distance_to_centroid,
+    feature_vector,
+    features,
+    subcentroid,
+)
+from src.eval.stylometrics_ci import paired_diff
 from src.rlsf.config import (
     drift_rule,
     exploratory_reward_configs,
@@ -25,12 +32,28 @@ from src.rlsf.config import (
     load_config,
 )
 from src.rlsf.pool import read_pool, sidecar
-from src.rlsf.reward import compute_rewards, group_normalize, load_centroid
+from src.rlsf.reward import (
+    compute_rewards,
+    group_normalize,
+    load_centroid,
+    overlap_scores,
+    stylo_scores,
+)
 
 # The same quarter-of-groups threshold the reward-path smoke fails on, declared once there.
 from src.rlsf.smoke import _MAX_DEGENERATE
 
 _PRE_REGISTERED = "pre-registered"
+
+_ALPHA = 0.05
+_RESAMPLES = 2000
+
+_DIST_LABELS = {
+    "stylo_dist": "stylo",
+    "reward_dist": "reward",
+    "reward_per_sample": "per-samp",
+    "heldout_dist": "heldout",
+}
 
 
 def flatten(rows: list[dict]) -> tuple[int, list[str], list[str], list[str], dict]:
@@ -118,17 +141,20 @@ def pick_reading(
     centroid: dict,
     z_all: np.ndarray,
     feature: str,
+    dists: dict[str, dict] | None = None,
 ) -> dict:
     """What one selection rule's picks look like against yardsticks outside the reward.
 
     ``picks`` of None reads every sample: the pool is the baseline the shift is measured
     from, so its own shift is zero by construction rather than estimated.
+    ``dists`` names further centroids to measure against, each reported as ``<name>_dist``.
     """
     whole = picks is None
     chosen = list(range(len(hyps))) if whole else [p for p in picks if p is not None]
     if not chosen:
         raise ValueError("no group had a feasible sample, so there is nothing to read")
     texts = [hyps[p] for p in chosen]
+    mean_vector = aggregate(texts)["mean"]
     lengths = np.asarray([len(t.split()) for t in texts], dtype=float)
     ref_lengths = np.asarray([max(len(refs[p].split()), 1) for p in chosen], dtype=float)
     column = centroid["features"].index(feature)
@@ -141,7 +167,17 @@ def pick_reading(
         },
         # Distance of the picked set's mean feature vector to the target register. Not a
         # reward term, so it reads the picks rather than restating what selected them.
-        "stylo_dist": float(distance_to_centroid(aggregate(texts)["mean"], centroid)),
+        "stylo_dist": float(distance_to_centroid(mean_vector, centroid)),
+        **{
+            f"{name}_dist": float(distance_to_centroid(mean_vector, sub))
+            for name, sub in (dists or {}).items()
+        },
+        **{
+            f"{name}_per_sample": float(
+                np.mean([distance_to_centroid(features(t), sub) for t in texts])
+            )
+            for name, sub in (dists or {}).items()
+        },
         "length_mean": float(lengths.mean()),
         "length_ratio_mean": float((lengths / ref_lengths).mean()),
         f"{feature}_shift": (
@@ -150,6 +186,29 @@ def pick_reading(
             else marker_shift(z_all, picks, n, column)
         ),
     }
+
+
+def derive_components(
+    raw: dict[str, list[float]],
+    hyps: list[str],
+    refs: list[str],
+    needed: set[str],
+    stylo_centroid: dict,
+) -> list[str]:
+    """Fill in components the pool did not cache. All of them local, none of them paid for."""
+    added = []
+    for name in sorted(needed - set(raw)):
+        if name == "chrf":
+            raw[name] = overlap_scores(hyps, refs, "chrf")
+        elif name == "stylo":
+            raw[name] = stylo_scores(hyps, stylo_centroid)
+        else:
+            raise ValueError(
+                f"a cell needs a {name!r} score that {sorted(raw)} does not carry and that "
+                f"cannot be derived from the pool's text. Rebuild the pool with it."
+            )
+        added.append(name)
+    return added
 
 
 def cell_picks(rc, sources, hyps, refs, raw, *, n: int, centroid: dict) -> list[int | None]:
@@ -176,6 +235,16 @@ def paired_stylo(
             distance_to_centroid(aggregate([hyps[c] for _, c in pairs])["mean"], centroid)
         ),
     }
+
+
+def heldout_draws(
+    picks: list[int | None], hyps: list[str], centroid: dict, *, n_resamples: int, seed: int
+) -> np.ndarray | None:
+    texts = [hyps[p] for p in picks if p is not None]
+    matrix = np.asarray([feature_vector(t) for t in texts if t.strip()], dtype=float)
+    if matrix.shape[0] != len(texts):
+        return None
+    return bootstrap_draws(matrix, centroid, n_resamples=n_resamples, seed=seed)[0]
 
 
 def component_degeneracy(raw: dict[str, list[float]], feasible: np.ndarray, n: int) -> dict:
@@ -206,8 +275,9 @@ def cell_reading(
     centroid: dict,
     z_all: np.ndarray,
     feature: str,
+    dists: dict[str, dict] | None = None,
     evidence_class: str = _PRE_REGISTERED,
-) -> dict:
+) -> tuple[dict, list[int | None]]:
     """One omega cell: how well its reward separates a group, and what its argmax picks."""
     rewards, feasible, log = compute_rewards(
         sources, hyps, refs, cfg=rc, group_size=n, component_scores=raw, centroid=centroid
@@ -226,7 +296,8 @@ def cell_reading(
         "groups": log.n_groups,
         # A gate strict enough to empty every group is a reading about the gate, not a crash.
         "picks": None if all(p is None for p in picks) else pick_reading(
-            hyps, refs, raw, picks, n=n, centroid=centroid, z_all=z_all, feature=feature,
+            hyps, refs, raw, picks,
+            n=n, centroid=centroid, z_all=z_all, feature=feature, dists=dists,
         ),
     }
     if subgroup and subgroup < n and n % subgroup == 0:
@@ -242,7 +313,7 @@ def cell_reading(
             "degenerate_groups": sub.degenerate_groups,
             "degenerate_frac": sub.degenerate_frac,
         }
-    return reading
+    return reading, picks
 
 
 def select(
@@ -308,7 +379,7 @@ def select(
     }
 
 
-def _row(reading: dict, feature: str, comps: list[str]) -> str:
+def _row(reading: dict, feature: str, comps: list[str], dist_keys: list[str]) -> str:
     sub = reading.get("subgroup")
     head = (
         f"  {reading['cell']:11s} {reading['degenerate_frac']:7.0%} "
@@ -321,8 +392,10 @@ def _row(reading: dict, feature: str, comps: list[str]) -> str:
     return (
         head
         + f"{p['picked']:6d} "
-        + " ".join(f"{p['components'][k]:7.3f}" for k in comps)
-        + f" {p['stylo_dist']:10.3f} {shift['delta']:+8.3f} +/- {shift['se']:.3f}"
+        + " ".join(f"{p['components'][k]:7.2f}" for k in comps)
+        + " "
+        + " ".join(f"{p[k]:8.4f}" for k in dist_keys)
+        + f" {shift['delta']:+7.3f}"
     )
 
 
@@ -338,6 +411,12 @@ def _parse_args() -> argparse.Namespace:
         help="also report degeneracy at this group size; default: rollout.group_size",
     )
     parser.add_argument("--seed", type=int, default=None, help="random anchor; default: rlsf.seed")
+    parser.add_argument(
+        "--resamples",
+        type=int,
+        default=_RESAMPLES,
+        help=f"paired-bootstrap resamples for the held-out reading (default: {_RESAMPLES})",
+    )
     parser.add_argument("--out", default=None, help="default: <pool>_omega.json")
     parser.add_argument(
         "--allow_flat_judge",
@@ -375,27 +454,39 @@ def main() -> None:
     print(f"{pool_path}: {len(rows)} segments x N={n} = {len(hyps)} samples")
 
     grid = grid_reward_configs(cfg)
+    explore = exploratory_reward_configs(cfg)
     cells = {c["name"]: c for c in cfg["rlsf"]["weight_grid"]["cells"]}
+
+    split = load_centroid(cfg["data"]["split_centroid_file"])
+    stylo_centroid = subcentroid(split, REWARD_FEATURES)
+    dists = {"reward": stylo_centroid, "heldout": subcentroid(split, HELDOUT_FEATURES)}
+
+    needed = {c for _, rc in [*grid, *explore] for c in rc.required_components}
+    added = derive_components(raw, hyps, refs, needed, stylo_centroid)
+    if added:
+        print(f"derived locally, no calls: {', '.join(added)}")
+
     read = partial(
         cell_reading,
         sources=sources, hyps=hyps, refs=refs, raw=raw,
-        n=n, subgroup=subgroup, centroid=centroid, z_all=z_all, feature=feature,
+        n=n, subgroup=subgroup, centroid=centroid, z_all=z_all, feature=feature, dists=dists,
     )
-    readings = [read(name, rc) for name, rc in grid]
-    explore = exploratory_reward_configs(cfg)
-    exploratory = [read(name, rc, evidence_class="exploratory") for name, rc in explore]
+    scored = [read(name, rc) for name, rc in grid]
+    scored += [read(name, rc, evidence_class="exploratory") for name, rc in explore]
+    picks_by_cell = {r["cell"]: p for r, p in scored}
+    readings = [r for r, _ in scored[: len(grid)]]
+    exploratory = [r for r, _ in scored[len(grid) :]]
 
     # A gate empties groups, so its picks cover fewer segments than the cell it is read
     # against. Without pairing, a gate is credited for the segments it dropped.
     gated = [(r, rc) for r, (_, rc) in zip(exploratory, explore) if rc.gated]
     if gated:
-        base_name, base_rc = grid[0]
-        base_picks = cell_picks(base_rc, sources, hyps, refs, raw, n=n, centroid=centroid)
-        for reading, rc in gated:
-            picks = cell_picks(rc, sources, hyps, refs, raw, n=n, centroid=centroid)
+        base_name = grid[0][0]
+        base_picks = picks_by_cell[base_name]
+        for reading, _ in gated:
             reading["paired"] = {
                 "baseline": base_name,
-                **paired_stylo(base_picks, picks, hyps, centroid),
+                **paired_stylo(base_picks, picks_by_cell[reading["cell"]], hyps, centroid),
             }
 
     # Feasibility does not depend on the weights, so any cell's mask reads the components.
@@ -404,15 +495,30 @@ def main() -> None:
         component_scores=raw, centroid=centroid,
     )
     per_component = component_degeneracy(raw, feasible, n)
+    seed = args.seed or cfg["rlsf"]["seed"]
+    anchor_picks = random_picks(feasible, n, seed)
     anchors = {
         key: pick_reading(
-            hyps, refs, raw, picks, n=n, centroid=centroid, z_all=z_all, feature=feature
+            hyps, refs, raw, picks,
+            n=n, centroid=centroid, z_all=z_all, feature=feature, dists=dists,
         )
-        for key, picks in (
-            ("random", random_picks(feasible, n, args.seed or cfg["rlsf"]["seed"])),
-            ("pool", None),
-        )
+        for key, picks in (("random", anchor_picks), ("pool", None))
     }
+
+    boot = {"n_resamples": args.resamples, "alpha": _ALPHA, "seed": seed, "anchor": "random"}
+    anchor_draws = heldout_draws(
+        anchor_picks, hyps, dists["heldout"], n_resamples=args.resamples, seed=seed
+    )
+    covered = sum(p is not None for p in anchor_picks)
+    for reading in [*readings, *exploratory]:
+        cell_pick = picks_by_cell[reading["cell"]]
+        if anchor_draws is None or sum(p is not None for p in cell_pick) != covered:
+            continue
+        draws = heldout_draws(
+            cell_pick, hyps, dists["heldout"], n_resamples=args.resamples, seed=seed
+        )
+        if draws is not None:
+            reading["heldout_vs_random"] = paired_diff(draws, anchor_draws, alpha=_ALPHA)
 
     verdict = select(
         readings, cells,
@@ -425,29 +531,56 @@ def main() -> None:
               f"({stats['degenerate_frac']:.0%})")
 
     comps = sorted(readings[0]["picks"]["components"])
+ 
+    dist_keys = ["stylo_dist", "reward_dist", "reward_per_sample", "heldout_dist"]
     print(
         f"\n{'cell':13s} {'deg@' + str(n):>7s} {'deg@' + str(subgroup):>7s} {'picks':>6s} "
         + " ".join(f"{c:>7s}" for c in comps)
-        + f" {'stylo':>10s} {feature + ' dz':>8s}"
+        + " "
+        + " ".join(f"{_DIST_LABELS[k]:>8s}" for k in dist_keys)
+        + f" {feature[:7] + ' dz':>7s}"
     )
     for reading in readings:
-        print(_row(reading, feature, comps))
+        print(_row(reading, feature, comps, dist_keys))
     for key, anchor in anchors.items():
         shift = anchor[f"{feature}_shift"]
         print(
             f"  {key:11s} {'':7s} {'':7s} {anchor['picked']:6d} "
-            + " ".join(f"{anchor['components'][c]:7.3f}" for c in comps)
-            + f" {anchor['stylo_dist']:10.3f} {shift['delta']:+8.3f} +/- {shift['se']:.3f}"
+            + " ".join(f"{anchor['components'][c]:7.2f}" for c in comps)
+            + " "
+            + " ".join(f"{anchor[k]:8.4f}" for k in dist_keys)
+            + f" {shift['delta']:+7.3f}"
         )
 
     if exploratory:
         print("\nexploratory -- read off the pool after it was built, selected from by nothing:")
         for reading in exploratory:
-            print(_row(reading, feature, comps))
+            print(_row(reading, feature, comps, dist_keys))
         print(
             "  Groups a gate empties make no pick, so a gated cell's component means are read "
             "over fewer segments than the cells above and are not paired with them."
         )
+    scored_vs_random = [
+        r for r in [*readings, *exploratory] if "heldout_vs_random" in r
+    ]
+    if scored_vs_random:
+        pct = int(round(100 * (1 - _ALPHA)))
+        print(
+            f"\nheld-out features {HELDOUT_FEATURES}, which no reward here is fitted on."
+            f"\ncell minus the random anchor, paired over {args.resamples} resamples "
+            f"({pct}% CI). Negative is closer to the target register:"
+        )
+        for r in sorted(scored_vs_random, key=lambda r: r["heldout_vs_random"]["diff"]):
+            d = r["heldout_vs_random"]
+            print(
+                f"  {r['cell']:11s} {d['diff']:+8.4f}  "
+                f"[{d['ci_low']:+.4f}, {d['ci_high']:+.4f}]  p={d['p_value']:.3f}"
+                f"{'  *' if d['significant'] else ''}"
+            )
+        beat = [r["cell"] for r in scored_vs_random if r["heldout_vs_random"]["significant"]
+                and r["heldout_vs_random"]["diff"] < 0]
+        print(f"  * = CI excludes 0. Beating the anchor: {', '.join(beat) if beat else 'none'}")
+
     if gated:
         base_name = gated[0][0]["paired"]["baseline"]
         print(f"\ngated cells against {base_name}, on the groups both pick:")
@@ -492,6 +625,12 @@ def main() -> None:
                 "n": n,
                 "subgroup": subgroup,
                 "feature": feature,
+                "feature_split": {
+                    "centroid": cfg["data"]["split_centroid_file"],
+                    "reward": REWARD_FEATURES,
+                    "heldout": HELDOUT_FEATURES,
+                },
+                "heldout_bootstrap": boot,
                 "gates": gates,
                 "per_component_degeneracy": per_component,
                 "cells": readings,

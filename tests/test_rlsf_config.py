@@ -142,7 +142,11 @@ def test_the_exploratory_cells_are_not_part_of_the_pre_registered_grid():
     cfg = load_config(require_caps=False)
     pre_registered = {name for name, _ in grid_reward_configs(cfg)}
     exploratory = {name for name, _ in exploratory_reward_configs(cfg)}
-    assert exploratory == {"lex_only", "sem_only", "judge_only", "gate_j3", "gate_j4", "gate_j5"}
+    assert exploratory == {
+        "lex_only", "sem_only", "judge_only",
+        "gate_j3", "gate_j4", "gate_j5",
+        "stylo_only", "mix_stylo", "chrf_only", "mix_chrf",
+    }
     assert not pre_registered & exploratory
 
 
@@ -163,6 +167,28 @@ def test_the_gated_cells_sweep_the_band_over_one_unchanged_summand():
     for cell in gates:
         assert cell.gated and not cell.w_judge
         assert (cell.w_bleu, cell.w_kiwi) == pytest.approx((ablation.w_bleu, ablation.w_kiwi))
+
+
+def test_the_chrf_cells_swap_the_overlap_metric_and_key_their_weight_by_it():
+    cells = dict(exploratory_reward_configs(load_config(require_caps=False)))
+    for name in ("chrf_only", "mix_chrf"):
+        assert cells[name].overlap_metric == "chrf"
+        assert "chrf" in cells[name].weights and "bleu" not in cells[name].weights
+    # mix_chrf is w3_0.0 with the metric swapped and nothing else moved.
+    ablation = dict(grid_reward_configs(load_config(require_caps=False)))["w3_0.0"]
+    assert cells["mix_chrf"].w_kiwi == pytest.approx(ablation.w_kiwi)
+    assert cells["mix_chrf"].w_judge == ablation.w_judge == 0.0
+
+
+def test_the_stylo_cells_weight_stylo_and_carry_no_judge():
+    cells = dict(exploratory_reward_configs(load_config(require_caps=False)))
+    for name in ("stylo_only", "mix_stylo"):
+        assert cells[name].w_stylo > 0
+        assert cells[name].w_judge == 0.0
+        assert "stylo" in cells[name].required_components
+    # stylo_only is the term on its own; mix_stylo adds it to the w3_0.0 summand.
+    assert cells["stylo_only"].w_bleu == cells["stylo_only"].w_kiwi == 0.0
+    assert cells["mix_stylo"].w_bleu > 0 and cells["mix_stylo"].w_kiwi > 0
 
 
 def test_grid_cells_inherit_the_base_feasibility_band():

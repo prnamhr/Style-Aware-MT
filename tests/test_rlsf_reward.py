@@ -11,6 +11,13 @@ import pytest
 
 from src.data.rlsf_dev import partition, select_works, work_sizes
 from src.eval.judge import build_prompt, template_digest
+from src.eval.stylometrics import (
+    HELDOUT_FEATURES,
+    REWARD_FEATURES,
+    SPLIT_FEATURES,
+    features,
+    subcentroid,
+)
 from src.rlsf.reward import (
     JudgeTiming,
     RewardConfig,
@@ -19,10 +26,13 @@ from src.rlsf.reward import (
     group_normalize,
     judge_scores,
     length_feasible,
+    load_centroid,
     load_train_template,
     overlap_scores,
+    stylo_scores,
     z_deviations,
 )
+from src.rlsf.stop import DriftRule
 
 CENTROID = {
     "features": ["lex_density", "ttr", "root_ttr", "marker_rate"],
@@ -421,6 +431,74 @@ def test_a_gate_off_the_rubric_band_is_refused():
         RewardConfig(w_judge=0.0, judge_gate=6.0)
     with pytest.raises(ValueError, match="rubric band"):
         RewardConfig(w_judge=0.0, judge_gate=0.0)
+
+
+def test_the_reward_and_heldout_feature_sets_are_disjoint():
+    assert not set(REWARD_FEATURES) & set(HELDOUT_FEATURES)
+    assert set(SPLIT_FEATURES) == set(REWARD_FEATURES) | set(HELDOUT_FEATURES)
+
+
+def test_the_drift_monitors_feature_is_never_rewarded():
+    assert DriftRule().feature == "marker_rate"
+    assert DriftRule().feature in HELDOUT_FEATURES
+    assert DriftRule().feature not in REWARD_FEATURES
+
+
+def test_the_split_centroid_extends_the_committed_one_rather_than_refitting_it():
+    committed = load_centroid()
+    split = load_centroid("results/stylometrics_centroid_split.json")
+    assert split["n_segments"] == committed["n_segments"]
+    shared = subcentroid(split, committed["features"])
+    assert shared["mean"] == committed["mean"]
+    assert shared["std"] == committed["std"]
+
+
+def test_subcentroid_refuses_a_feature_it_has_no_statistics_for():
+    with pytest.raises(KeyError, match="sent_len_mean"):
+        subcentroid(CENTROID, ["lex_density", "sent_len_mean"])
+
+
+def test_a_closer_sample_scores_higher_because_the_distance_is_negated():
+    # Every other component is better when larger; the sum would pull the wrong way otherwise.
+    centroid = {"features": ["lex_density"], "mean": [0.5], "std": [0.1]}
+    on_target, off_target = "the of and cat", "cat dog bird fish"
+    scores = stylo_scores([on_target, off_target], centroid)
+    assert all(s <= 0 for s in scores)
+    near = [abs(features(t)["lex_density"] - 0.5) for t in (on_target, off_target)]
+    assert (scores[0] > scores[1]) == (near[0] < near[1])
+
+
+def test_stylo_joins_the_weights_only_when_it_is_weighted():
+    # Derived from the text rather than bought, so a cell that does not use it should not
+    # have to carry a score for it -- unlike the judge, which the pool pays for regardless.
+    assert "stylo" not in RewardConfig(w_stylo=0.0).weights
+    assert "stylo" not in RewardConfig(w_stylo=0.0).required_components
+    weighted = RewardConfig(w_stylo=1.0)
+    assert weighted.weights["stylo"] == 1.0
+    assert "stylo" in weighted.required_components
+
+
+def test_the_stylo_weight_counts_toward_the_unit_norm():
+    rc = RewardConfig(w_bleu=1.0, w_kiwi=1.0, w_judge=1.0, w_stylo=1.0).unit_omega()
+    assert math.hypot(rc.w_bleu, rc.w_kiwi, rc.w_judge, rc.w_stylo) == pytest.approx(1.0)
+    assert rc.w_stylo == pytest.approx(0.5)
+    # A cell that does not use it normalizes over three, exactly as before.
+    three = RewardConfig(w_bleu=1.0, w_kiwi=1.0, w_judge=1.0).unit_omega()
+    assert three.w_bleu == pytest.approx(1 / math.sqrt(3))
+    assert three.w_stylo == 0.0
+
+
+def test_a_stylo_weighted_cell_ranks_on_the_stylo_score():
+    n = 3
+    scores = _components(n, bleu=[1.0, 1.0, 1.0], kiwi=[1.0, 1.0, 1.0], stylo=[-3.0, -2.0, -1.0])
+    rewards, _, log = compute_rewards(
+        ["s"] * n, ["a b c"] * n, ["a b c"] * n,
+        cfg=RewardConfig(w_bleu=0.0, w_kiwi=0.0, w_judge=0.0, w_stylo=1.0),
+        group_size=n, component_scores=scores, centroid=CENTROID,
+    )
+    # Least negative is closest to the register, so it takes the highest reward.
+    assert rewards[2] > rewards[1] > rewards[0]
+    assert log.raw["stylo"] == pytest.approx(-2.0)
 
 
 def test_gating_leaves_the_summand_at_the_ablation_cell_s_weights():

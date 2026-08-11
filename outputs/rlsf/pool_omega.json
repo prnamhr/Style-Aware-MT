@@ -4,6 +4,25 @@
   "n": 8,
   "subgroup": 4,
   "feature": "marker_rate",
+  "feature_split": {
+    "centroid": "results/stylometrics_centroid_split.json",
+    "reward": [
+      "lex_density",
+      "sent_len_mean",
+      "sent_len_var"
+    ],
+    "heldout": [
+      "ttr",
+      "root_ttr",
+      "marker_rate"
+    ]
+  },
+  "heldout_bootstrap": {
+    "n_resamples": 2000,
+    "alpha": 0.05,
+    "seed": 42,
+    "anchor": "random"
+  },
   "gates": {
     "max_degenerate": 0.25,
     "max_shift": 0.23
@@ -23,6 +42,16 @@
       "groups": 499,
       "degenerate": 19,
       "degenerate_frac": 0.03807615230460922
+    },
+    "chrf": {
+      "groups": 499,
+      "degenerate": 4,
+      "degenerate_frac": 0.008016032064128256
+    },
+    "stylo": {
+      "groups": 499,
+      "degenerate": 7,
+      "degenerate_frac": 0.014028056112224449
     }
   },
   "cells": [
@@ -47,9 +76,15 @@
         "components": {
           "bleu": 46.54338250950775,
           "kiwi": 0.7008670737565883,
-          "judge": 3.398390342052314
+          "judge": 3.398390342052314,
+          "chrf": 62.8827946949807,
+          "stylo": -1.0688145865456737
         },
         "stylo_dist": 0.5672691922487708,
+        "reward_dist": 0.17429123677458652,
+        "heldout_dist": 0.564604671541693,
+        "reward_per_sample": 1.0688145865456737,
+        "heldout_per_sample": 1.672452965226273,
         "length_mean": 22.78672032193159,
         "length_ratio_mean": 0.9780139140179984,
         "marker_rate_shift": {
@@ -63,6 +98,13 @@
         "groups": 998,
         "degenerate_groups": 24,
         "degenerate_frac": 0.024
+      },
+      "heldout_vs_random": {
+        "diff": 0.0005705497677039348,
+        "ci_low": -0.06462050059274485,
+        "ci_high": 0.0627475598004529,
+        "p_value": 0.979,
+        "significant": false
       }
     },
     {
@@ -86,9 +128,15 @@
         "components": {
           "bleu": 46.773213336960026,
           "kiwi": 0.6970435885236537,
-          "judge": 3.7122736418511066
+          "judge": 3.7122736418511066,
+          "chrf": 63.22131077652795,
+          "stylo": -1.0767521616650497
         },
         "stylo_dist": 0.6164874916543212,
+        "reward_dist": 0.16524889597107947,
+        "heldout_dist": 0.6134770460896706,
+        "reward_per_sample": 1.0767521616650497,
+        "heldout_per_sample": 1.6929000167613593,
         "length_mean": 23.11066398390342,
         "length_ratio_mean": 0.9918601882496122,
         "marker_rate_shift": {
@@ -102,6 +150,13 @@
         "groups": 998,
         "degenerate_groups": 14,
         "degenerate_frac": 0.014
+      },
+      "heldout_vs_random": {
+        "diff": 0.04924595630555069,
+        "ci_low": -0.018735682678394226,
+        "ci_high": 0.11044961903528797,
+        "p_value": 0.147,
+        "significant": false
       }
     },
     {
@@ -125,9 +180,15 @@
         "components": {
           "bleu": 44.86178850074814,
           "kiwi": 0.6959731506269943,
-          "judge": 3.9517102615694166
+          "judge": 3.9517102615694166,
+          "chrf": 62.15373115387584,
+          "stylo": -1.0770944360937234
         },
         "stylo_dist": 0.6731220014837401,
+        "reward_dist": 0.16290319958803398,
+        "heldout_dist": 0.669409536494003,
+        "reward_per_sample": 1.0770944360937234,
+        "heldout_per_sample": 1.7122218700096865,
         "length_mean": 23.201207243460765,
         "length_ratio_mean": 0.9946735499504695,
         "marker_rate_shift": {
@@ -141,6 +202,13 @@
         "groups": 998,
         "degenerate_groups": 14,
         "degenerate_frac": 0.014
+      },
+      "heldout_vs_random": {
+        "diff": 0.10496682105253902,
+        "ci_low": 0.043680744582450026,
+        "ci_high": 0.16481663426313758,
+        "p_value": 0.001,
+        "significant": true
       }
     },
     {
@@ -164,9 +232,15 @@
         "components": {
           "bleu": 41.63197335987859,
           "kiwi": 0.6875237697806637,
-          "judge": 4.197183098591549
+          "judge": 4.197183098591549,
+          "chrf": 59.75521519525419,
+          "stylo": -1.0857113378399312
         },
         "stylo_dist": 0.7274814389836032,
+        "reward_dist": 0.15656628125196895,
+        "heldout_dist": 0.7220468333923848,
+        "reward_per_sample": 1.0857113378399312,
+        "heldout_per_sample": 1.7294498098816715,
         "length_mean": 23.52917505030181,
         "length_ratio_mean": 1.0091912429114054,
         "marker_rate_shift": {
@@ -180,6 +254,13 @@
         "groups": 998,
         "degenerate_groups": 14,
         "degenerate_frac": 0.014
+      },
+      "heldout_vs_random": {
+        "diff": 0.15826426097373839,
+        "ci_low": 0.09631723386811526,
+        "ci_high": 0.2153743015728825,
+        "p_value": 0.0,
+        "significant": true
       }
     }
   ],
@@ -205,9 +286,15 @@
         "components": {
           "bleu": 50.264143672038436,
           "kiwi": 0.6788605946890065,
-          "judge": 3.464788732394366
+          "judge": 3.464788732394366,
+          "chrf": 65.7490997285246,
+          "stylo": -1.0689469191562189
         },
         "stylo_dist": 0.5605235014207798,
+        "reward_dist": 0.1570985506440947,
+        "heldout_dist": 0.5579969405579595,
+        "reward_per_sample": 1.0689469191562189,
+        "heldout_per_sample": 1.6874318031882796,
         "length_mean": 23.080482897384307,
         "length_ratio_mean": 0.9862826706655851,
         "marker_rate_shift": {
@@ -221,6 +308,13 @@
         "groups": 998,
         "degenerate_groups": 13,
         "degenerate_frac": 0.013
+      },
+      "heldout_vs_random": {
+        "diff": -0.005957059795763685,
+        "ci_low": -0.0753819097988538,
+        "ci_high": 0.06028646911791181,
+        "p_value": 0.889,
+        "significant": false
       }
     },
     {
@@ -244,9 +338,15 @@
         "components": {
           "bleu": 31.02438456314565,
           "kiwi": 0.7214228070717702,
-          "judge": 3.271629778672032
+          "judge": 3.271629778672032,
+          "chrf": 51.21815201786992,
+          "stylo": -1.1006295979230276
         },
         "stylo_dist": 0.6112333913158425,
+        "reward_dist": 0.19559765525804382,
+        "heldout_dist": 0.610043497770434,
+        "reward_per_sample": 1.1006295979230276,
+        "heldout_per_sample": 1.6993232777481082,
         "length_mean": 22.37625754527163,
         "length_ratio_mean": 0.9624131812750379,
         "marker_rate_shift": {
@@ -260,6 +360,13 @@
         "groups": 998,
         "degenerate_groups": 13,
         "degenerate_frac": 0.013
+      },
+      "heldout_vs_random": {
+        "diff": 0.04577451147897164,
+        "ci_low": -0.014263889960194493,
+        "ci_high": 0.10464048953402764,
+        "p_value": 0.137,
+        "significant": false
       }
     },
     {
@@ -283,9 +390,15 @@
         "components": {
           "bleu": 31.906483604816543,
           "kiwi": 0.6663288688755611,
-          "judge": 4.301810865191147
+          "judge": 4.301810865191147,
+          "chrf": 52.96885046677595,
+          "stylo": -1.1076835610921412
         },
         "stylo_dist": 0.7188398934915838,
+        "reward_dist": 0.10723047609591808,
+        "heldout_dist": 0.7160451459462025,
+        "reward_per_sample": 1.1076835610921412,
+        "heldout_per_sample": 1.7440285789688939,
         "length_mean": 24.321931589537222,
         "length_ratio_mean": 1.0470781636927888,
         "marker_rate_shift": {
@@ -299,6 +412,13 @@
         "groups": 998,
         "degenerate_groups": 139,
         "degenerate_frac": 0.139
+      },
+      "heldout_vs_random": {
+        "diff": 0.15248316039296533,
+        "ci_low": 0.08733806161490996,
+        "ci_high": 0.21634833188022076,
+        "p_value": 0.0,
+        "significant": true
       }
     },
     {
@@ -321,9 +441,15 @@
         "components": {
           "bleu": 43.484333569840864,
           "kiwi": 0.6940549868031552,
-          "judge": 3.951578947368421
+          "judge": 3.951578947368421,
+          "chrf": 61.027227223666465,
+          "stylo": -1.0796590718883283
         },
         "stylo_dist": 0.71180141086311,
+        "reward_dist": 0.16055559603341332,
+        "heldout_dist": 0.7077945620399522,
+        "reward_per_sample": 1.0796590718883283,
+        "heldout_per_sample": 1.717199523848392,
         "length_mean": 23.31578947368421,
         "length_ratio_mean": 1.0013007161207494,
         "marker_rate_shift": {
@@ -365,9 +491,15 @@
         "components": {
           "bleu": 45.38839120111431,
           "kiwi": 0.6932535049866657,
-          "judge": 4.461734693877551
+          "judge": 4.461734693877551,
+          "chrf": 62.92454054969522,
+          "stylo": -1.074306241549815
         },
         "stylo_dist": 0.8677229920887843,
+        "reward_dist": 0.13025017534923153,
+        "heldout_dist": 0.8653637490714783,
+        "reward_per_sample": 1.074306241549815,
+        "heldout_per_sample": 1.745068642199692,
         "length_mean": 24.012755102040817,
         "length_ratio_mean": 1.0085733251749747,
         "marker_rate_shift": {
@@ -409,9 +541,15 @@
         "components": {
           "bleu": 45.05526417501689,
           "kiwi": 0.6854792752926299,
-          "judge": 5.0
+          "judge": 5.0,
+          "chrf": 62.65004680386111,
+          "stylo": -1.1015733277889281
         },
         "stylo_dist": 1.1318665666429177,
+        "reward_dist": 0.1543372935918559,
+        "heldout_dist": 1.1305062535244097,
+        "reward_per_sample": 1.1015733277889281,
+        "heldout_per_sample": 1.8811446477259848,
         "length_mean": 23.06474820143885,
         "length_ratio_mean": 1.0293481703876688,
         "marker_rate_shift": {
@@ -432,6 +570,216 @@
         "baseline_stylo": 0.9709574915279306,
         "cell_stylo": 1.1318665666429177
       }
+    },
+    {
+      "cell": "stylo_only",
+      "evidence_class": "exploratory",
+      "weights": {
+        "bleu": 0.0,
+        "kiwi": 0.0,
+        "judge": 0.0,
+        "stylo": 1.0
+      },
+      "judge_gate": null,
+      "n": 8,
+      "feasible": 3912,
+      "unmeasured": 0,
+      "degenerate_frac": 0.014,
+      "degenerate_groups": 7,
+      "groups": 499,
+      "picks": {
+        "picked": 497,
+        "unpicked_groups": 2,
+        "components": {
+          "bleu": 27.41149955061573,
+          "kiwi": 0.6565966636721997,
+          "judge": 3.2796780684104627,
+          "chrf": 49.11665549693124,
+          "stylo": -0.66510443470449
+        },
+        "stylo_dist": 0.5076080876351184,
+        "reward_dist": 0.19129144558102867,
+        "heldout_dist": 0.5053029505636628,
+        "reward_per_sample": 0.66510443470449,
+        "heldout_per_sample": 1.552721103286693,
+        "length_mean": 23.074446680080484,
+        "length_ratio_mean": 1.0548753701962137,
+        "marker_rate_shift": {
+          "segments": 497,
+          "delta": -0.05691984930810197,
+          "se": 0.029654308528726987
+        }
+      },
+      "subgroup": {
+        "group_size": 4,
+        "groups": 998,
+        "degenerate_groups": 33,
+        "degenerate_frac": 0.033
+      },
+      "heldout_vs_random": {
+        "diff": -0.05901432980127669,
+        "ci_low": -0.1387057920971149,
+        "ci_high": 0.01974815413307177,
+        "p_value": 0.141,
+        "significant": false
+      }
+    },
+    {
+      "cell": "mix_stylo",
+      "evidence_class": "exploratory",
+      "weights": {
+        "bleu": 0.5774,
+        "kiwi": 0.5774,
+        "judge": 0.0,
+        "stylo": 0.5774
+      },
+      "judge_gate": null,
+      "n": 8,
+      "feasible": 3912,
+      "unmeasured": 0,
+      "degenerate_frac": 0.008,
+      "degenerate_groups": 4,
+      "groups": 499,
+      "picks": {
+        "picked": 497,
+        "unpicked_groups": 2,
+        "components": {
+          "bleu": 44.61399013501187,
+          "kiwi": 0.6978215447493962,
+          "judge": 3.41046277665996,
+          "chrf": 61.786359832254604,
+          "stylo": -0.9143720495245292
+        },
+        "stylo_dist": 0.5539028488418534,
+        "reward_dist": 0.18482935762451289,
+        "heldout_dist": 0.5530685224806373,
+        "reward_per_sample": 0.9143720495245292,
+        "heldout_per_sample": 1.6477807205063189,
+        "length_mean": 22.6317907444668,
+        "length_ratio_mean": 0.9882206699193239,
+        "marker_rate_shift": {
+          "segments": 497,
+          "delta": 0.009309515534666093,
+          "se": 0.024198094706564848
+        }
+      },
+      "subgroup": {
+        "group_size": 4,
+        "groups": 998,
+        "degenerate_groups": 18,
+        "degenerate_frac": 0.018
+      },
+      "heldout_vs_random": {
+        "diff": -0.011152982652033473,
+        "ci_low": -0.07562234051467519,
+        "ci_high": 0.053769838570923156,
+        "p_value": 0.721,
+        "significant": false
+      }
+    },
+    {
+      "cell": "chrf_only",
+      "evidence_class": "exploratory",
+      "weights": {
+        "chrf": 1.0,
+        "kiwi": 0.0,
+        "judge": 0.0
+      },
+      "judge_gate": null,
+      "n": 8,
+      "feasible": 3912,
+      "unmeasured": 0,
+      "degenerate_frac": 0.008,
+      "degenerate_groups": 4,
+      "groups": 499,
+      "picks": {
+        "picked": 497,
+        "unpicked_groups": 2,
+        "components": {
+          "bleu": 48.81658609030837,
+          "kiwi": 0.6785591234503617,
+          "judge": 3.4748490945674044,
+          "chrf": 66.89787249175943,
+          "stylo": -1.0762991541142124
+        },
+        "stylo_dist": 0.5124521184818374,
+        "reward_dist": 0.1225697357754001,
+        "heldout_dist": 0.5098868778062451,
+        "reward_per_sample": 1.0762991541142124,
+        "heldout_per_sample": 1.6734338838040725,
+        "length_mean": 23.71629778672032,
+        "length_ratio_mean": 1.0196775534768692,
+        "marker_rate_shift": {
+          "segments": 497,
+          "delta": -0.01203737458311864,
+          "se": 0.02209606120952954
+        }
+      },
+      "subgroup": {
+        "group_size": 4,
+        "groups": 998,
+        "degenerate_groups": 13,
+        "degenerate_frac": 0.013
+      },
+      "heldout_vs_random": {
+        "diff": -0.05373995457182177,
+        "ci_low": -0.1224359042476944,
+        "ci_high": 0.013786720770547468,
+        "p_value": 0.115,
+        "significant": false
+      }
+    },
+    {
+      "cell": "mix_chrf",
+      "evidence_class": "exploratory",
+      "weights": {
+        "chrf": 0.7071,
+        "kiwi": 0.7071,
+        "judge": 0.0
+      },
+      "judge_gate": null,
+      "n": 8,
+      "feasible": 3912,
+      "unmeasured": 0,
+      "degenerate_frac": 0.01,
+      "degenerate_groups": 5,
+      "groups": 499,
+      "picks": {
+        "picked": 497,
+        "unpicked_groups": 2,
+        "components": {
+          "bleu": 44.58425772184996,
+          "kiwi": 0.7023689010493472,
+          "judge": 3.398390342052314,
+          "chrf": 63.30891104465696,
+          "stylo": -1.0787001325499275
+        },
+        "stylo_dist": 0.5420443357952034,
+        "reward_dist": 0.14646422739417697,
+        "heldout_dist": 0.5402928320046202,
+        "reward_per_sample": 1.0787001325499275,
+        "heldout_per_sample": 1.6604604979455821,
+        "length_mean": 23.19517102615694,
+        "length_ratio_mean": 0.9988689583484888,
+        "marker_rate_shift": {
+          "segments": 497,
+          "delta": 0.0027720328394862125,
+          "se": 0.023080485476446328
+        }
+      },
+      "subgroup": {
+        "group_size": 4,
+        "groups": 998,
+        "degenerate_groups": 26,
+        "degenerate_frac": 0.026
+      },
+      "heldout_vs_random": {
+        "diff": -0.024015583500171196,
+        "ci_low": -0.09097056475149379,
+        "ci_high": 0.0395150843804544,
+        "p_value": 0.46,
+        "significant": false
+      }
     }
   ],
   "anchors": {
@@ -441,9 +789,15 @@
       "components": {
         "bleu": 30.06676116195051,
         "kiwi": 0.6617831209415881,
-        "judge": 3.2354124748490944
+        "judge": 3.2354124748490944,
+        "chrf": 50.60058010896208,
+        "stylo": -1.102983401133674
       },
       "stylo_dist": 0.5655929867739924,
+      "reward_dist": 0.15350394101321294,
+      "heldout_dist": 0.5638333554161188,
+      "reward_per_sample": 1.102983401133674,
+      "heldout_per_sample": 1.700647461428881,
       "length_mean": 23.092555331991953,
       "length_ratio_mean": 0.9954347520048205,
       "marker_rate_shift": {
@@ -458,9 +812,15 @@
       "components": {
         "bleu": 29.11634151272771,
         "kiwi": 0.6645665185186332,
-        "judge": 3.251753507014028
+        "judge": 3.251753507014028,
+        "chrf": 49.97691847772448,
+        "stylo": -1.1049834290894855
       },
       "stylo_dist": 0.5525479906375942,
+      "reward_dist": 0.1470456496163905,
+      "heldout_dist": 0.5494266508471909,
+      "reward_per_sample": 1.1049834290894855,
+      "heldout_per_sample": 1.7000305405396277,
       "length_mean": 23.379008016032063,
       "length_ratio_mean": 1.01622530572482,
       "marker_rate_shift": {
