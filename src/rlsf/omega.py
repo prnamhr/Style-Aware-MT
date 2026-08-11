@@ -287,6 +287,7 @@ def cell_reading(
         "cell": name,
         "evidence_class": evidence_class,
         "weights": {k: round(v, 4) for k, v in rc.weights.items()},
+        "normalization": rc.normalization,
         "judge_gate": rc.judge_gate,
         "n": n,
         "feasible": log.n_feasible,
@@ -314,6 +315,28 @@ def cell_reading(
             "degenerate_frac": sub.degenerate_frac,
         }
     return reading, picks
+
+
+def adequacy_floor(readings: list[dict], anchor: dict, component: str = "kiwi") -> dict:
+    """Which cells translate at least as well as a uniform draw from the same pool."""
+    floor = anchor["components"][component]
+    clears, below = [], {}
+    for reading in readings:
+        if reading["picks"] is None:
+            continue
+        value = reading["picks"]["components"][component]
+        if value >= floor:
+            clears.append(reading["cell"])
+        else:
+            below[reading["cell"]] = value
+    return {
+        "component": component,
+        "floor": floor,
+        "source": "random anchor over the same pool",
+        "clears": clears,
+        "below": below,
+        "unread": [r["cell"] for r in readings if r["picks"] is None],
+    }
 
 
 def select(
@@ -524,6 +547,7 @@ def main() -> None:
         readings, cells,
         max_degenerate=_MAX_DEGENERATE, warn_shift=drift_rule(cfg).min_delta, feature=feature,
     )
+    floor = adequacy_floor([*readings, *exploratory], anchors["random"])
 
     print(f"\nper-component degeneracy at N={n}: what each term can separate on its own")
     for name, stats in per_component.items():
@@ -597,6 +621,14 @@ def main() -> None:
         f"degenerates less by construction, because more draws is more chances to differ. "
         f"G={subgroup} is the training-time figure."
     )
+    print(
+        f"\nadequacy floor for Phase 2 arms: {floor['component']} >= {floor['floor']:.4f}, "
+        f"the {floor['source']}. Read alongside `selected` below, never into it:"
+    )
+    for cell, value in sorted(floor["below"].items(), key=lambda kv: kv[1]):
+        print(f"  below the floor  {cell:11s} {value:.4f} ({value - floor['floor']:+.4f})")
+    print(f"  clears it: {', '.join(floor['clears']) if floor['clears'] else 'no cell'}")
+
     if verdict["cell"]:
         g = verdict["goodhart"]
         print(f"\nselected {verdict['cell']}: {verdict['reason']}")
@@ -637,6 +669,7 @@ def main() -> None:
                 "exploratory_cells": exploratory,
                 "anchors": anchors,
                 "selection": verdict,
+                "adequacy_floor": floor,
                 "caveats": [
                     "Dev-slice figures select the reward weights and are never reported as a "
                     "result; val remains the reported split.",
@@ -645,6 +678,11 @@ def main() -> None:
                     "results, and `selection` cannot draw from them.",
                     "A gated cell's picks are read over only the groups its gate leaves "
                     "non-empty, so its component means are not paired with the other cells'.",
+                    "`adequacy_floor` constrains which arms Phase 2 may consider. It is not "
+                    "part of `selection`, which stays the pre-registered register-distance "
+                    "rule; a cell below the floor is still reported, not deleted.",
+                    "A cell ranked at `normalization: fixed` is not comparable with a "
+                    "group_z cell's reward values, only with its picks.",
                     f"Degeneracy at N={n} and at G={subgroup} are not comparable; larger "
                     f"groups degenerate less by construction.",
                     "Best-of-N reranking of a frozen policy is not GRPO. It bounds what the "

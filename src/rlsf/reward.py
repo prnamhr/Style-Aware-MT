@@ -27,6 +27,10 @@ _MIN_GROUP_SD = 1e-9
 # The bands prompts/judge_train.txt rates on, and so the range a judge veto may sit in.
 _JUDGE_MIN, _JUDGE_MAX = 1.0, 5.0
 
+_GROUP_Z, _FIXED = "group_z", "fixed"
+
+_FIXED_SCALES = {"bleu": 100.0, "chrf": 100.0, "kiwi": 1.0, "judge": _JUDGE_MAX}
+
 
 @dataclass
 class RewardConfig:
@@ -44,6 +48,10 @@ class RewardConfig:
     on_violation: str = "floor"  # "floor" | "drop"
     # "bleu" (smoothed sentence-BLEU) or "chrf" (chrF++), the swappable grid cell.
     overlap_metric: str = "bleu"
+    # "group_z" standardizes each component within its group before the weights apply, which
+    # gives every component the same variance whatever its raw spread. "fixed" divides by the
+    # component's own range instead, so a term that barely separates a group carries barely.
+    normalization: str = _GROUP_Z
     # Rubric band a sample must reach to stay feasible. Set, the judge stops being a
     # summand and becomes a veto: it gates which samples compete, never how they rank.
     judge_gate: float | None = None
@@ -54,6 +62,16 @@ class RewardConfig:
         if self.overlap_metric not in ("bleu", "chrf"):
             raise ValueError(
                 f"overlap_metric must be 'bleu' or 'chrf', got {self.overlap_metric!r}"
+            )
+        if self.normalization not in (_GROUP_Z, _FIXED):
+            raise ValueError(
+                f"normalization must be {_GROUP_Z!r} or {_FIXED!r}, got {self.normalization!r}"
+            )
+        if self.normalization == _FIXED and self.w_stylo:
+            raise ValueError(
+                f"w_stylo={self.w_stylo} under {_FIXED!r} normalization: the stylo term is a "
+                f"negated centroid distance with no upper bound, so it has no fixed range to "
+                f"divide by and the weight would not mean what the other weights mean."
             )
         if not 0 < self.len_min_ratio <= self.len_max_ratio:
             raise ValueError(
@@ -274,6 +292,22 @@ def group_normalize(values: np.ndarray, valid: np.ndarray) -> np.ndarray:
     return out
 
 
+def fixed_scale(values: np.ndarray, valid: np.ndarray, name: str) -> np.ndarray:
+    """Component values on their own declared range, zeroed where infeasible.
+
+    The group's own spread is not divided out, so the components enter the sum weighted by
+    how much they actually separate the group rather than at equal variance by construction.
+    """
+    if name not in _FIXED_SCALES:
+        raise ValueError(
+            f"component {name!r} has no fixed range declared in _FIXED_SCALES, so it cannot "
+            f"be scaled without one. Declare its range, or rank this cell on {_GROUP_Z!r}."
+        )
+    out = np.zeros_like(values, dtype=float)
+    out[valid] = values[valid] / _FIXED_SCALES[name]
+    return out
+
+
 def _measured_mean(values: np.ndarray) -> float:
     """Mean over the entries that were measured; nan when none were."""
     ok = np.isfinite(values)
@@ -434,9 +468,13 @@ def compute_rewards(
         g_valid = feasible[sl]
         combined = np.zeros(group_size, dtype=float)
         for name, weight in cfg.weights.items():
-            z = group_normalize(raw[name][sl], g_valid)
-            normalized_all[name][sl] = z
-            combined += weight * z
+            scaled = (
+                group_normalize(raw[name][sl], g_valid)
+                if cfg.normalization == _GROUP_Z
+                else fixed_scale(raw[name][sl], g_valid, name)
+            )
+            normalized_all[name][sl] = scaled
+            combined += weight * scaled
         group = np.full(group_size, np.nan, dtype=float)
         group[g_valid] = combined[g_valid]
         if cfg.on_violation == "floor" and (~g_valid).any():

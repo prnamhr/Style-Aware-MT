@@ -79,6 +79,7 @@ rlsf:
       - {name: mix_stylo,  w_kiwi: 1.0, w_bleu: 1.0, w_judge: 0.0, w_stylo: 1.0}
       - {name: chrf_only, w_kiwi: 0.0, w_bleu: 1.0, w_judge: 0.0, overlap_metric: chrf}
       - {name: mix_chrf,  w_kiwi: 1.0, w_bleu: 1.0, w_judge: 0.0, overlap_metric: chrf}
+      - {name: fixed_scale, w_kiwi: 1.0, w_bleu: 1.0, w_judge: 1.0, normalization: fixed}
 
   stop:
     feature: marker_rate                  # the direction the register reward can be gamed in

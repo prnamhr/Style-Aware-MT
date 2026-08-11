@@ -22,6 +22,7 @@ from src.rlsf.reward import (
     JudgeTiming,
     RewardConfig,
     compute_rewards,
+    fixed_scale,
     frozen_digest,
     group_normalize,
     judge_scores,
@@ -510,7 +511,76 @@ def test_gating_leaves_the_summand_at_the_ablation_cell_s_weights():
     assert gated.w_kiwi == pytest.approx(ablation.w_kiwi)
 
 
-# logging 
+# fixed scaling, the alternative to per-component z
+
+
+def _ranked(normalization, scores, n=3, **weights):
+    rewards, _, log = compute_rewards(
+        ["s"] * n, ["a b c"] * n, ["a b c"] * n,
+        cfg=RewardConfig(normalization=normalization, **weights),
+        group_size=n, component_scores=scores, centroid=CENTROID,
+    )
+    return int(np.argmax(rewards)), log
+
+
+def test_fixed_scaling_puts_each_component_on_its_own_range():
+    values = np.array([50.0, 100.0])
+    valid = np.ones(2, dtype=bool)
+    assert fixed_scale(values, valid, "bleu") == pytest.approx([0.5, 1.0])
+    assert fixed_scale(np.array([1.0, 5.0]), valid, "judge") == pytest.approx([0.2, 1.0])
+    assert fixed_scale(np.array([0.7, 0.9]), valid, "kiwi") == pytest.approx([0.7, 0.9])
+
+
+def test_fixed_scaling_zeroes_what_the_feasibility_mask_excludes():
+    out = fixed_scale(np.array([50.0, 99.0]), np.array([True, False]), "bleu")
+    assert out == pytest.approx([0.5, 0.0])
+
+
+def test_a_component_without_a_declared_range_cannot_be_fixed_scaled():
+    with pytest.raises(ValueError, match="no fixed range declared"):
+        fixed_scale(np.array([-1.0]), np.ones(1, dtype=bool), "stylo")
+
+
+def test_the_two_normalizations_pick_different_samples_from_one_group():
+    scores = _components(3, bleu=[80.0, 40.0, 10.0], judge=[3.0, 4.0, 5.0])
+    weights = dict(w_bleu=1.0, w_kiwi=0.0, w_judge=1.0)
+    assert _ranked("group_z", scores, **weights)[0] == 2
+    assert _ranked("fixed", scores, **weights)[0] == 0
+
+
+def test_fixed_scaling_keeps_a_group_the_raw_scores_separate():
+    scores = _components(3, bleu=[10.0, 20.0, 30.0], judge=[4.0, 4.0, 4.0])
+    _, log = _ranked("fixed", scores, w_bleu=1.0, w_kiwi=0.0, w_judge=1.0)
+    assert log.degenerate_groups == 0
+
+
+def test_an_infeasible_sample_still_floors_below_the_group_under_fixed_scaling():
+    n = 3
+    hyps = ["a b c", "a b c d", " ".join(["x"] * 40)]
+    rewards, feasible, _ = compute_rewards(
+        ["s"] * n, hyps, ["a b c d"] * n,
+        cfg=RewardConfig(normalization="fixed", w_kiwi=0.0), group_size=n,
+        component_scores=_components(n, bleu=[10.0, 20.0, 99.0]), centroid=CENTROID,
+    )
+    assert list(feasible) == [True, True, False]
+    assert rewards[2] < min(rewards[0], rewards[1])
+
+
+def test_the_unbounded_stylo_term_cannot_be_ranked_on_a_fixed_scale():
+    with pytest.raises(ValueError, match="no upper bound"):
+        RewardConfig(normalization="fixed", w_stylo=1.0)
+
+
+def test_an_unknown_normalization_is_refused():
+    with pytest.raises(ValueError, match="normalization must be"):
+        RewardConfig(normalization="minmax")
+
+
+def test_the_default_normalization_is_the_one_the_grid_was_read_under():
+    assert RewardConfig().normalization == "group_z"
+
+
+# logging
 
 
 def test_z_deviations_reports_all_four_features():

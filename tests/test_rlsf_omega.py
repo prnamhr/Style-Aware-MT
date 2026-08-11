@@ -6,6 +6,7 @@ import numpy as np
 import pytest
 
 from src.rlsf.omega import (
+    adequacy_floor,
     argmax_picks,
     component_degeneracy,
     derive_components,
@@ -30,14 +31,22 @@ _CENTROID = {
 }
 
 
-def _reading(cell, *, deg=0.0, stylo=1.0, shift=0.0, se=0.05):
+def _reading(cell, *, deg=0.0, stylo=1.0, shift=0.0, se=0.05, kiwi=0.7):
     return {
         "cell": cell,
         "n": 8,
         "degenerate_frac": 0.0,
         "subgroup": {"group_size": 4, "degenerate_frac": deg},
-        "picks": {"stylo_dist": stylo, "marker_rate_shift": {"delta": shift, "se": se}},
+        "picks": {
+            "stylo_dist": stylo,
+            "components": {"kiwi": kiwi},
+            "marker_rate_shift": {"delta": shift, "se": se},
+        },
     }
+
+
+def _anchor(kiwi):
+    return {"components": {"kiwi": kiwi}}
 
 
 def test_a_ragged_pool_cannot_be_grouped():
@@ -113,6 +122,43 @@ def test_cells_that_tie_on_register_fit_take_the_weaker_style_pressure():
     readings = [_reading("w3_1.0", stylo=1.0), _reading("w3_0.0", stylo=1.0)]
     verdict = select(readings, CELLS, max_degenerate=0.25, warn_shift=0.23, feature="marker_rate")
     assert verdict["cell"] == "w3_0.0"
+
+
+# the adequacy floor on Phase 2's arms
+
+
+def test_a_cell_less_adequate_than_a_random_draw_is_below_the_floor():
+    readings = [_reading("w3_0.0", kiwi=0.7009), _reading("stylo_only", kiwi=0.6566)]
+    floor = adequacy_floor(readings, _anchor(0.6618))
+    assert floor["clears"] == ["w3_0.0"]
+    assert floor["below"] == {"stylo_only": 0.6566}
+
+
+def test_the_floor_is_the_anchor_rather_than_a_number_of_its_own():
+    readings = [_reading("cell", kiwi=0.66)]
+    assert adequacy_floor(readings, _anchor(0.70))["below"] == {"cell": 0.66}
+    assert adequacy_floor(readings, _anchor(0.60))["clears"] == ["cell"]
+
+
+def test_matching_the_anchor_exactly_clears_the_floor():
+    floor = adequacy_floor([_reading("cell", kiwi=0.6618)], _anchor(0.6618))
+    assert floor["clears"] == ["cell"] and not floor["below"]
+
+
+def test_a_cell_that_picked_nothing_is_unread_rather_than_below_the_floor():
+    reading = _reading("gate_j5")
+    reading["picks"] = None
+    floor = adequacy_floor([reading], _anchor(0.6618))
+    assert floor["unread"] == ["gate_j5"] and not floor["below"] and not floor["clears"]
+
+
+def test_the_floor_does_not_reach_into_the_pre_registered_selection():
+    # Two separate rules: `select` ranks on register distance and cannot see adequacy, which
+    # is why the floor has to be applied in the reasoning that reads both.
+    readings = [_reading("w3_0.0", stylo=2.0, kiwi=0.80), _reading("w3_1.0", stylo=0.1, kiwi=0.50)]
+    verdict = select(readings, CELLS, max_degenerate=0.25, warn_shift=0.23, feature="marker_rate")
+    assert verdict["cell"] == "w3_1.0"
+    assert adequacy_floor(readings, _anchor(0.6618))["below"] == {"w3_1.0": 0.50}
 
 
 # exploratory cells

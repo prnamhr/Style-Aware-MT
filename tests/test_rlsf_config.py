@@ -146,6 +146,7 @@ def test_the_exploratory_cells_are_not_part_of_the_pre_registered_grid():
         "lex_only", "sem_only", "judge_only",
         "gate_j3", "gate_j4", "gate_j5",
         "stylo_only", "mix_stylo", "chrf_only", "mix_chrf",
+        "fixed_scale",
     }
     assert not pre_registered & exploratory
 
@@ -189,6 +190,21 @@ def test_the_stylo_cells_weight_stylo_and_carry_no_judge():
     # stylo_only is the term on its own; mix_stylo adds it to the w3_0.0 summand.
     assert cells["stylo_only"].w_bleu == cells["stylo_only"].w_kiwi == 0.0
     assert cells["mix_stylo"].w_bleu > 0 and cells["mix_stylo"].w_kiwi > 0
+
+
+def test_the_fixed_scale_cell_moves_the_scaling_and_nothing_else():
+    cfg = load_config(require_caps=False)
+    cell = dict(exploratory_reward_configs(cfg))["fixed_scale"]
+    twin = dict(grid_reward_configs(cfg))["w3_1.0"]
+    assert cell.normalization == "fixed" and twin.normalization == "group_z"
+    for term in ("w_bleu", "w_kiwi", "w_judge", "w_stylo"):
+        assert getattr(cell, term) == pytest.approx(getattr(twin, term))
+
+
+def test_every_other_cell_is_read_under_the_normalization_the_grid_was_registered_at():
+    cfg = load_config(require_caps=False)
+    for name, rc in [*grid_reward_configs(cfg), *exploratory_reward_configs(cfg)]:
+        assert rc.normalization == ("fixed" if name == "fixed_scale" else "group_z")
 
 
 def test_grid_cells_inherit_the_base_feasibility_band():

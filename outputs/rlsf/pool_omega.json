@@ -63,6 +63,7 @@
         "kiwi": 0.7071,
         "judge": 0.0
       },
+      "normalization": "group_z",
       "judge_gate": null,
       "n": 8,
       "feasible": 3912,
@@ -115,6 +116,7 @@
         "kiwi": 0.6667,
         "judge": 0.3333
       },
+      "normalization": "group_z",
       "judge_gate": null,
       "n": 8,
       "feasible": 3912,
@@ -167,6 +169,7 @@
         "kiwi": 0.5774,
         "judge": 0.5774
       },
+      "normalization": "group_z",
       "judge_gate": null,
       "n": 8,
       "feasible": 3912,
@@ -219,6 +222,7 @@
         "kiwi": 0.4082,
         "judge": 0.8165
       },
+      "normalization": "group_z",
       "judge_gate": null,
       "n": 8,
       "feasible": 3912,
@@ -273,6 +277,7 @@
         "kiwi": 0.0,
         "judge": 0.0
       },
+      "normalization": "group_z",
       "judge_gate": null,
       "n": 8,
       "feasible": 3912,
@@ -325,6 +330,7 @@
         "kiwi": 1.0,
         "judge": 0.0
       },
+      "normalization": "group_z",
       "judge_gate": null,
       "n": 8,
       "feasible": 3912,
@@ -377,6 +383,7 @@
         "kiwi": 0.0,
         "judge": 1.0
       },
+      "normalization": "group_z",
       "judge_gate": null,
       "n": 8,
       "feasible": 3912,
@@ -428,6 +435,7 @@
         "bleu": 0.7071,
         "kiwi": 0.7071
       },
+      "normalization": "group_z",
       "judge_gate": 3.0,
       "n": 8,
       "feasible": 2614,
@@ -478,6 +486,7 @@
         "bleu": 0.7071,
         "kiwi": 0.7071
       },
+      "normalization": "group_z",
       "judge_gate": 4.0,
       "n": 8,
       "feasible": 1707,
@@ -528,6 +537,7 @@
         "bleu": 0.7071,
         "kiwi": 0.7071
       },
+      "normalization": "group_z",
       "judge_gate": 5.0,
       "n": 8,
       "feasible": 859,
@@ -580,6 +590,7 @@
         "judge": 0.0,
         "stylo": 1.0
       },
+      "normalization": "group_z",
       "judge_gate": null,
       "n": 8,
       "feasible": 3912,
@@ -633,6 +644,7 @@
         "judge": 0.0,
         "stylo": 0.5774
       },
+      "normalization": "group_z",
       "judge_gate": null,
       "n": 8,
       "feasible": 3912,
@@ -685,6 +697,7 @@
         "kiwi": 0.0,
         "judge": 0.0
       },
+      "normalization": "group_z",
       "judge_gate": null,
       "n": 8,
       "feasible": 3912,
@@ -737,6 +750,7 @@
         "kiwi": 0.7071,
         "judge": 0.0
       },
+      "normalization": "group_z",
       "judge_gate": null,
       "n": 8,
       "feasible": 3912,
@@ -779,6 +793,59 @@
         "ci_high": 0.0395150843804544,
         "p_value": 0.46,
         "significant": false
+      }
+    },
+    {
+      "cell": "fixed_scale",
+      "evidence_class": "exploratory",
+      "weights": {
+        "bleu": 0.5774,
+        "kiwi": 0.5774,
+        "judge": 0.5774
+      },
+      "normalization": "fixed",
+      "judge_gate": null,
+      "n": 8,
+      "feasible": 3912,
+      "unmeasured": 0,
+      "degenerate_frac": 0.008,
+      "degenerate_groups": 4,
+      "groups": 499,
+      "picks": {
+        "picked": 497,
+        "unpicked_groups": 2,
+        "components": {
+          "bleu": 46.02853181986957,
+          "kiwi": 0.6847099705001478,
+          "judge": 4.120724346076459,
+          "chrf": 62.84870024918253,
+          "stylo": -1.068863690037983
+        },
+        "stylo_dist": 0.6851286115703231,
+        "reward_dist": 0.15267609161861803,
+        "heldout_dist": 0.6799027035593006,
+        "reward_per_sample": 1.068863690037983,
+        "heldout_per_sample": 1.6951138841623623,
+        "length_mean": 23.599597585513077,
+        "length_ratio_mean": 1.0143752443775782,
+        "marker_rate_shift": {
+          "segments": 497,
+          "delta": 0.16051589516741568,
+          "se": 0.02405271940845001
+        }
+      },
+      "subgroup": {
+        "group_size": 4,
+        "groups": 998,
+        "degenerate_groups": 13,
+        "degenerate_frac": 0.013
+      },
+      "heldout_vs_random": {
+        "diff": 0.11615418240358423,
+        "ci_low": 0.04807384340047461,
+        "ci_high": 0.1782826004858968,
+        "p_value": 0.001,
+        "significant": true
       }
     }
   ],
@@ -848,10 +915,37 @@
     },
     "rejected": {}
   },
+  "adequacy_floor": {
+    "component": "kiwi",
+    "floor": 0.6617831209415881,
+    "source": "random anchor over the same pool",
+    "clears": [
+      "w3_0.0",
+      "w3_0.5",
+      "w3_1.0",
+      "w3_2.0",
+      "lex_only",
+      "sem_only",
+      "judge_only",
+      "gate_j3",
+      "gate_j4",
+      "gate_j5",
+      "mix_stylo",
+      "chrf_only",
+      "mix_chrf",
+      "fixed_scale"
+    ],
+    "below": {
+      "stylo_only": 0.6565966636721997
+    },
+    "unread": []
+  },
   "caveats": [
     "Dev-slice figures select the reward weights and are never reported as a result; val remains the reported split.",
     "`exploratory_cells` were added after the pool was built and after the pre-registered grid was read. They are leads for Phase 2's design, not results, and `selection` cannot draw from them.",
     "A gated cell's picks are read over only the groups its gate leaves non-empty, so its component means are not paired with the other cells'.",
+    "`adequacy_floor` constrains which arms Phase 2 may consider. It is not part of `selection`, which stays the pre-registered register-distance rule; a cell below the floor is still reported, not deleted.",
+    "A cell ranked at `normalization: fixed` is not comparable with a group_z cell's reward values, only with its picks.",
     "Degeneracy at N=8 and at G=4 are not comparable; larger groups degenerate less by construction.",
     "Best-of-N reranking of a frozen policy is not GRPO. It bounds what the reward can select for, not what training will do with it."
   ]
