@@ -52,6 +52,13 @@ Two qualifications on that total:
   **unrecorded**. It is not estimated here; an estimate would be indistinguishable in the
   table from a measured figure. Any future re-run of Φ_A will write a usage file and can be
   added.
+* **An early exemplar-count probe is not in it either.** `outputs/gpt-4o-mini__n{2,4,8,10}_val.jsonl`
+  (committed `50c7477`, 2026-07-17) are 85 `gpt-4o-mini` generations over `knn_fewshot` at
+  k ∈ {2, 4, 8, 10} on val segments — 25, 25, 25 and 10 rows. They predate usage recording, so no
+  usage artefact exists and the cost is **unrecorded**; it is not estimated here for the same
+  reason as Φ_A. The probe informed no reported figure: the k axis was swept afterwards on the
+  frozen base model, not on `gpt-4o-mini`, and no result in `README.md` or `results/` derives
+  from these files.
 * **The 2026-08-05 figure is cumulative, not incremental.** `session.cost_usd` for the full
   pass was $6.0996 over 9,236 calls; the extra 25 calls and $0.0177 are the diagnostic
   25-segment pilot that gated it. The batch transport applied a 50 % discount to

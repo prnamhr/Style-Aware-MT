@@ -75,9 +75,31 @@ absence is deliberate rather than an oversight; none has a recorded rationale.
 * The judge provider switch of 2026-07-20 has no recorded rationale; this is noted in
   the 2026-07-23 entry.
 
-These gaps were open as of the audit. Nothing in this list has been closed since.
+Added by the 2026-08-10 audit:
+
+* Three analysis stages have no entry and produce artifacts that the results rest on:
+  `src/eval/stylometrics_ci.py` (`results/stylometrics_ci_val.json` — the paired CIs and
+  rank distributions behind the `stylo_dist` ladder), `src/eval/metric_agreement.py`
+  (`results/metric_agreement_val.json` — all of RQ4), and `src/eval/peft_register.py`
+  (`results/peft_register_val.json`). Until this audit none of the three was named in
+  `README.md` either, and the README asserted that `stylo_dist` could not be resampled.
+* `bd806a7` (2026-08-10) added `src/rlsf/pool.py`, `src/rlsf/omega.py` and
+  `tests/test_rlsf_pool.py` — the dev-slice best-of-N pool and the offline ω grid — under a
+  commit message describing the drift-band change instead. `docs/budget.md` prices both
+  stages; no entry records their implementation.
+* `src/eval/human.py` is a human-judgment scaffold committed 2026-07-23. It has never been
+  run, holds no artifact, and no entry states whether human evaluation is in scope.
+
+These gaps are open. Nothing in this list has been closed since it was written.
 
 ### Audit
+
+A second audit on **2026-08-10** checked `README.md` and `docs/budget.md` against the
+artifacts rather than this log: split integrity and cross-split leakage, the provenance of
+the retrieval index, every number in the results table against the file it cites, the
+bootstrap estimator, and which pipeline stages are recorded anywhere. What it changed is
+listed under *Known documentation gaps* above and in the README's threats table; it opened
+no new entry because it recorded no new engineering work.
 
 This log was audited for internal consistency against the committed artifacts, configs,
 and git history on **2026-08-01**. Corrections made in that pass are marked inline as
