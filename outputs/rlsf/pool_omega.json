@@ -1,0 +1,237 @@
+{
+  "pool": "outputs/rlsf/pool.jsonl",
+  "segments": 499,
+  "n": 8,
+  "subgroup": 4,
+  "feature": "marker_rate",
+  "gates": {
+    "max_degenerate": 0.25,
+    "max_shift": 0.23
+  },
+  "per_component_degeneracy": {
+    "bleu": {
+      "groups": 499,
+      "degenerate": 4,
+      "degenerate_frac": 0.008016032064128256
+    },
+    "kiwi": {
+      "groups": 499,
+      "degenerate": 4,
+      "degenerate_frac": 0.008016032064128256
+    },
+    "judge": {
+      "groups": 499,
+      "degenerate": 19,
+      "degenerate_frac": 0.03807615230460922
+    }
+  },
+  "cells": [
+    {
+      "cell": "w3_0.0",
+      "weights": {
+        "bleu": 0.7071,
+        "kiwi": 0.7071,
+        "judge": 0.0
+      },
+      "n": 8,
+      "feasible": 3912,
+      "unmeasured": 0,
+      "degenerate_frac": 0.01,
+      "degenerate_groups": 5,
+      "groups": 499,
+      "picks": {
+        "picked": 497,
+        "unpicked_groups": 2,
+        "components": {
+          "bleu": 46.54338250950775,
+          "kiwi": 0.7008670737565883,
+          "judge": 3.398390342052314
+        },
+        "stylo_dist": 0.5672691922487708,
+        "length_mean": 22.78672032193159,
+        "length_ratio_mean": 0.9780139140179984,
+        "marker_rate_shift": {
+          "segments": 497,
+          "delta": 0.021540777150023952,
+          "se": 0.024086451665155186
+        }
+      },
+      "subgroup": {
+        "group_size": 4,
+        "groups": 998,
+        "degenerate_groups": 24,
+        "degenerate_frac": 0.024
+      }
+    },
+    {
+      "cell": "w3_0.5",
+      "weights": {
+        "bleu": 0.6667,
+        "kiwi": 0.6667,
+        "judge": 0.3333
+      },
+      "n": 8,
+      "feasible": 3912,
+      "unmeasured": 0,
+      "degenerate_frac": 0.008,
+      "degenerate_groups": 4,
+      "groups": 499,
+      "picks": {
+        "picked": 497,
+        "unpicked_groups": 2,
+        "components": {
+          "bleu": 46.773213336960026,
+          "kiwi": 0.6970435885236537,
+          "judge": 3.7122736418511066
+        },
+        "stylo_dist": 0.6164874916543212,
+        "length_mean": 23.11066398390342,
+        "length_ratio_mean": 0.9918601882496122,
+        "marker_rate_shift": {
+          "segments": 497,
+          "delta": 0.0824196022452319,
+          "se": 0.025914021400592027
+        }
+      },
+      "subgroup": {
+        "group_size": 4,
+        "groups": 998,
+        "degenerate_groups": 14,
+        "degenerate_frac": 0.014
+      }
+    },
+    {
+      "cell": "w3_1.0",
+      "weights": {
+        "bleu": 0.5774,
+        "kiwi": 0.5774,
+        "judge": 0.5774
+      },
+      "n": 8,
+      "feasible": 3912,
+      "unmeasured": 0,
+      "degenerate_frac": 0.008,
+      "degenerate_groups": 4,
+      "groups": 499,
+      "picks": {
+        "picked": 497,
+        "unpicked_groups": 2,
+        "components": {
+          "bleu": 44.86178850074814,
+          "kiwi": 0.6959731506269943,
+          "judge": 3.9517102615694166
+        },
+        "stylo_dist": 0.6731220014837401,
+        "length_mean": 23.201207243460765,
+        "length_ratio_mean": 0.9946735499504695,
+        "marker_rate_shift": {
+          "segments": 497,
+          "delta": 0.13446431932846845,
+          "se": 0.025938896189858018
+        }
+      },
+      "subgroup": {
+        "group_size": 4,
+        "groups": 998,
+        "degenerate_groups": 14,
+        "degenerate_frac": 0.014
+      }
+    },
+    {
+      "cell": "w3_2.0",
+      "weights": {
+        "bleu": 0.4082,
+        "kiwi": 0.4082,
+        "judge": 0.8165
+      },
+      "n": 8,
+      "feasible": 3912,
+      "unmeasured": 0,
+      "degenerate_frac": 0.008,
+      "degenerate_groups": 4,
+      "groups": 499,
+      "picks": {
+        "picked": 497,
+        "unpicked_groups": 2,
+        "components": {
+          "bleu": 41.63197335987859,
+          "kiwi": 0.6875237697806637,
+          "judge": 4.197183098591549
+        },
+        "stylo_dist": 0.7274814389836032,
+        "length_mean": 23.52917505030181,
+        "length_ratio_mean": 1.0091912429114054,
+        "marker_rate_shift": {
+          "segments": 497,
+          "delta": 0.19505854853856136,
+          "se": 0.025885218898928843
+        }
+      },
+      "subgroup": {
+        "group_size": 4,
+        "groups": 998,
+        "degenerate_groups": 14,
+        "degenerate_frac": 0.014
+      }
+    }
+  ],
+  "anchors": {
+    "random": {
+      "picked": 497,
+      "unpicked_groups": 2,
+      "components": {
+        "bleu": 30.06676116195051,
+        "kiwi": 0.6617831209415881,
+        "judge": 3.2354124748490944
+      },
+      "stylo_dist": 0.5655929867739924,
+      "length_mean": 23.092555331991953,
+      "length_ratio_mean": 0.9954347520048205,
+      "marker_rate_shift": {
+        "segments": 497,
+        "delta": 0.016365077721270088,
+        "se": 0.026079301995203235
+      }
+    },
+    "pool": {
+      "picked": 3992,
+      "unpicked_groups": 0,
+      "components": {
+        "bleu": 29.11634151272771,
+        "kiwi": 0.6645665185186332,
+        "judge": 3.251753507014028
+      },
+      "stylo_dist": 0.5525479906375942,
+      "length_mean": 23.379008016032063,
+      "length_ratio_mean": 1.01622530572482,
+      "marker_rate_shift": {
+        "segments": 499,
+        "delta": 0.0,
+        "se": 0.0
+      }
+    }
+  },
+  "selection": {
+    "cell": "w3_0.0",
+    "weights": {
+      "name": "w3_0.0",
+      "w_kiwi": 1.0,
+      "w_bleu": 1.0,
+      "w_judge": 0.0
+    },
+    "reason": "lowest register distance (0.567) of the 4 cells that give most groups a gradient",
+    "goodhart": {
+      "feature": "marker_rate",
+      "delta": 0.021540777150023952,
+      "se": 0.024086451665155186,
+      "threshold": 0.23,
+      "over_threshold": false
+    },
+    "rejected": {}
+  },
+  "caveats": [
+    "Dev-slice figures select the reward weights and are never reported as a result; val remains the reported split.",
+    "Degeneracy at N=8 and at G=4 are not comparable; larger groups degenerate less by construction.",
+    "Best-of-N reranking of a frozen policy is not GRPO. It bounds what the reward can select for, not what training will do with it."
+  ]
+}
