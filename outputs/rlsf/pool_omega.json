@@ -28,11 +28,13 @@
   "cells": [
     {
       "cell": "w3_0.0",
+      "evidence_class": "pre-registered",
       "weights": {
         "bleu": 0.7071,
         "kiwi": 0.7071,
         "judge": 0.0
       },
+      "judge_gate": null,
       "n": 8,
       "feasible": 3912,
       "unmeasured": 0,
@@ -65,11 +67,13 @@
     },
     {
       "cell": "w3_0.5",
+      "evidence_class": "pre-registered",
       "weights": {
         "bleu": 0.6667,
         "kiwi": 0.6667,
         "judge": 0.3333
       },
+      "judge_gate": null,
       "n": 8,
       "feasible": 3912,
       "unmeasured": 0,
@@ -102,11 +106,13 @@
     },
     {
       "cell": "w3_1.0",
+      "evidence_class": "pre-registered",
       "weights": {
         "bleu": 0.5774,
         "kiwi": 0.5774,
         "judge": 0.5774
       },
+      "judge_gate": null,
       "n": 8,
       "feasible": 3912,
       "unmeasured": 0,
@@ -139,11 +145,13 @@
     },
     {
       "cell": "w3_2.0",
+      "evidence_class": "pre-registered",
       "weights": {
         "bleu": 0.4082,
         "kiwi": 0.4082,
         "judge": 0.8165
       },
+      "judge_gate": null,
       "n": 8,
       "feasible": 3912,
       "unmeasured": 0,
@@ -172,6 +180,257 @@
         "groups": 998,
         "degenerate_groups": 14,
         "degenerate_frac": 0.014
+      }
+    }
+  ],
+  "exploratory_cells": [
+    {
+      "cell": "lex_only",
+      "evidence_class": "exploratory",
+      "weights": {
+        "bleu": 1.0,
+        "kiwi": 0.0,
+        "judge": 0.0
+      },
+      "judge_gate": null,
+      "n": 8,
+      "feasible": 3912,
+      "unmeasured": 0,
+      "degenerate_frac": 0.008,
+      "degenerate_groups": 4,
+      "groups": 499,
+      "picks": {
+        "picked": 497,
+        "unpicked_groups": 2,
+        "components": {
+          "bleu": 50.264143672038436,
+          "kiwi": 0.6788605946890065,
+          "judge": 3.464788732394366
+        },
+        "stylo_dist": 0.5605235014207798,
+        "length_mean": 23.080482897384307,
+        "length_ratio_mean": 0.9862826706655851,
+        "marker_rate_shift": {
+          "segments": 497,
+          "delta": 0.03418152722842657,
+          "se": 0.02315894418119883
+        }
+      },
+      "subgroup": {
+        "group_size": 4,
+        "groups": 998,
+        "degenerate_groups": 13,
+        "degenerate_frac": 0.013
+      }
+    },
+    {
+      "cell": "sem_only",
+      "evidence_class": "exploratory",
+      "weights": {
+        "bleu": 0.0,
+        "kiwi": 1.0,
+        "judge": 0.0
+      },
+      "judge_gate": null,
+      "n": 8,
+      "feasible": 3912,
+      "unmeasured": 0,
+      "degenerate_frac": 0.008,
+      "degenerate_groups": 4,
+      "groups": 499,
+      "picks": {
+        "picked": 497,
+        "unpicked_groups": 2,
+        "components": {
+          "bleu": 31.02438456314565,
+          "kiwi": 0.7214228070717702,
+          "judge": 3.271629778672032
+        },
+        "stylo_dist": 0.6112333913158425,
+        "length_mean": 22.37625754527163,
+        "length_ratio_mean": 0.9624131812750379,
+        "marker_rate_shift": {
+          "segments": 497,
+          "delta": 0.04785106556823745,
+          "se": 0.025126840431553363
+        }
+      },
+      "subgroup": {
+        "group_size": 4,
+        "groups": 998,
+        "degenerate_groups": 13,
+        "degenerate_frac": 0.013
+      }
+    },
+    {
+      "cell": "judge_only",
+      "evidence_class": "exploratory",
+      "weights": {
+        "bleu": 0.0,
+        "kiwi": 0.0,
+        "judge": 1.0
+      },
+      "judge_gate": null,
+      "n": 8,
+      "feasible": 3912,
+      "unmeasured": 0,
+      "degenerate_frac": 0.038,
+      "degenerate_groups": 19,
+      "groups": 499,
+      "picks": {
+        "picked": 497,
+        "unpicked_groups": 2,
+        "components": {
+          "bleu": 31.906483604816543,
+          "kiwi": 0.6663288688755611,
+          "judge": 4.301810865191147
+        },
+        "stylo_dist": 0.7188398934915838,
+        "length_mean": 24.321931589537222,
+        "length_ratio_mean": 1.0470781636927888,
+        "marker_rate_shift": {
+          "segments": 497,
+          "delta": 0.19140785247089048,
+          "se": 0.02730332791427908
+        }
+      },
+      "subgroup": {
+        "group_size": 4,
+        "groups": 998,
+        "degenerate_groups": 139,
+        "degenerate_frac": 0.139
+      }
+    },
+    {
+      "cell": "gate_j3",
+      "evidence_class": "exploratory",
+      "weights": {
+        "bleu": 0.7071,
+        "kiwi": 0.7071
+      },
+      "judge_gate": 3.0,
+      "n": 8,
+      "feasible": 2614,
+      "unmeasured": 0,
+      "degenerate_frac": 0.162,
+      "degenerate_groups": 81,
+      "groups": 499,
+      "picks": {
+        "picked": 475,
+        "unpicked_groups": 24,
+        "components": {
+          "bleu": 43.484333569840864,
+          "kiwi": 0.6940549868031552,
+          "judge": 3.951578947368421
+        },
+        "stylo_dist": 0.71180141086311,
+        "length_mean": 23.31578947368421,
+        "length_ratio_mean": 1.0013007161207494,
+        "marker_rate_shift": {
+          "segments": 475,
+          "delta": 0.149619767861032,
+          "se": 0.02694582370269919
+        }
+      },
+      "subgroup": {
+        "group_size": 4,
+        "groups": 998,
+        "degenerate_groups": 340,
+        "degenerate_frac": 0.341
+      },
+      "paired": {
+        "baseline": "w3_0.0",
+        "groups": 475,
+        "baseline_stylo": 0.5994454499825443,
+        "cell_stylo": 0.71180141086311
+      }
+    },
+    {
+      "cell": "gate_j4",
+      "evidence_class": "exploratory",
+      "weights": {
+        "bleu": 0.7071,
+        "kiwi": 0.7071
+      },
+      "judge_gate": 4.0,
+      "n": 8,
+      "feasible": 1707,
+      "unmeasured": 0,
+      "degenerate_frac": 0.395,
+      "degenerate_groups": 197,
+      "groups": 499,
+      "picks": {
+        "picked": 392,
+        "unpicked_groups": 107,
+        "components": {
+          "bleu": 45.38839120111431,
+          "kiwi": 0.6932535049866657,
+          "judge": 4.461734693877551
+        },
+        "stylo_dist": 0.8677229920887843,
+        "length_mean": 24.012755102040817,
+        "length_ratio_mean": 1.0085733251749747,
+        "marker_rate_shift": {
+          "segments": 392,
+          "delta": 0.15627827979528347,
+          "se": 0.027882309799259816
+        }
+      },
+      "subgroup": {
+        "group_size": 4,
+        "groups": 998,
+        "degenerate_groups": 595,
+        "degenerate_frac": 0.596
+      },
+      "paired": {
+        "baseline": "w3_0.0",
+        "groups": 392,
+        "baseline_stylo": 0.7545252111563356,
+        "cell_stylo": 0.8677229920887843
+      }
+    },
+    {
+      "cell": "gate_j5",
+      "evidence_class": "exploratory",
+      "weights": {
+        "bleu": 0.7071,
+        "kiwi": 0.7071
+      },
+      "judge_gate": 5.0,
+      "n": 8,
+      "feasible": 859,
+      "unmeasured": 0,
+      "degenerate_frac": 0.685,
+      "degenerate_groups": 342,
+      "groups": 499,
+      "picks": {
+        "picked": 278,
+        "unpicked_groups": 221,
+        "components": {
+          "bleu": 45.05526417501689,
+          "kiwi": 0.6854792752926299,
+          "judge": 5.0
+        },
+        "stylo_dist": 1.1318665666429177,
+        "length_mean": 23.06474820143885,
+        "length_ratio_mean": 1.0293481703876688,
+        "marker_rate_shift": {
+          "segments": 278,
+          "delta": 0.24634983334365088,
+          "se": 0.03622516625478758
+        }
+      },
+      "subgroup": {
+        "group_size": 4,
+        "groups": 998,
+        "degenerate_groups": 832,
+        "degenerate_frac": 0.834
+      },
+      "paired": {
+        "baseline": "w3_0.0",
+        "groups": 278,
+        "baseline_stylo": 0.9709574915279306,
+        "cell_stylo": 1.1318665666429177
       }
     }
   ],
@@ -231,6 +490,8 @@
   },
   "caveats": [
     "Dev-slice figures select the reward weights and are never reported as a result; val remains the reported split.",
+    "`exploratory_cells` were added after the pool was built and after the pre-registered grid was read. They are leads for Phase 2's design, not results, and `selection` cannot draw from them.",
+    "A gated cell's picks are read over only the groups its gate leaves non-empty, so its component means are not paired with the other cells'.",
     "Degeneracy at N=8 and at G=4 are not comparable; larger groups degenerate less by construction.",
     "Best-of-N reranking of a frozen policy is not GRPO. It bounds what the reward can select for, not what training will do with it."
   ]
