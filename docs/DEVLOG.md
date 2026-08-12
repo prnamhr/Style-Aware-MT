@@ -108,6 +108,206 @@ their history.
 
 ---
 
+## 2026-08-12 — Two arms pre-registered, and the Goodhart pattern already visible in the pool
+
+### Summary
+
+`docs/preregistration_rlsf.md` (new) fixes the RLSF comparison before it runs: two arms
+rather than four, RL-Metric (`w3_0.0`) against RLSF-Judge (`w3_2.0`), with the judge arm's
+outcome predicted in advance — training-time Φ and `marker_rate` rising together, COMET-Kiwi
+flat, distance over the held-out stylometric features worsening. The drift stop stays at
+b20 w5 k4.0 for both arms, and the test split stays sealed until Week 3.
+
+`outputs/rlsf/pool_omega.json` was then regenerated under `87659be`, as the entry below
+requires. It costs nothing: the ω grid re-ranks component scores the pool already paid for,
+so this run made **0 paid calls**. Selection now ranks at the training group size G = 4 and
+picks `w3_0.0` at a register distance of 0.5581.
+
+The reading confirms the predicted pattern at selection time, before any GRPO step. Across
+the four cells, as ω₃ goes 0 → 0.5 → 1 → 2, the judge score of the picked samples rises
+monotonically and every register measure outside the reward degrades monotonically with it.
+Best-of-N over a frozen policy is not training, so this is not the result the arms exist to
+produce. It is the same effect at one step of selection instead of five hundred of gradient
+descent, which makes it a prediction confirmed at the weakest place it could have been.
+
+### The pattern, at the training group size
+
+Picked samples per cell, G = 4, 993 picks over 499 dev segments. `heldout` is distance to
+the target register over `ttr`, `root_ttr`, `marker_rate` — features no cell here is fitted
+on. `marker dz` is each pick's `marker_rate` z minus its own group's mean, paired within
+the segment.
+
+| cell | ω₃ | judge | kiwi | bleu | stylo dist | heldout | marker dz |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| `w3_0.0` | 0.0 | 3.37 | 0.697 | 40.58 | 0.5581 | 0.5554 | +0.008 ± 0.016 |
+| `w3_0.5` | 0.5 | 3.59 | 0.695 | 40.57 | 0.5995 | 0.5956 | +0.055 ± 0.016 |
+| `w3_1.0` | 1.0 | 3.76 | 0.692 | 39.66 | 0.6195 | 0.6139 | +0.074 ± 0.016 |
+| `w3_2.0` | 2.0 | 3.96 | 0.684 | 37.53 | 0.6645 | 0.6577 | +0.130 ± 0.017 |
+
+Four columns move together and none of them is a coincidence of one cell: the judge score
+buys +0.59 across the grid, and `marker_rate` follows it up by +0.12 z, register distance by
++0.106, held-out distance by +0.102, BLEU down by 3.05 and Kiwi down by 0.013. The exploratory
+`judge_only` cell sits at the end of the same axis — judge 4.30, marker dz +0.250, the worst
+held-out distance of any cell read.
+
+The held-out reading is the one with an interval on it. Paired against a uniform draw from
+the same pool, 2,000 resamples, 95 % CI, negative meaning closer to the target register:
+
+| cell | held-out − random anchor | 95 % CI | p |
+|---|---:|---|---:|
+| `w3_0.0` | +0.0057 | [−0.0600, +0.0691] | 0.857 |
+| `w3_0.5` | +0.0492 | [−0.0187, +0.1104] | 0.147 |
+| `w3_1.0` | +0.1050 | [+0.0437, +0.1648] | 0.001 |
+| `w3_2.0` | +0.1583 | [+0.0963, +0.2154] | 0.000 |
+
+The metric-only cell is indistinguishable from picking at random on features it does not
+optimize, which is what a reward with no register term should look like. Both judge-weighted
+cells are significantly *worse* than random on those features while being much better on the
+judge's own rubric. **No cell in the grid beats the random anchor on the held-out features.**
+
+### Why this is the judge signal and not the summand
+
+Three checks separate the explanation from its alternatives.
+
+*Not the form of the term.* The gated cells remove the judge from the sum entirely and use it
+as a feasibility veto instead. On the groups both cells pick, `gate_j3`, `gate_j4` and
+`gate_j5` sit +0.106, +0.103 and +0.136 worse in register distance than `w3_0.0`. Making the
+judge a filter rather than a summand does not escape the pattern.
+
+*Not selection pressure as such.* `chrf_only` and `stylo_only` are the only cells whose picks
+move `marker_rate` *down* (−0.012 and −0.054) and the only two whose held-out distance beats
+the anchor at all, neither significantly (p = 0.115, 0.147). Reranking hard on a non-judge
+component does not inflate markers.
+
+*Not a degenerate-reward artifact.* Every grid cell separates 98–99 % of groups at G = 4, and
+per-component degeneracy at N = 8 is 1 % for `bleu`, `kiwi`, `chrf` and `stylo` against 4 %
+for `judge`. The cells are ranking on real spread, and the judge is the *least* discriminative
+component of the five while being the one whose weight moves every other measure.
+
+### What this does not establish
+
+The `marker_rate` shift of `w3_2.0` at G = 4 is +0.130 ± 0.017, below the 0.23 `min_delta`
+floor of the drift rule, so `over_threshold` is false for the judge arm as well as for the
+selected one. Single-step best-of-N does not clear the band the stop rule needs. Whether five
+hundred steps of GRPO accumulate past it is exactly the open question, and nothing here
+answers it: best-of-N reranks samples from a frozen policy, while training moves the
+distribution those samples are drawn from and compounds each step's shift into the next.
+
+The direction is confirmed. The magnitude at training time is not, and a run that drifts by
+less than 0.23 would leave the stop rule silent without contradicting a single prediction in
+the pre-registration.
+
+These are dev-slice figures. They select ω and are never reported as a result; val remains
+the reported split.
+
+### What changed
+
+* `docs/preregistration_rlsf.md` (new) — the arms, the predictions, the stop rule, the seal,
+  and a disclosure of what its author had already seen. Its addendum records that selection
+  ranks `w3_2.0` last, and that RLSF-Judge is run anyway.
+* `outputs/rlsf/pool_omega.json` — regenerated. It now carries `seed`, `subgroup.picks` and
+  `selection.ranked_at: 4`, none of which the 2026-08-11 file had.
+
+### Verification
+
+* `python manage.py rlsf_omega` reports `0` unmeasured samples and 3,912 feasible of 3,992 in
+  every cell; the 80 infeasible are length-band violations, identical across cells because
+  feasibility does not depend on the weights. No judge verdict in the pool failed to parse,
+  so the feasibility asymmetry the pre-registration flags for `--skip_judge` is zero on this
+  pool.
+* The judge's own distribution is not saturated: 241 / 1,105 / 926 / 848 / 872 samples at
+  1–5, mean 3.252, sd 1.241. The rubric discriminates; the rise to 3.96 is selection, not a
+  ceiling effect.
+* `outputs/rlsf/pool.jsonl` was not rewritten. Its judge block remains the 3,992 calls of
+  2026-08-11 at $0.3013, recorded in `outputs/rlsf/pool_manifest.json`.
+
+### Reproduction
+
+```
+python manage.py rlsf_omega
+```
+
+### Limitations and risks
+
+The four cells are not four independent observations. They rank the same 3,992 completions
+under different weightings, so the monotone columns above are one pool read four ways and
+their errors are not independent of each other. The paired bootstrap against the random
+anchor is the only reading here with a calibrated interval.
+
+`docs/budget.md` prices the pool at 3,992 calls / $0.29 in *What remains to be spent*, but
+its *Spend to date* table still ends at 2026-08-08 and does not carry the pool's actual
+$0.3013. The forecast was accurate; the record is incomplete, and this entry does not fix it.
+
+---
+
+## 2026-08-12 — What `87659be` invalidates in the ω artifacts, and what it does not
+
+### Summary
+
+`87659be` (2026-08-11 18:36 +0300) changed the reward floor and the ω pick and selection
+logic. Both `outputs/rlsf/smoke_steps.jsonl` (2026-08-09) and `outputs/rlsf/pool_omega.json`
+(2026-08-11 16:14) predate it, so neither was computed under the current code. Read one
+artifact at a time, that provenance implies less than it appears to. The floor change is
+numerically inert on every path that writes an artifact; the pick and ranking changes are
+not, and they fall on `pool_omega.json` alone.
+
+The floor is now `_FLOOR_MARGIN · ||ω||` (`src/rlsf/reward.py:315`) rather than a constant.
+Every production caller builds its `RewardConfig` through `reward_config`
+(`src/rlsf/config.py:97`) or `_cells` (`src/rlsf/config.py:116`), and both end in
+`unit_omega()`. At `||ω|| = 1` the scaled margin is 1.0, which is the constant it replaced.
+The fourteen weight vectors committed in `pool_omega.json` all measure to unit norm within
+1e-4, so no reward value in either artifact would move. The change bites only a
+hand-constructed config, which is why the test that pins it
+(`tests/test_rlsf_smoke.py:117`) asserts `-√3` for an unnormalized (1, 1, 1).
+
+`smoke_steps.jsonl` therefore needs no rerun on account of `87659be`. It records reward mean
+and standard deviation, per-component means and degeneracy — no picks — and every one of
+those figures is what the current code would produce. Rerunning it would spend judge calls
+to reproduce the same numbers under a different sampling draw.
+
+`pool_omega.json` does need regenerating, for the pick and ranking changes rather than the
+floor. Its `subgroup` blocks carry no `picks` key and its `selection` block carries no
+`ranked_at`: the file still selects on the reading at N = 8, whereas selection now ranks on
+the reading at the training group size G = 4. Groups with flat reward also now have their
+pick drawn at the run seed instead of taken in sampling order — 24 of 998 subgroups in
+`w3_0.0` alone. The regeneration re-ranks cached component scores held in `pool.jsonl` and
+costs no API calls.
+
+### The pool's completions are valid; only the ranking over them was ever wrong
+
+`outputs/rlsf/pool.jsonl` has not been rewritten since `51e3dd8`, whose message reads *pool
+run with bug*, and the two later *rerun rlsf pool* commits touched only the notebook and
+`pool_omega.json`. Recording this explicitly, because every ω cell ranks over that file.
+
+The bug was fixed by `29c540a`, which touched `notebooks/rlsf_pool_colab.ipynb` and
+`notebooks/rlsf_smoke_colab.ipynb` and no source file. A reporting cell read `concurrency`
+from the usage sidecar, which does not carry that key; the fix reads it from the config. The
+`KeyError` was raised after sampling and judging had finished and written their artifacts,
+and it affected the printed rate summary, not the completions or their scores.
+
+### Verification
+
+* `git log 51e3dd8..HEAD -- src/` does not list `src/rlsf/pool.py`. The sampling path is
+  byte-identical to the one that wrote the pool.
+* `sha256sum outputs/rlsf/pool.jsonl` matches `hashes.pool.jsonl` in
+  `outputs/rlsf/pool_manifest.json`, and `data/splits/rlsf_dev.jsonl` matches the input hash
+  the same manifest records. The pool's input and output are both the ones it was built from.
+* The `||ω|| = 1` claim was checked on the file rather than argued from the config: the
+  `weights` block of each cell and exploratory cell in `pool_omega.json` has L2 norm 1.000.
+
+### Limitations and risks
+
+The inertness of the floor rescaling is a property of `unit_omega()` being applied on both
+config paths, not of the floor itself. A caller that builds a `RewardConfig` directly, or a
+future path that drops the normalization, gets a different floor and a different reward
+scale, and any artifact it writes is not comparable to the ones described here.
+
+Re-ranking `pool_omega.json` under the current code may name a different winning cell, since
+it ranks at G = 4 on a reading the old file never wrote. The previous selection of `w3_0.0`
+should not be carried forward into the regenerated file's reading.
+
+---
+
 ## 2026-08-09 — Drift stop: the band set from a simulated false-alarm rate
 
 ### Summary
