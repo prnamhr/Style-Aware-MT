@@ -224,6 +224,7 @@ def _stylo_centroid(cfg: dict, rc) -> dict | None:
 def make_reward_fn(
     *,
     rc,
+    cell: str | None = None,
     group_size: int,
     kiwi,
     judge,
@@ -276,7 +277,8 @@ def make_reward_fn(
         # rather than one replayed later against a rule that may have been edited since.
         verdict = monitor.update(log)
         with step_log.open("a", encoding="utf-8") as fh:
-            fh.write(json.dumps({**log.as_dict(), "drift": verdict.as_dict()}) + "\n")
+            # Named per line, so lines pooled across arms stay attributable without the sidecar.
+            fh.write(json.dumps({"cell": cell, **log.as_dict(), "drift": verdict.as_dict()}) + "\n")
 
         if verdict.tripped:
             state.stop_reason = verdict.reason
@@ -435,6 +437,7 @@ def main() -> None:
     with _kiwi_or_none(kiwi_cfg, skip_kiwi) as kiwi:
         reward_fn = make_reward_fn(
             rc=rc,
+            cell=args.cell,
             group_size=group_size,
             kiwi=kiwi,
             judge=judge,

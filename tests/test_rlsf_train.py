@@ -324,6 +324,7 @@ def test_a_step_line_carries_the_drift_verdict_the_run_acted_on(cfg, tmp_path):
     state = LoopState()
     reward_fn = make_reward_fn(
         rc=arm_reward_config(cfg, "w3_0.0"),
+        cell="w3_0.0",
         group_size=4,
         kiwi=None,
         judge=None,
@@ -339,6 +340,7 @@ def test_a_step_line_carries_the_drift_verdict_the_run_acted_on(cfg, tmp_path):
     reward_fn(None, hyps, source=["s"] * 8, reference=["the fox jumps over"] * 8)
 
     line = json.loads(step_log.read_text(encoding="utf-8").splitlines()[0])
+    assert line["cell"] == "w3_0.0"
     assert line["drift"]["tripped"] is False
     assert "not complete" in line["drift"]["reason"]
     assert line["z_se"], "the monitor needs a clustered error to size its band"
