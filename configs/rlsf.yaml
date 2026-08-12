@@ -4,7 +4,8 @@ generator:
   provider: local
   model: Qwen/Qwen2.5-7B-Instruct         # locked base, unquantized, as in every condition
   adapter_path: models/peft_lora_r32_lr2e-4/checkpoint-1358   # RLSF init = frozen PEFT cell
-  max_tokens: 1024
+  max_tokens: 256                         # covers the 2x-ref feasibility band (dev refs p95=61 tok,
+                                          #  0% in-band truncation); 1024 was ~4x the GRPO activation
   dtype: bfloat16
   device_map: auto
   load_in_4bit: false                     # quantizing would redefine the frozen control
@@ -44,6 +45,8 @@ rlsf:
     logging_steps: 1                      # one StepLog JSON line per rollout (reward.py:334)
     gpu_memory_fraction: 0.85             # applied only when reward.kiwi.gpus > 0, so the
                                           #  COMET encoder is not left to OOM on 0.4 GB
+    save_every_rollouts: 10               # 0 disables; rollouts between GRPO checkpoints
+    save_total_limit: null          
 
 
   reward:

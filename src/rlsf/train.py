@@ -54,7 +54,7 @@ class BudgetExceeded(RuntimeError):
 
 @dataclass
 class JudgeBudget:
-    """The call and dollar caps, checked before each block rather than after it."""
+    """The call and dollar caps, checked before each block."""
 
     max_calls: int
     max_spend_usd: float
@@ -68,6 +68,8 @@ class JudgeBudget:
                 f"past caps.max_judge_calls of {self.max_calls}. Re-price the arm in "
                 f"docs/budget.md and raise the cap deliberately (budget rule 3)."
             )
+        # spend_usd trails by one block -- a block's cost is known only after its calls
+        # return, so the block that crosses the dollar cap runs to completion before this trips.
         if self.spend_usd >= self.max_spend_usd:
             raise BudgetExceeded(
                 f"judge spend has reached ${self.spend_usd:.4f} against "
@@ -133,15 +135,10 @@ def reserve_vram(fraction: float | None) -> None:
     print(f"trainer capped at {fraction:.0%} of the card; the rest is the COMET worker's")
 
 
-def load_policy(*, model_id: str, adapter_path: str | None, dtype: str, device_map):
-    """The policy as a trainable ``PeftModel``.
-
-    A pretrained adapter is loaded with ``is_trainable=True`` -- the saved
-    ``adapter_config.json`` carries ``inference_mode: true``, which would otherwise freeze
-    every LoRA parameter and train nothing. With no adapter (the dry run) a fresh LoRA of
-    the frozen checkpoint's shape is attached instead, so the trainer takes the same
-    pretrained-adapter branch and copies a frozen ``ref`` adapter for the KL term.
-    """
+def load_policy(*, model_id: str, adapter_path: str | None, ref_adapter_path: str | None,
+                dtype: str, device_map):
+    """The policy as a trainable PeftModel, with the frozen KL reference loaded as a second
+    "ref" adapter so TRL anchors to the init, not the bare base."""
     import torch
     from transformers import AutoModelForCausalLM, AutoTokenizer
 
@@ -155,6 +152,14 @@ def load_policy(*, model_id: str, adapter_path: str | None, dtype: str, device_m
         from peft import PeftModel
 
         model = PeftModel.from_pretrained(model, adapter_path, is_trainable=True)
+        if ref_adapter_path:
+            # Without a "ref" adapter TRL's disable_adapter reverts to the bare base, so KL
+            # would anchor to base rather than the frozen init (grpo_trainer use_adapter).
+            model.load_adapter(ref_adapter_path, adapter_name="ref", is_trainable=False)
+            model.set_adapter("default")
+            assert "ref" in model.peft_config, "ref adapter did not register; KL would anchor to base"
+            live = [n for n, p in model.named_parameters() if "ref" in n and p.requires_grad]
+            assert not live, f"ref adapter is trainable ({len(live)} params); the KL anchor would drift"
     else:
         from peft import LoraConfig, get_peft_model
 
@@ -201,6 +206,13 @@ def sidecar(step_log: Path, suffix: str) -> Path:
 def run_manifest(cfg: dict, *, cell: str | None, rc, steps: int, held_flat: list[str]) -> dict:
     """What this arm is, written before the first rollout so a crashed run still says."""
     gen, rlsf = cfg["generator"], cfg["rlsf"]
+    beta = rlsf["reference"]["beta"]
+    if not beta:
+        kl_anchor = None                                      # KL off; no reference used
+    elif gen.get("adapter_path"):
+        kl_anchor = rlsf["reference"].get("adapter_path") or gen["adapter_path"]
+    else:
+        kl_anchor = f"base:{gen['model']}"                    # no init adapter: disable reverts to base
     return {
         "cell": cell or "config reward: block",
         "omega": {name: round(w, 6) for name, w in rc.weights.items()},
@@ -215,7 +227,8 @@ def run_manifest(cfg: dict, *, cell: str | None, rc, steps: int, held_flat: list
         },
         "rollout": dict(rlsf["rollout"]),
         "train": dict(rlsf["train"]),
-        "beta": rlsf["reference"]["beta"],
+        "beta": beta,
+        "kl_anchor": kl_anchor,
         "seed": rlsf["seed"],
         "normalization": rc.normalization,
         "on_violation": rc.on_violation,
@@ -363,9 +376,9 @@ def main() -> None:
         skip_judge = skip_kiwi = True
         steps = args.steps or 2
         # Two prompts a rollout and a short completion budget, not sixteen and 1024: this
-        # checks signatures on a CPU, not throughput. mu, beta and the reward path are
-        # left at their configured values, so the branches the GPU run takes are the ones
-        # exercised here -- including the frozen `ref` adapter TRL copies when beta > 0.
+        # checks signatures on a CPU, not throughput. mu, beta and the reward path are left
+        # at their configured values. The ref-adapter branch is not exercised: dry_run has no
+        # init adapter, so TRL disables adapters to the bare 0.5B base for the KL reference.
         rlsf["rollout"]["prompts_per_step"] = 2
         # One sequence at a time: a 151,936-token vocabulary makes the fp32 logits of a
         # four-sequence micro-batch large enough to swap on an ordinary development box.
@@ -436,9 +449,13 @@ def main() -> None:
     kiwi_cfg = rlsf["reward"]["kiwi"]
     if not skip_kiwi and kiwi_cfg.get("gpus"):
         reserve_vram(rlsf["train"].get("gpu_memory_fraction"))
+    ref_adapter_path = None
+    if rlsf["reference"]["beta"] and cfg["generator"].get("adapter_path"):
+        ref_adapter_path = rlsf["reference"].get("adapter_path") or cfg["generator"]["adapter_path"]
     model, tokenizer = load_policy(
         model_id=cfg["generator"]["model"],
         adapter_path=cfg["generator"].get("adapter_path"),
+        ref_adapter_path=ref_adapter_path,
         dtype=cfg["generator"]["dtype"],
         device_map=cfg["generator"].get("device_map"),
     )

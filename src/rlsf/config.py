@@ -210,9 +210,17 @@ def grpo_args(
         "gradient_accumulation_steps": generation_batch_size // micro,
         "max_steps": optimizer_steps(cfg, steps),
         "logging_steps": train["logging_steps"],
-        "save_strategy": "no",
         "report_to": [],
     }
+    # A drift stop fires only after stop.window rollouts above the band, so the final adapter
+    # is drifted; periodic checkpoints keep earlier rollouts as checkpoint-N/ dirs to recover.
+    save_every = train.get("save_every_rollouts") or 0
+    if save_every:
+        fields["save_strategy"] = "steps"
+        fields["save_steps"] = save_every * train["num_iterations"]
+        fields["save_total_limit"] = train.get("save_total_limit")
+    else:
+        fields["save_strategy"] = "no"
     args = GRPOConfig(**{**fields, **overrides})
     assert_single_normalization(args)
     if args.steps_per_generation != args.gradient_accumulation_steps:
