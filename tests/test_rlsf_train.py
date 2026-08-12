@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import json
+import math
+from pathlib import Path
 from types import SimpleNamespace
 
 import numpy as np
@@ -16,7 +19,16 @@ from src.rlsf.config import (
     rollout_batch,
 )
 from src.rlsf.reward import compute_rewards
-from src.rlsf.train import BudgetExceeded, JudgeBudget, completion_text
+from src.rlsf.train import (
+    BudgetExceeded,
+    JudgeBudget,
+    LoopState,
+    arm_path,
+    arm_reward_config,
+    completion_text,
+    make_reward_fn,
+    run_manifest,
+)
 
 CENTROID = {
     "features": ["lex_density", "ttr", "root_ttr", "marker_rate"],
@@ -235,3 +247,111 @@ def test_the_budget_refuses_once_the_measured_spend_reaches_the_dollar_cap():
     budget.spend_usd = 1.0
     with pytest.raises(BudgetExceeded, match="max_judge_spend_usd"):
         budget.reserve(64)
+
+
+# the pre-registered arms
+
+
+# docs/preregistration_rlsf.md, "The two arms": omega at unit norm, (bleu, kiwi, judge).
+PREREGISTERED = {
+    "w3_0.0": (0.7071, 0.7071, 0.0),
+    "w3_2.0": (0.4082, 0.4082, 0.8165),
+}
+
+
+@pytest.mark.parametrize("cell,omega", PREREGISTERED.items())
+def test_the_trained_arms_reach_the_optimizer_at_the_omega_pre_registered(cfg, cell, omega):
+    rc = arm_reward_config(cfg, cell)
+    assert (rc.w_bleu, rc.w_kiwi, rc.w_judge) == pytest.approx(omega, abs=5e-5)
+    assert math.hypot(rc.w_bleu, rc.w_kiwi, rc.w_judge) == pytest.approx(1.0)
+
+
+def test_the_arms_are_not_the_reward_block_the_config_declares(cfg):
+    """Without --cell the loop trains omega = (1,1,1)/sqrt(3), which is neither arm. The
+    difference is not only the judge term: the metric weights move by 1.22x, and under a
+    weighted sum that is an effective step size."""
+    base = reward_config(cfg)
+    metric = arm_reward_config(cfg, "w3_0.0")
+    assert base.w_judge > 0
+    assert metric.w_bleu / base.w_bleu == pytest.approx(math.sqrt(3) / math.sqrt(2), abs=1e-6)
+
+
+def test_an_exploratory_cell_cannot_be_trained(cfg):
+    # They are re-ranked on the cached pool, after it was read. Training one would put a
+    # post hoc cell into the grid the pre-registered selection rule draws from.
+    with pytest.raises(SystemExit, match="not a pre-registered grid cell"):
+        arm_reward_config(cfg, "mix_stylo")
+
+
+def test_the_two_arms_do_not_write_to_one_anothers_paths(cfg):
+    logs = {arm_path(cfg["output"]["step_log"], cell) for cell in PREREGISTERED}
+    adapters = {arm_path(cfg["output"]["adapter_dir"], cell) for cell in PREREGISTERED}
+    assert len(logs) == len(adapters) == 2
+    assert arm_path(cfg["output"]["step_log"], None) == Path(cfg["output"]["step_log"])
+
+
+def test_holding_the_judge_flat_leaves_the_ablation_arms_reward_untouched(cfg):
+    """Why RL-Metric may run --skip_judge and still be the arm as declared: at omega_3 = 0
+    a constant judge and a real one give the same reward, so the arm buys only the matched
+    feasibility mask docs/preregistration_rlsf.md sizes on the pool."""
+    rc = arm_reward_config(cfg, "w3_0.0")
+    n, group_size = 32, 4
+    rng = np.random.default_rng(3)
+    hyps = [" ".join(["w"] * 12) for _ in range(n)]
+    components = {"bleu": rng.normal(30, 8, n).tolist(), "kiwi": rng.normal(0.7, 0.1, n).tolist()}
+
+    def rewards(judge):
+        out, _, _ = compute_rewards(
+            ["s"] * n, hyps, hyps,
+            cfg=rc,
+            group_size=group_size,
+            component_scores={**components, "judge": judge},
+            centroid=CENTROID,
+        )
+        return out
+
+    flat = rewards([1.0] * n)
+    scored = rewards(rng.integers(1, 6, n).astype(float).tolist())
+    assert flat == pytest.approx(scored)
+
+
+def test_a_step_line_carries_the_drift_verdict_the_run_acted_on(cfg, tmp_path):
+    # The pre-registration reports the verdict at every step. Replaying it later reads
+    # whatever rule is on disk then, which is not necessarily the one that halted the run.
+    from src.rlsf.stop import DriftMonitor
+
+    step_log = tmp_path / "steps.jsonl"
+    state = LoopState()
+    reward_fn = make_reward_fn(
+        rc=arm_reward_config(cfg, "w3_0.0"),
+        group_size=4,
+        kiwi=None,
+        judge=None,
+        template=None,
+        centroid=CENTROID,
+        monitor=DriftMonitor(),
+        step_log=step_log,
+        judge_workers=1,
+        budget=JudgeBudget(0, 0.0),
+        state=state,
+    )
+    hyps = [f"however the {'long ' * i}fox jumps" for i in range(8)]
+    reward_fn(None, hyps, source=["s"] * 8, reference=["the fox jumps over"] * 8)
+
+    line = json.loads(step_log.read_text(encoding="utf-8").splitlines()[0])
+    assert line["drift"]["tripped"] is False
+    assert "not complete" in line["drift"]["reason"]
+    assert line["z_se"], "the monitor needs a clustered error to size its band"
+
+
+def test_the_manifest_names_the_arm_and_what_was_held_flat(cfg):
+    man = run_manifest(
+        cfg, cell="w3_0.0", rc=arm_reward_config(cfg, "w3_0.0"), steps=500, held_flat=["judge"]
+    )
+    assert man["cell"] == "w3_0.0"
+    assert man["omega"]["judge"] == 0.0
+    assert man["omega_norm"] == pytest.approx(1.0)
+    assert man["held_flat"] == ["judge"]
+    # The comparison is only between arms trained under one drift rule and one initialization.
+    assert man["drift_rule"]["min_delta"] == 0.23
+    assert man["generator"]["adapter_path"] == cfg["rlsf"]["reference"]["adapter_path"]

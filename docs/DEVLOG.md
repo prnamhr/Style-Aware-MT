@@ -108,6 +108,84 @@ their history.
 
 ---
 
+## 2026-08-12 — The training loop could not select an arm
+
+### Summary
+
+`manage.py rlsf_train` had no way to name a weight-grid cell. It read `rlsf.reward` and
+trained ω = (1, 1, 1)/√3, which is neither pre-registered arm. `--cell` selects one of the
+four `weight_grid.cells` by name, and defaults its step log and adapter directory off that
+name so the arms cannot overwrite each other. The step log now carries the drift verdict the
+run acted on, and a manifest is written beside it. `notebooks/rlsf_train_colab.ipynb` (new)
+runs both arms in the pre-registered order.
+
+### What changed
+
+* `src/rlsf/train.py:165` — `arm_reward_config` resolves `--cell` through
+  `grid_reward_configs`, so a named arm arrives at unit ‖ω‖ like every other config path.
+  Only the pre-registered cells are reachable; an exploratory cell raises.
+* `src/rlsf/train.py:177` — `arm_path` tags the default step log and adapter directory with
+  the cell name: `outputs/rlsf/steps_w3_0.0.jsonl`, `models/rlsf_grpo_w3_2.0`. An explicit
+  `--out` or `--adapter_out` is used verbatim.
+* `src/rlsf/train.py:188` — `run_manifest`, written before the first rollout and rewritten
+  with the outcome at the end: ω, what was held flat, the initialization, the drift rule,
+  and the step a halt happened at.
+* `src/rlsf/train.py:228` — the drift verdict is read before the step line is written and
+  serialized into it under `drift`.
+* `src/rlsf/train.py:396` — "this is a wiring check, not a training result" is no longer
+  printed when the component held flat is one the cell weights at zero.
+* `src/rlsf/train.py:402` — a non-empty step log for the same arm is refused without
+  `--overwrite`.
+* `src/rlsf/train.py:448` — the resolved cell reaches both the reward function and
+  `_stylo_centroid`, which previously took the base `reward:` block.
+* `notebooks/rlsf_train_colab.ipynb` — new.
+* `tests/test_rlsf_train.py` — the two arms' ω against the pre-registration table, the
+  refusal of an exploratory cell, the per-arm paths, the flat-judge equivalence at ω₃ = 0,
+  the drift verdict in the step line, and the manifest.
+
+### Rationale
+
+The gap mattered in a way the weight names hide. ω = (1, 1, 1)/√3 differs from RL-Metric's
+(0.7071, 0.7071, 0) in more than the judge term: the two metric weights are 1.22× apart, and
+under a weighted sum of z-scores that is an effective step size, which is the confound
+`unit_omega` exists to prevent. Trained from the config as it stood, the ablation arm would
+have taken a smaller step than the arm it is the control for, and lr 1e-6 would have meant
+something different in each.
+
+Serializing the drift verdict rather than replaying it later is the same commitment the
+pre-registration makes about the rule: a verdict recomputed after the fact is read against
+whatever rule is on disk then. The rule is pinned by `tests/test_rlsf_config.py`, so a
+replay would agree today; the point is that the log states what halted the run without
+depending on that.
+
+### Verification
+
+`python -m pytest tests/ -q` — 320 passed. `python manage.py rlsf_train --dry_run --cell
+w3_0.0` prints `omega w3_0.0 = bleu 0.7071, kiwi 0.7071, judge 0.0000` and reaches the
+optimizer on CPU.
+
+### Reproduction
+
+```
+python manage.py rlsf_train --cell w3_0.0 --steps 500 --skip_judge
+python manage.py rlsf_train --cell w3_2.0 --steps 500 --yes
+```
+
+### Limitations and risks
+
+* There is no resume. A dropped session restarts the arm from its initialization, and the
+  partial log has to be moved aside or overwritten deliberately.
+* `--cell` defaults to none, which still trains the `reward:` block. Nothing refuses an
+  unnamed run; the arm is recorded in the manifest rather than enforced at the CLI.
+* The manifest's `halted_at_step` is the rollout index the reward function last logged. It
+  is the same number as the last `step` in the log, not an independent record of it.
+* The verdict's band fields are nan until the baseline and window are complete, so the
+  first 25 lines of every run carry bare `NaN`. Python reads it; `jq` does not. The step
+  log already emitted nan for an unmeasured component, so this widens an existing quirk
+  rather than introducing one.
+
+---
+
 ## 2026-08-12 — Two arms pre-registered, and the Goodhart pattern already visible in the pool
 
 ### Summary

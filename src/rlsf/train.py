@@ -2,7 +2,8 @@
 RLSF training: GRPO over the frozen PEFT checkpoint, rewarded by src.rlsf.reward.
 
 Usage:
-    python manage.py rlsf_train --steps 500 --yes
+    python manage.py rlsf_train --cell w3_0.0 --steps 500 --skip_judge   # RL-Metric, free
+    python manage.py rlsf_train --cell w3_2.0 --steps 500 --yes          # RLSF-Judge
     python manage.py rlsf_train --dry_run           # CPU, 0.5B, 2 rollouts, no paid calls
 """
 
@@ -17,6 +18,7 @@ from pathlib import Path
 from src.infer.run import build_zeroshot_user
 from src.rlsf.config import (
     drift_rule,
+    grid_reward_configs,
     grpo_args,
     judge_concurrency,
     load_config,
@@ -160,6 +162,56 @@ def load_policy(*, model_id: str, adapter_path: str | None, dtype: str, device_m
     return model, tokenizer
 
 
+def arm_reward_config(cfg: dict, cell: str | None):
+    if cell is None:
+        return reward_config(cfg)
+    cells = dict(grid_reward_configs(cfg))
+    if cell not in cells:
+        raise SystemExit(
+            f"--cell {cell!r} is not a pre-registered grid cell. Available: {sorted(cells)}. "
+            f"Exploratory cells are re-ranked on the cached pool, never trained."
+        )
+    return cells[cell]
+
+
+def arm_path(path: str | Path, cell: str | None) -> Path:
+    """A default output path tagged with the arm, so two arms cannot overwrite each other."""
+    path = Path(path)
+    return path if cell is None else path.with_name(f"{path.stem}_{cell}{path.suffix}")
+
+
+def sidecar(step_log: Path, suffix: str) -> Path:
+    """A file named after the step log it belongs to: steps.jsonl -> steps_<suffix>."""
+    return step_log.with_name(f"{step_log.stem}_{suffix}")
+
+
+def run_manifest(cfg: dict, *, cell: str | None, rc, steps: int, held_flat: list[str]) -> dict:
+    """What this arm is, written before the first rollout so a crashed run still says."""
+    gen, rlsf = cfg["generator"], cfg["rlsf"]
+    return {
+        "cell": cell or "config reward: block",
+        "omega": {name: round(w, 6) for name, w in rc.weights.items()},
+        "omega_norm": round(math.hypot(*rc.weights.values()), 6),
+        "held_flat": held_flat,
+        "steps_requested": steps,
+        "generator": {
+            "model": gen["model"],
+            "adapter_path": gen.get("adapter_path"),
+            "load_in_4bit": gen.get("load_in_4bit", False),
+            "max_tokens": gen["max_tokens"],
+        },
+        "rollout": dict(rlsf["rollout"]),
+        "train": dict(rlsf["train"]),
+        "beta": rlsf["reference"]["beta"],
+        "seed": rlsf["seed"],
+        "normalization": rc.normalization,
+        "on_violation": rc.on_violation,
+        "length_band": [rc.len_min_ratio, rc.len_max_ratio],
+        "drift_rule": vars(drift_rule(cfg)),
+        "train_file": cfg["data"]["train_file"],
+    }
+
+
 def _stylo_centroid(cfg: dict, rc) -> dict | None:
     """The reward-side centroid, loaded only for a cell that weights the stylometric term."""
     if not rc.w_stylo:
@@ -184,12 +236,7 @@ def make_reward_fn(
     budget: JudgeBudget,
     state: LoopState,
 ):
-    """The single reward function TRL calls once per rollout.
-
-    Returns the group-normalized, omega-weighted combination from ``compute_rewards``.
-    ``None`` marks a sample the reward could not measure: TRL excludes it from the group
-    baseline and zeroes its advantage, which is what ``on_violation: drop`` asks for.
-    """
+    """The single reward function TRL calls once per rollout."""
 
     def style_reward(prompts, completions, completion_ids=None, **kwargs) -> list[float | None]:
         del prompts, completion_ids
@@ -225,10 +272,12 @@ def make_reward_fn(
             centroid=centroid,
             step=state.rollout,
         )
-        with step_log.open("a", encoding="utf-8") as fh:
-            fh.write(json.dumps(log.as_dict()) + "\n")
-
+        # Read before the line is written, so the log carries the verdict the run acted on
+        # rather than one replayed later against a rule that may have been edited since.
         verdict = monitor.update(log)
+        with step_log.open("a", encoding="utf-8") as fh:
+            fh.write(json.dumps({**log.as_dict(), "drift": verdict.as_dict()}) + "\n")
+
         if verdict.tripped:
             state.stop_reason = verdict.reason
         state.rollout += 1
@@ -259,6 +308,11 @@ def make_stop_callback(state: LoopState):
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Train the RLSF policy with GRPO.")
     parser.add_argument("--config", default="configs/rlsf.yaml")
+    parser.add_argument(
+        "--cell",
+        default=None,
+        help="pre-registered weight_grid cell to train, e.g. w3_0.0; default: the reward: block",
+    )
     parser.add_argument("--steps", type=int, default=None, help="rollouts; default: caps.max_steps")
     parser.add_argument("--limit", type=int, default=None, help="training rows to read")
     parser.add_argument("--skip_judge", action="store_true", help="no paid calls; judge held flat")
@@ -267,6 +321,9 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--out", default=None, help="default: output.step_log")
     parser.add_argument("--adapter_out", default=None, help="default: output.adapter_dir")
     parser.add_argument("--yes", action="store_true", help="confirm the spend and proceed")
+    parser.add_argument(
+        "--overwrite", action="store_true", help="discard an existing step log for this arm"
+    )
     parser.add_argument(
         "--dry_run",
         action="store_true",
@@ -311,6 +368,7 @@ def main() -> None:
             f"docs/budget.md and raise the cap deliberately."
         )
 
+    rc = arm_reward_config(cfg, args.cell)
     per_rollout = rollout_batch(cfg)
     judge_calls = 0 if skip_judge else steps * per_rollout
     print(
@@ -318,21 +376,43 @@ def main() -> None:
         f"{group_size} = {per_rollout} completions/rollout, "
         f"{optimizer_steps(cfg, steps)} optimizer steps at mu={rlsf['train']['num_iterations']}"
     )
+    print(
+        f"      omega {args.cell or 'reward: block'} = "
+        + ", ".join(f"{name} {w:.4f}" for name, w in rc.weights.items())
+    )
+    held_flat = []
     if skip_judge:
+        held_flat.append("judge")
         print("      judge skipped: 0 paid calls, judge component held flat")
     else:
         print(f"      {judge_calls} judge calls at concurrency {judge_concurrency(cfg)}")
         if not args.yes:
             raise SystemExit("refusing to spend without --yes (budget rule 1)")
     if skip_kiwi:
+        held_flat.append("kiwi")
         print("      kiwi skipped: adequacy component held flat")
-    if skip_judge or skip_kiwi:
+    # At omega_3 = 0 the judge score cannot enter the reward, so skipping it is the arm as
+    # declared rather than a component silently missing from a reward that weights it.
+    unweighted = {"judge": rc.w_judge == 0 and not rc.gated, "kiwi": rc.w_kiwi == 0}
+    if any(not unweighted[name] for name in held_flat):
         print("      this is a wiring check, not a training result")
 
-    step_log = Path(args.out or cfg["output"]["step_log"])
+    step_log = arm_path(args.out or cfg["output"]["step_log"], None if args.out else args.cell)
     step_log.parent.mkdir(parents=True, exist_ok=True)
+    if step_log.exists() and step_log.stat().st_size and not args.overwrite:
+        raise SystemExit(
+            f"{step_log} already holds a run of this arm. A halt is a result and is reported "
+            f"at the step it halted, not restarted over its own log: move it aside, or pass "
+            f"--overwrite if this rerun is a deliberate replacement."
+        )
     step_log.write_text("", encoding="utf-8")
-    adapter_out = Path(args.adapter_out or cfg["output"]["adapter_dir"])
+    adapter_out = arm_path(
+        args.adapter_out or cfg["output"]["adapter_dir"], None if args.adapter_out else args.cell
+    )
+    manifest = run_manifest(cfg, cell=args.cell, rc=rc, steps=steps, held_flat=held_flat)
+    sidecar(step_log, "manifest.json").write_text(
+        json.dumps(manifest, indent=2) + "\n", encoding="utf-8"
+    )
 
     training_args = grpo_args(cfg, output_dir=adapter_out, rollout_steps=steps, **overrides)
     model, tokenizer = load_policy(
@@ -354,13 +434,13 @@ def main() -> None:
 
     with _kiwi_or_none(kiwi_cfg, skip_kiwi) as kiwi:
         reward_fn = make_reward_fn(
-            rc=reward_config(cfg),
+            rc=rc,
             group_size=group_size,
             kiwi=kiwi,
             judge=judge,
             template=None if skip_judge else load_train_template(),
             centroid=load_centroid(cfg["data"]["centroid_file"]),
-            stylo_centroid=_stylo_centroid(cfg, reward_config(cfg)),
+            stylo_centroid=_stylo_centroid(cfg, rc),
             monitor=DriftMonitor(drift_rule(cfg)),
             step_log=step_log,
             judge_workers=judge_concurrency(cfg),
@@ -381,14 +461,27 @@ def main() -> None:
     print(f"\n{state.rollout} rollouts, adapter written to {adapter_out}, log {step_log}")
     if state.stop_reason:
         print(f"stopped early on the register-drift rule: {state.stop_reason}")
+    usage = None
     if judge is not None:
         usage = judge.usage.summary()
         usage["model"] = cfg["judge"]["model"]
         usage.update(state.timing.summary())
-        (step_log.parent / "train_usage.json").write_text(
+        sidecar(step_log, "usage.json").write_text(
             json.dumps(usage, indent=2) + "\n", encoding="utf-8"
         )
         print(f"judge usage: {usage}")
+
+    manifest["outcome"] = {
+        "rollouts": state.rollout,
+        # The step it halted at, which is what the arm is reported at.
+        "halted_at_step": state.rollout - 1 if state.stop_reason else None,
+        "stop_reason": state.stop_reason,
+        "adapter_dir": str(adapter_out),
+        "judge": usage,
+    }
+    sidecar(step_log, "manifest.json").write_text(
+        json.dumps(manifest, indent=2) + "\n", encoding="utf-8"
+    )
 
 
 def _kiwi_or_none(kiwi_cfg: dict, skip: bool):

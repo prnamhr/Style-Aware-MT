@@ -116,8 +116,6 @@ val, and the reported comparison has been written. After the seal is opened no f
 selection of any kind may occur — no cell, no checkpoint, no decoding setting chosen on a
 test figure. The final pass is a single scoring of already-frozen systems.
 
-The calendar date of Week 3 is [accurate information needed]: this repository records no
-dated schedule, only the phase ordering.
 
 ## What will be reported
 
