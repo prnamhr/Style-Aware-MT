@@ -16,7 +16,7 @@
     "overlap_metric": "bleu",
     "kiwi_model": "Unbabel/wmt22-cometkiwi-da",
     "held_flat": [],
-    "resumed_from_segment": 0
+    "resumed_from_segment": 499
   },
   "judge": {
     "model": "gpt-4o-mini",
@@ -24,16 +24,16 @@
     "seed": 42,
     "template_file": "prompts/judge_train.txt",
     "usage": {
-      "calls": 3992,
-      "prompt_tokens": 1716757,
-      "completion_tokens": 72931,
-      "cost_usd": 0.3013,
-      "per_call_usd": 7.547595190380761e-05,
-      "wall_s": 350.905,
-      "call_s": 2751.009,
-      "mean_call_s": 0.689,
-      "calls_per_s": 11.376,
-      "achieved_parallelism": 7.84
+      "calls": 0,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "cost_usd": 0.0,
+      "per_call_usd": 0.0,
+      "wall_s": 0.0,
+      "call_s": 0.0,
+      "mean_call_s": 0.0,
+      "calls_per_s": 0.0,
+      "achieved_parallelism": 0.0
     },
     "usage_covers": "this invocation only; a resumed pool paid for the rest earlier"
   },
