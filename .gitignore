@@ -24,6 +24,7 @@ env/
 .env
 
 # Generated artifacts
+logs/
 data/knn_index/
 __pycache__/
 

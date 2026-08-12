@@ -42,6 +42,8 @@ rlsf:
     scale_rewards: none
     per_device_train_batch_size: 4        # memory knob; grad accum is derived from it
     logging_steps: 1                      # one StepLog JSON line per rollout (reward.py:334)
+    gpu_memory_fraction: 0.85             # applied only when reward.kiwi.gpus > 0, so the
+                                          #  COMET encoder is not left to OOM on 0.4 GB
 
 
   reward:
@@ -58,6 +60,8 @@ rlsf:
       batch_size: 16
       # COMET runs in .venv-comet; the worker is long-lived across steps (kiwi.py:37).
       python: .venv-comet/bin/python
+      # 0 keeps the encoder off the training card: slower, but it does not compete for
+      # the 32 GB the policy already fills. At 1 it takes gpu_memory_fraction's remainder.
       gpus: 0
 
   weight_grid:

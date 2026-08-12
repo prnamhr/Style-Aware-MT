@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -118,6 +119,18 @@ def build_dataset(cfg: dict, split_file: str | Path, limit: int | None = None):
     if not rows:
         raise ValueError(f"{split_file} yielded no rows")
     return Dataset.from_list(rows)
+
+
+def reserve_vram(fraction: float | None) -> None:
+    """Cap this process's share of the card so a co-resident COMET worker can allocate."""
+    if not fraction:
+        return
+    import torch
+
+    if not torch.cuda.is_available():
+        return
+    torch.cuda.set_per_process_memory_fraction(float(fraction))
+    print(f"trainer capped at {fraction:.0%} of the card; the rest is the COMET worker's")
 
 
 def load_policy(*, model_id: str, adapter_path: str | None, dtype: str, device_map):
@@ -335,6 +348,9 @@ def _parse_args() -> argparse.Namespace:
 
 
 def main() -> None:
+    # Read once, when the CUDA allocator initializes: a 7B policy plus a frozen reference
+    # adapter fragments the arena badly enough that a free-but-scattered gigabyte fails.
+    os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
     args = _parse_args()
     cfg = load_config(args.config, require_caps=not args.dry_run)
     rlsf = cfg["rlsf"]
@@ -417,6 +433,9 @@ def main() -> None:
     )
 
     training_args = grpo_args(cfg, output_dir=adapter_out, rollout_steps=steps, **overrides)
+    kiwi_cfg = rlsf["reward"]["kiwi"]
+    if not skip_kiwi and kiwi_cfg.get("gpus"):
+        reserve_vram(rlsf["train"].get("gpu_memory_fraction"))
     model, tokenizer = load_policy(
         model_id=cfg["generator"]["model"],
         adapter_path=cfg["generator"].get("adapter_path"),
@@ -430,7 +449,6 @@ def main() -> None:
     caps = rlsf["caps"]
     budget = JudgeBudget(caps["max_judge_calls"] or 0, caps["max_judge_spend_usd"] or 0.0)
     judge = None if skip_judge else make_judge_client(cfg)
-    kiwi_cfg = rlsf["reward"]["kiwi"]
 
     from trl import GRPOTrainer
 

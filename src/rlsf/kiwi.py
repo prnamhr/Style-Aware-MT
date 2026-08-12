@@ -14,6 +14,8 @@ DEFAULT_MODEL = "Unbabel/wmt22-cometkiwi-da"
 DEFAULT_PYTHON = Path(".venv-comet/bin/python")
 _PYTHON_ENV_VAR = "RLSF_COMET_PYTHON"
 
+DEFAULT_STDERR_LOG = Path("logs/kiwi_worker.err")
+
 _HANDSHAKE_TIMEOUT_S = 600.0
 
 
@@ -50,13 +52,17 @@ class KiwiScorer:
         batch_size: int = 16,
         gpus: int | None = None,
         cwd: str | Path | None = None,
+        stderr_log: str | Path = DEFAULT_STDERR_LOG,
     ) -> None:
         self.model = model
         self.batch_size = batch_size
         self.gpus = gpus
         self._python = resolve_python(python)
         self._cwd = Path(cwd) if cwd is not None else Path.cwd()
+        log = Path(stderr_log)
+        self.stderr_log = log if log.is_absolute() else self._cwd / log
         self._proc: subprocess.Popen | None = None
+        self._log = None
         self._next_id = 0
         self.reference_free = "kiwi" in model.lower()
 
@@ -81,11 +87,16 @@ class KiwiScorer:
         env["PYTHONPATH"] = os.pathsep.join(
             [str(self._cwd), env.get("PYTHONPATH", "")]
         ).rstrip(os.pathsep)
+        # Not a pipe: nothing drains the worker's stderr between requests, so once Lightning
+        # has written the 64 KB pipe buffer full the worker blocks inside predict and the
+        # training loop waits on a score that never comes.
+        self.stderr_log.parent.mkdir(parents=True, exist_ok=True)
+        self._log = self.stderr_log.open("wb")
         self._proc = subprocess.Popen(
             cmd,
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            stderr=self._log,
             text=True,
             bufsize=1,
             cwd=str(self._cwd),
@@ -112,6 +123,10 @@ class KiwiScorer:
         except Exception:
             proc.kill()
             proc.wait(timeout=10)
+        finally:
+            log, self._log = self._log, None
+            if log is not None:
+                log.close()
 
     def __enter__(self) -> KiwiScorer:
         self.start()
@@ -189,13 +204,12 @@ class KiwiScorer:
             raise KiwiError(f"worker emitted non-JSON: {line[:200]!r}") from exc
 
     def _stderr(self) -> str:
-        proc = self._proc
-        if proc is None or proc.stderr is None:
-            return "(no stderr)"
+        """The tail of the worker's log, which is where a start-up traceback lands."""
         try:
-            return (proc.stderr.read() or "(empty)")[-2000:]
-        except Exception:
-            return "(unreadable)"
+            text = self.stderr_log.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            return f"(no stderr log at {self.stderr_log})"
+        return text[-2000:] or f"(empty; see {self.stderr_log})"
 
 
 def main() -> None:

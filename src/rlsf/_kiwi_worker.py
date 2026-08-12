@@ -45,6 +45,11 @@ def main() -> None:
     else:
         gpus = args.gpus
 
+    # comet forwards `gpus` to Lightning only through these two, and overrides accelerator
+    # to "cpu" whenever gpus == 0, so both have to be set for the flag to select a device.
+    accelerator = "gpu" if gpus else "cpu"
+    devices = list(range(gpus)) if gpus else "auto"
+
     reference_free = "kiwi" in args.model.lower()
     _emit({"ready": True, "model": args.model, "reference_free": reference_free})
 
@@ -66,7 +71,12 @@ def main() -> None:
                     raise ValueError(f"{args.model} is reference-based; 'ref' is required")
                 data = [{"src": s, "mt": h, "ref": r} for s, h, r in zip(srcs, hyps, refs)]
             out = model.predict(
-                data, batch_size=args.batch_size, gpus=gpus, progress_bar=False
+                data,
+                batch_size=args.batch_size,
+                gpus=gpus,
+                accelerator=accelerator,
+                devices=devices,
+                progress_bar=False,
             )
             _emit(
                 {
