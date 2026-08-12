@@ -23,6 +23,7 @@ from src.rlsf.train import (
     BudgetExceeded,
     JudgeBudget,
     LoopState,
+    _kiwi_or_none,
     arm_path,
     arm_reward_config,
     completion_text,
@@ -344,6 +345,18 @@ def test_a_step_line_carries_the_drift_verdict_the_run_acted_on(cfg, tmp_path):
     assert line["drift"]["tripped"] is False
     assert "not complete" in line["drift"]["reason"]
     assert line["z_se"], "the monitor needs a clustered error to size its band"
+
+
+def test_the_configs_kiwi_placement_reaches_the_worker(cfg, monkeypatch):
+    """Left unset, the worker auto-detects the card GRPO is training on and allocates
+    inside the first reward call, next to the rollout's logits."""
+    import sys
+
+    monkeypatch.setenv("RLSF_COMET_PYTHON", sys.executable)
+    kiwi_cfg = dict(cfg["rlsf"]["reward"]["kiwi"], python=None)
+    assert kiwi_cfg["gpus"] == 0
+    assert _kiwi_or_none(kiwi_cfg, False).gpus == 0
+    assert _kiwi_or_none({**kiwi_cfg, "gpus": None}, False).gpus is None
 
 
 def test_the_manifest_names_the_arm_and_what_was_held_flat(cfg):

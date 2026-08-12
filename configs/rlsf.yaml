@@ -58,6 +58,7 @@ rlsf:
       batch_size: 16
       # COMET runs in .venv-comet; the worker is long-lived across steps (kiwi.py:37).
       python: .venv-comet/bin/python
+      gpus: 0
 
   weight_grid:
     steps_per_cell: 50

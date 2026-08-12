@@ -494,7 +494,10 @@ def _kiwi_or_none(kiwi_cfg: dict, skip: bool):
 
         return nullcontext(None)
     return KiwiScorer(
-        model=kiwi_cfg["model"], batch_size=kiwi_cfg["batch_size"], python=kiwi_cfg["python"]
+        model=kiwi_cfg["model"],
+        batch_size=kiwi_cfg["batch_size"],
+        python=kiwi_cfg["python"],
+        gpus=kiwi_cfg.get("gpus"),
     )
 
 
