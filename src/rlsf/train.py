@@ -2,8 +2,8 @@
 RLSF training: GRPO over the frozen PEFT checkpoint, rewarded by src.rlsf.reward.
 
 Usage:
-    python manage.py rlsf_train --cell w3_0.0 --steps 500 --skip_judge   # RL-Metric, free
-    python manage.py rlsf_train --cell w3_2.0 --steps 500 --yes          # RLSF-Judge
+    python manage.py rlsf_train --cell w3_0.0 --skip_judge   # RL-Metric, free
+    python manage.py rlsf_train --cell w3_2.0 --yes          # RLSF-Judge
     python manage.py rlsf_train --dry_run           # CPU, 0.5B, 2 rollouts, no paid calls
 """
 
@@ -32,6 +32,7 @@ from src.rlsf.config import (
     load_config,
     make_judge_client,
     optimizer_steps,
+    planned_rollouts,
     reward_config,
     rollout_batch,
 )
@@ -441,7 +442,7 @@ def _parse_args() -> argparse.Namespace:
         default=None,
         help="pre-registered weight_grid cell to train, e.g. w3_0.0; default: the reward: block",
     )
-    parser.add_argument("--steps", type=int, default=None, help="rollouts; default: caps.max_steps")
+    parser.add_argument("--steps", type=int, default=None, help="rollouts; default: plan.rollouts")
     parser.add_argument("--limit", type=int, default=None, help="training rows to read")
     parser.add_argument("--skip_judge", action="store_true", help="no paid calls; judge held flat")
     parser.add_argument("--skip_kiwi", action="store_true", help="no COMET worker; kiwi held flat")
@@ -468,7 +469,7 @@ def main() -> None:
     cfg = load_config(args.config, require_caps=not args.dry_run)
     rlsf = cfg["rlsf"]
     group_size = rlsf["rollout"]["group_size"]
-    steps = args.steps or rlsf["caps"]["max_steps"]
+    steps = args.steps or planned_rollouts(cfg)
 
     skip_judge, skip_kiwi = args.skip_judge, args.skip_kiwi
     overrides: dict = {}

@@ -98,8 +98,11 @@ rlsf:
     min_delta: 0.23                       # centroid std devs; val ladder's peft-to-random_fewshot gap
 
 
+  plan:
+    rollouts: 300                         # the pre-registered run length; what a run defaults to
+
   caps:
-    max_steps: 600                        # final run; the plan is 500
+    max_steps: 600                        # ceiling, not the plan: see plan.rollouts
     max_grid_steps: 200
     max_judge_calls: 340000               # backstop against a rate regression, not the plan
     max_judge_spend_usd: 25.0

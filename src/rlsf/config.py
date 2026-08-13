@@ -59,6 +59,25 @@ def assert_group_size_within_ceiling(cfg: dict) -> None:
         )
 
 
+def planned_rollouts(cfg: dict) -> int:
+    """Rollouts a run does when none are asked for: the pre-registered plan, not the cap."""
+    rlsf = cfg["rlsf"]
+    planned = (rlsf.get("plan") or {}).get("rollouts")
+    cap = rlsf["caps"]["max_steps"]
+    if planned is None:
+        raise ValueError(
+            "rlsf.plan.rollouts is undeclared, so a run with no --steps would fall back to "
+            f"caps.max_steps ({cap}) and spend the ceiling instead of the plan. Record the "
+            f"pre-registered run length in configs/rlsf.yaml."
+        )
+    if cap and planned > cap:
+        raise ValueError(
+            f"plan.rollouts {planned} exceeds caps.max_steps {cap}. The plan cannot sit above "
+            f"the authorized envelope: re-price it in docs/budget.md and raise the cap first."
+        )
+    return planned
+
+
 def make_judge_client(cfg: dict):
     """Build the training-time judge client from the config's `judge:` block."""
     judge = cfg["judge"]
@@ -177,7 +196,7 @@ def grpo_args(
     rollout_steps: int | None = None,
     **overrides,
 ):
-    """Build the ``GRPOConfig`` for a run of ``rollout_steps`` rollouts (default: the cap)."""
+    """Build the ``GRPOConfig`` for a run of ``rollout_steps`` rollouts (default: the plan)."""
 
     rlsf = cfg["rlsf"]
     rollout, train = rlsf["rollout"], rlsf["train"]
@@ -188,7 +207,7 @@ def grpo_args(
             f"a rollout of {generation_batch_size} completions does not divide into micro-batches "
             f"of {micro}; TRL slices the generation batch by per_device_train_batch_size"
         )
-    steps = rlsf["caps"]["max_steps"] if rollout_steps is None else rollout_steps
+    steps = planned_rollouts(cfg) if rollout_steps is None else rollout_steps
 
     fields = {
         "output_dir": str(output_dir),

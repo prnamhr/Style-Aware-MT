@@ -17,6 +17,7 @@ from src.rlsf.config import (
     judge_concurrency,
     load_config,
     make_judge_client,
+    planned_rollouts,
     priced_worst_case,
     reward_config,
     worst_case_judge_calls,
@@ -67,7 +68,28 @@ def test_non_positive_cap_is_rejected(bad):
         assert_caps_declared(_declared(max_steps=bad))
 
 
-# authorized envelope 
+
+def test_a_run_defaults_to_the_plan_not_the_cap():
+    cfg = load_config()
+    assert planned_rollouts(cfg) == 300
+    assert planned_rollouts(cfg) < cfg["rlsf"]["caps"]["max_steps"]
+
+
+def test_a_plan_above_the_cap_is_refused():
+    cfg = copy.deepcopy(load_config(require_caps=False))
+    cfg["rlsf"]["plan"]["rollouts"] = cfg["rlsf"]["caps"]["max_steps"] + 1
+    with pytest.raises(ValueError, match="exceeds caps.max_steps"):
+        planned_rollouts(cfg)
+
+
+def test_an_undeclared_plan_does_not_silently_become_the_cap():
+    cfg = copy.deepcopy(load_config(require_caps=False))
+    cfg["rlsf"]["plan"]["rollouts"] = None
+    with pytest.raises(ValueError, match="undeclared"):
+        planned_rollouts(cfg)
+
+
+# authorized envelope
 
 
 def test_committed_group_size_is_within_the_ceiling():
