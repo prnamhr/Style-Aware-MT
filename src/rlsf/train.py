@@ -13,6 +13,7 @@ import argparse
 import json
 import math
 import os
+import shutil
 import torch
 
 from dataclasses import dataclass, field
@@ -166,6 +167,32 @@ def reserve_vram(fraction: float | None) -> None:
     print(f"trainer capped at {fraction:.0%} of the card; the rest is the COMET worker's")
 
 
+def peak_vram() -> dict | None:
+    """Peak GPU bytes since the last reset, in GiB. None off CUDA. Excludes the COMET
+    worker, which allocates in its own process."""
+
+    if not torch.cuda.is_available():
+        return None
+    props = torch.cuda.get_device_properties(0)
+    return {
+        "max_allocated_gib": round(torch.cuda.max_memory_allocated() / 2**30, 3),
+        "max_reserved_gib": round(torch.cuda.max_memory_reserved() / 2**30, 3),
+        "device_total_gib": round(props.total_memory / 2**30, 3),
+        "device": props.name,
+    }
+
+
+def prune_ref_adapter(save_dir: str | Path) -> bool:
+    """Drop the KL reference PEFT writes into every save. `save_pretrained` defaults to all
+    registered adapters, so each checkpoint carries a 323 MB copy of the frozen init."""
+
+    ref = Path(save_dir) / "ref"
+    if not ref.is_dir():
+        return False
+    shutil.rmtree(ref)
+    return True
+
+
 def library_versions() -> dict:
     """The training stack as installed, so a run's numbers stay attributable to a build."""
 
@@ -214,6 +241,11 @@ def load_policy(*, model_id: str, adapter_path: str | None, ref_adapter_path: st
     if device_map is not None:
         load_kwargs["device_map"] = device_map
     model = AutoModelForCausalLM.from_pretrained(model_id, **load_kwargs)
+    offloaded = {
+        k: v for k, v in (getattr(model, "hf_device_map", None) or {}).items()
+        if str(v).lower() in {"cpu", "disk"}
+    }
+    assert not offloaded, f"policy offloaded off-GPU: {offloaded}"
 
     if adapter_path:
 
@@ -422,6 +454,19 @@ def make_optim_callback(state: LoopState):
     return OptimLog()
 
 
+def make_prune_callback():
+    """Removes the duplicated reference adapter from each periodic checkpoint as it lands."""
+
+    class PruneRef(TrainerCallback):
+        def on_save(self, args, trainer_state, control, **kwargs):
+            path = Path(args.output_dir) / f"checkpoint-{trainer_state.global_step}"
+            if prune_ref_adapter(path):
+                print(f"pruned duplicate ref adapter from {path}")
+            return control
+
+    return PruneRef()
+
+
 def make_stop_callback(state: LoopState):
     """Ends the run when the register-drift rule fires."""
 
@@ -595,11 +640,19 @@ def main() -> None:
             args=training_args,
             train_dataset=dataset,
             processing_class=tokenizer,
-            callbacks=[make_stop_callback(state), make_optim_callback(state)],
+            callbacks=[
+                make_stop_callback(state), make_optim_callback(state), make_prune_callback(),
+            ],
         )
+        if torch.cuda.is_available():
+            torch.cuda.reset_peak_memory_stats()
         trainer.train()
 
+    vram = peak_vram()
+    if vram:
+        print(f"peak VRAM: {vram}")
     trainer.save_model(str(adapter_out))
+    prune_ref_adapter(adapter_out)
     print(f"\n{state.rollout} rollouts, adapter written to {adapter_out}, log {step_log}")
     if state.stop_reason:
         print(f"stopped early on the register-drift rule: {state.stop_reason}")
@@ -620,6 +673,7 @@ def main() -> None:
         "stop_reason": state.stop_reason,
         "adapter_dir": str(adapter_out),
         "adapter_delta": adapter_delta(model, snapshot),
+        "peak_vram": vram,
         "judge": usage,
     }
     sidecar(step_log, "manifest.json").write_text(

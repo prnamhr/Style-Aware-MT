@@ -28,6 +28,7 @@ from src.rlsf.train import (
     arm_reward_config,
     completion_text,
     make_reward_fn,
+    prune_ref_adapter,
     run_manifest,
 )
 from src.rlsf.config import grid_reward_configs
@@ -227,6 +228,19 @@ def test_completion_text_reads_both_shapes():
 def test_a_completion_with_no_content_is_the_empty_string():
     # length_feasible rejects it rather than the reward path raising on None.
     assert completion_text([{"role": "assistant", "content": None}]) == ""
+
+
+def test_pruning_a_checkpoint_takes_the_ref_copy_and_nothing_else(tmp_path):
+    ckpt = tmp_path / "checkpoint-100"
+    (ckpt / "ref").mkdir(parents=True)
+    (ckpt / "ref" / "adapter_model.safetensors").write_bytes(b"frozen")
+    (ckpt / "adapter_model.safetensors").write_bytes(b"trained")
+    (ckpt / "adapter_config.json").write_text("{}")
+    assert prune_ref_adapter(ckpt)
+    assert not (ckpt / "ref").exists()
+    assert (ckpt / "adapter_model.safetensors").read_bytes() == b"trained"
+    # A save with no ref adapter -- the dry run, or beta 0 -- is not an error.
+    assert not prune_ref_adapter(ckpt)
 
 
 def test_the_budget_refuses_the_block_that_would_cross_the_call_cap():

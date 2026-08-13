@@ -28,6 +28,9 @@ _JUDGE_CONFIGS = ("configs/judge_eval.yaml", "configs/judge_eval_gpt.yaml")
 # outputs/rlsf/smoke_usage.json, 2026-08-08: 80 calls, $0.0059.
 _MEASURED_USD_PER_CALL = 7.375e-5
 
+_ARM_CAP_USD = 25.0
+_PAID_RUNS = 3  # w3_2.0, w3_6.0, the dev-slice pool; w3_0.0 runs --skip_judge
+
 
 def _declared(**overrides):
     """The committed config, with any cap overridden for the case under test."""
@@ -43,7 +46,7 @@ def test_committed_config_loads_with_its_caps_declared():
     # Declared 2026-08-08 from the smoke's measured per-call rate; see docs/budget.md.
     caps = load_config()["rlsf"]["caps"]
     assert caps["max_steps"] == 600
-    assert caps["max_judge_spend_usd"] == 25.0
+    assert caps["max_judge_spend_usd"] == 8.0
 
 
 def test_nulling_any_one_cap_puts_the_config_back_out_of_bounds():
@@ -122,11 +125,33 @@ def test_priced_worst_case_matches_hand_arithmetic():
 def test_the_step_caps_bind_before_the_call_and_dollar_caps():
     # docs/budget.md, 2026-08-08 and the 2026-08-13 re-pricing: the call and spend caps are a
     # backstop against the per-call rate moving, not a second opinion on the step count.
-    caps = load_config()["rlsf"]["caps"]
-    calls = worst_case_judge_calls(load_config())
+    cfg = load_config()
+    caps = cfg["rlsf"]["caps"]
+    # Both step caps together, which is the final run plus a trained grid: two runs, not one.
+    calls = worst_case_judge_calls(cfg)
     assert calls * _MEASURED_USD_PER_CALL == pytest.approx(3.78, abs=0.01)
     assert calls < caps["max_judge_calls"]
     assert calls * _MEASURED_USD_PER_CALL < caps["max_judge_spend_usd"]
+
+
+def test_one_run_cannot_trip_the_dollar_cap_by_running_its_authorized_length():
+    cfg = load_config()
+    caps = cfg["rlsf"]["caps"]
+    per_run = (
+        caps["max_steps"]
+        * cfg["rlsf"]["rollout"]["prompts_per_step"]
+        * caps["group_size_ceiling"]
+        * _MEASURED_USD_PER_CALL
+    )
+    assert per_run == pytest.approx(2.83, abs=0.01)
+    assert per_run < caps["max_judge_spend_usd"]
+
+
+def test_the_paid_runs_sum_under_the_declared_arm_cap():
+    # The failure this pins: an arm-level figure written into a per-run check authorizes it
+    # once per process. Three paid runs at $25 would have been $75 against a declared $25.
+    caps = load_config()["rlsf"]["caps"]
+    assert _PAID_RUNS * caps["max_judge_spend_usd"] <= _ARM_CAP_USD
 
 
 # reward block 

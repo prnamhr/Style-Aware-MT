@@ -14,11 +14,14 @@ inferential analysis, and the test suite.
 
 ## Declared cap
 
-**$25 of judge spend on the RLSF arm, declared 2026-08-08.** It is set in
-`configs/rlsf.yaml` as `caps.max_judge_spend_usd`, together with `max_steps: 600`,
-`max_grid_steps: 200` and `max_judge_calls: 340000`, so
-`src/rlsf/config.py:assert_caps_declared` no longer refuses to load. The derivation is in
-*RLSF arm — caps declared* below.
+**$25 of judge spend on the RLSF arm, declared 2026-08-08.** That figure covers the arm — the
+reward judge across every run it takes to train it. What `configs/rlsf.yaml` enforces is
+`caps.max_judge_spend_usd: 8.0` **per run**, alongside `max_steps: 600`, `max_grid_steps: 200`
+and `max_judge_calls: 340000`, so `src/rlsf/config.py:assert_caps_declared` no longer refuses
+to load. The $25 is not a quantity any single process checks itself against; the accounting
+that keeps the runs summing under it is in *RLSF caps — per-run semantics* below, and the
+per-call derivation is in *RLSF arm — caps declared*. Evaluation-rater spend is authorized
+separately, per pass — see *Val evaluation pass* below.
 
 This page previously said the cap had to be copied verbatim from `docs/proposal.pdf` and
 that an approximation of it was not a cap. The proposal has since been read on this point:
@@ -73,7 +76,8 @@ completion: cost scales as rollout steps × rollout batch size, not with the siz
 validation split. The loop exists as of 2026-08-08 (`src/rlsf/train.py`) and enforces the
 caps below at run time through `JudgeBudget`, which refuses a judge block that would cross
 `max_judge_calls` and refuses to start one once `judge.usage` reports spend at
-`max_judge_spend_usd`.
+`max_judge_spend_usd`. `JudgeBudget` is constructed once per invocation and opens at zero
+calls and zero dollars, so those two caps bound **one run**; see *per-run semantics* below.
 
 ### RLSF arms — re-priced at the three-arm geometry (2026-08-13)
 
@@ -97,25 +101,92 @@ Three arms cost less than the two priced in 2026-08-08 for two reasons that have
 with the reward: 300 rollouts rather than 500, and 32 calls a rollout rather than 64. The
 step-capped worst case falls with them — 800 capped steps at the operative group size are now
 25,600 calls and $1.89, and at the authorized ceiling of group size 8, 51,200 calls and $3.78.
-The caps themselves are unchanged: `max_steps` 600, `max_grid_steps` 200,
-`max_judge_calls` 340,000, `max_judge_spend_usd` $25.00. They now sit further above the plan
-than they did, which is the direction that needs no new authorisation.
+The step and call caps are unchanged: `max_steps` 600, `max_grid_steps` 200,
+`max_judge_calls` 340,000. They now sit further above the plan than they did, which is the
+direction that needs no new authorisation. `max_judge_spend_usd` moved from $25.00 to $8.00
+for the reason in the next section, which is a tightening, not a widening.
 
 Judge latency, which is the constraint that actually binds, falls in proportion: a 32-call step
 holds the GPU idle for roughly 4.3 s at `judge.concurrency: 8`, and 300 rollouts for about
 0.36 GPU-hours per paid arm.
 
-**Not yet authorized: the val evaluation pass.** Scoring three RLSF conditions on
-`data/splits/val.jsonl` is 1,323 segments × 3 = 3,969 calls per rater, 7,938 across
-`claude-haiku-4-5` and `gpt-5.6-terra`. That volume is priced under the evaluation raters, not
-at the reward judge's rate, and is a separate authorisation under rule 1: price it here from
-`results/judge_*_val_usage.json` before the pass runs, and prefer the Batch route for the GPT
-rater under rule 5. The test split stays sealed and is not priced here.
+### Val evaluation pass for the RLSF conditions — priced (2026-08-13)
+
+Scoring the three RLSF conditions on `data/splits/val.jsonl` is 1,323 segments × 3 = **3,969
+calls per rater, 7,938 across both**. This is a separate authorisation from the caps above:
+those bound the reward judge inside the training loop, and this is the evaluation raters over a
+finished set of generations. Stated here under rule 1 before any GPU time is spent producing
+those generations, since the pass is what the GPU time is for.
+
+Φ_B is measured. `results/judge_gpt_val_usage.json` records the 2026-08-05 pass at 9,236 calls,
+3,784,961 prompt and 385,774 completion tokens, $6.0996 — **409.8 prompt and 41.8 completion
+tokens per call**, $6.604e-4 a call through the Batch API at `pricing: [2.00, 12.00]` and the
+50 % discount. The rubric is unchanged (`prompts/judge_eval.txt`) and the segments are the same
+1,323, so the per-call shape carries over; only the condition count differs.
+
+| Rater | Transport | Calls | Per call | Cost |
+|---|---|---:|---:|---:|
+| Φ_B `gpt-5.6-terra` | Batch, 50 % | 3,969 | $6.604e-4 | **$2.62** |
+| Φ_A `claude-haiku-4-5` | Synchronous | 3,969 | $6.187e-4 | **$2.46** (estimated) |
+| **Total** | | **7,938** | | **$5.08** |
+
+Two qualifications, in the order they matter:
+
+* **Φ_A's figure is an estimate, not a measurement.** No usage artefact exists for the Φ_A
+  validation pass — it predates usage recording, as *Spend to date* says — so there is nothing
+  to price it from. The table applies `claude-haiku-4-5` at `[1.00, 5.00]`
+  (`src/infer/anthropic_client.py:17`) to **Φ_B's measured token counts**. The rubric and
+  segments are shared, but the tokenizer is not and neither is the justification length, so
+  treat ±20 % as the honest band. The pass writes `results/judge_val_usage.json`, which replaces
+  this row with a measurement.
+* **Φ_A prices synchronously because there is no batch path for it.** `src/infer/openai_batch.py`
+  is OpenAI-only; rule 5 has nothing to prefer here. Running Φ_B synchronously as well would
+  make the pass $7.70 rather than $5.08, which is the cost of not waiting.
+
+Rule 2 still applies: a `--limit N` pilot precedes the full pass on each rater, and
+`manage.py judge --limit N` deliberately writes no results file, so the pilot cannot
+contaminate a reported figure. GPU time for the three condition-generations is Colab
+hours, not dollars, and is not metered here.
+
+The test split stays sealed and is not priced.
+
+### RLSF caps — per-run semantics (2026-08-13)
+
+`JudgeBudget` is constructed inside `src/rlsf/train.py:run` and `src/rlsf/pool.py`, once per
+invocation, with `calls: 0` and `spend_usd: 0.0`. Nothing reads a running total off disk. The
+dollar cap therefore says *no single run may spend more than this*, and the three-arm geometry
+starts three processes. At $25 the config authorised $75 of judge spend against a $25 declared
+figure — not because any run was mispriced, but because an arm-level number was written into a
+per-run check.
+
+`max_judge_spend_usd` is now **$8.00**. The arithmetic it has to satisfy is two-sided:
+
+| Constraint | Figure |
+|---|---:|
+| Paid runs the plan starts (`w3_2.0`, `w3_6.0`, the dev-slice pool) | 3 |
+| 3 × $8.00 against the declared arm cap | $24.00 ≤ $25 |
+| One run's step-capped worst case, 600 rollouts × 8 prompts × G = 8 | 38,400 calls, $2.83 |
+| $8.00 against that worst case | 2.8× |
+
+So a run still cannot trip the dollar cap by running its authorized length: it trips only if the
+per-call rate moves, which is the backstop role the cap was declared for. `w3_0.0` runs
+`--skip_judge` and spends nothing, so a fourth paid arm would need a re-priced entry here
+regardless.
+
+`max_judge_calls` stays at 340,000. Per run that is $25.08 at the measured rate, so the dollar
+cap is still the one that trips first — by a wider margin than the 2026-08-08 entry intended,
+where the two caps were set to bind at nearly the same point. Tightening it to ~110,000 would
+restore that; it is left alone here because the property it was chosen for, that dollars trip
+before calls, is the one that holds.
+
+The audited total is what this page's *Spend to date* table records. Per-run caps do not
+substitute for it: they bound each process, rule 1 bounds the set of processes.
 
 ### RLSF arm — caps declared (2026-08-08)
 
-**Volumes superseded by the 2026-08-13 entry above.** The measured per-call rate, the caps and
-the reasoning about what the caps are for all still stand.
+**Volumes superseded by the 2026-08-13 entries above, and `max_judge_spend_usd` with them: it
+is $8.00 per run, not the $25.00 in the table below.** The measured per-call rate, the step and
+call caps, and the reasoning about what the caps are for all still stand.
 
 
 The smoke has now run twice and reports a **measured** per-call rate of **$7.375e-5**

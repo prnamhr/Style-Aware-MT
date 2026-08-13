@@ -105,7 +105,7 @@ rlsf:
     max_steps: 600                        # ceiling, not the plan: see plan.rollouts
     max_grid_steps: 200
     max_judge_calls: 340000               # backstop against a rate regression, not the plan
-    max_judge_spend_usd: 25.0
+    max_judge_spend_usd: 8.0             
     group_size_ceiling: 8                 # authorized ceiling; rollout.group_size may not exceed
 
   pilot:
