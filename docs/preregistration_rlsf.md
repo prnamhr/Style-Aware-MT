@@ -202,7 +202,7 @@ rule was pre-registered over and remains the one reported as selection.
 |---|---|---|---|
 | `reference.beta` | 0.05 | 0.01 | the KL anchor is a frozen adapter, not the base; at 0.05 the "uninformative outcome" clause below was the likelier reading of a null result than any statement about the reward |
 | `rollout.prompts_per_step` | 16 | 8 | GPU budget for three arms rather than two |
-| `train.per_device_train_batch_size` | 4 | 2 | memory; `grpo_args` derives grad accum 16, and `loss_type: dapo` normalizes by the generation batch's token count, so the gradient still averages the same 8 groups |
+| `train.per_device_train_batch_size` | 4 | 1 | memory; `grpo_args` derives grad accum 32, and `loss_type: dapo` normalizes by the generation batch's token count, so the gradient averages the same 8 groups at any micro-batch. 1 is the value the 22.04 GiB measurement was taken at |
 | `train.lr_scheduler_type` | unset, so HF's `linear` | `constant` | a fixed rollout budget, not a fixed token budget; see below |
 | `generator.max_tokens` | 256 | 192 | still 3× the dev reference p95 of 61 tokens, so nothing feasible is truncated |
 | `train.save_every_rollouts` | 10 | 25 | 12 checkpoints over 300 rollouts |

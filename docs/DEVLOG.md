@@ -115,8 +115,8 @@ their history.
 The 50-rollout smoke was run to produce four numbers. It produced three. Reading them found a
 fifth thing: the manifest recorded `learning_rate` but not the schedule, so it did not determine
 the run it was written to determine. The schedule is now declared, chosen, and shared by the three
-arms; the run's wall clock is recorded; the micro-batch is doubled; and a cell that weights the
-judge at zero refuses to buy verdicts. No arm has run, so the pre-registration's pre-run settings
+arms; the run's wall clock is recorded; the micro-batch stays where it was measured; and a cell
+that weights the judge at zero refuses to buy verdicts. No arm has run, so the pre-registration's pre-run settings
 table is amended rather than superseded.
 
 ### What changed
@@ -137,12 +137,21 @@ the run did not do. Same shape and same reason as `assert_single_normalization` 
 `trainer.train()` and nothing else. The model load is paid once; the rollout rate is what
 extrapolates from two rollouts to 300, and to the two arms after the first.
 
-**`train.per_device_train_batch_size` 1 → 2.** The smoke reserved 22.04 of 31.36 GiB.
-`grpo_args` derives grad accum 16 from it, and TRL's `dapo` loss normalizes by
+**`train.per_device_train_batch_size` stays at 1.** It was briefly raised to 2 on the headroom in
+the smoke's 22.04 of 31.36 GiB, then withdrawn. TRL's `dapo` loss normalizes by
 `num_items_in_batch` — a token count over the whole generation batch, rescaled by
 `current_gradient_accumulation_steps / steps_per_generation`, which `grpo_args` already holds at 1
 (`trl/trainer/grpo_trainer.py:3139-3144`). The micro-batch therefore does not enter the loss: the
-accumulated gradient is the same average over the same 8 groups.
+accumulated gradient is the same average over the same 8 groups at either value. That argument
+cuts both ways. If 2 changes nothing about the gradient, it buys throughput and nothing else, and
+it costs an unmeasured amount of memory against a 31.36 GiB card. 22.04 GiB is the only number
+this project has, and it was read at 1.
+
+The notebook's two-rollout probe would not have licensed 2 either. Peak is set inside rollout 0
+for the forward/backward and the generation batch, but two rollouts never reach the first
+checkpoint write at `save_every_rollouts: 25`, and they see two draws from the prompt-length
+distribution. Earning 2 means a 25-rollout smoke at 2, not a re-reading of the 2-rollout probe.
+Until that exists, `grpo_args` derives grad accum 32 and the arms run at the measured setting.
 
 **The judge refusal** (`src/rlsf/train.py:551-560`). `RewardConfig.weights` keeps a zero-weight
 component, so `required_components` for `w3_0.0` still names `judge` and the reward path still

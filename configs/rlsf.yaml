@@ -45,7 +45,7 @@ rlsf:
     epsilon: 0.2                          # clip range on the importance ratio
     loss_type: dapo                       # token-normalized over the batch; no length bias
     scale_rewards: none
-    per_device_train_batch_size: 2        # memory knob; grad accum is derived from it
+    per_device_train_batch_size: 1
     logging_steps: 1                      # one StepLog JSON line per rollout (reward.py:334)
     gpu_memory_fraction: 0.85             # applied only when reward.kiwi.gpus > 0, so the
                                           #  COMET encoder is not left to OOM on 0.4 GB
