@@ -14,6 +14,7 @@ import json
 import math
 import os
 import shutil
+import time
 import torch
 
 from dataclasses import dataclass, field
@@ -547,6 +548,16 @@ def main() -> None:
 
     rc = arm_reward_config(cfg, args.cell)
     per_rollout = rollout_batch(cfg)
+    # At omega_3 = 0 the judge cannot enter the reward, so skipping it is the arm as declared
+    # rather than a component missing from a reward that weights it.
+    unweighted = {"judge": rc.w_judge == 0 and not rc.gated, "kiwi": rc.w_kiwi == 0}
+    # Ahead of the --yes gate: the objection is to the weight, not to the spend.
+    if unweighted["judge"] and not skip_judge:
+        raise SystemExit(
+            f"{args.cell or 'the reward: block'} weights the judge at 0, so no verdict it buys "
+            f"can enter the reward: {steps * per_rollout} calls would be paid for and "
+            f"multiplied by zero. Pass --skip_judge; at omega_3 = 0 that is the arm as declared."
+        )
     judge_calls = 0 if skip_judge else steps * per_rollout
     print(
         f"plan: {steps} rollouts x {rlsf['rollout']['prompts_per_step']} prompts x G="
@@ -568,9 +579,6 @@ def main() -> None:
     if skip_kiwi:
         held_flat.append("kiwi")
         print("      kiwi skipped: adequacy component held flat")
-    # At omega_3 = 0 the judge score cannot enter the reward, so skipping it is the arm as
-    # declared rather than a component silently missing from a reward that weights it.
-    unweighted = {"judge": rc.w_judge == 0 and not rc.gated, "kiwi": rc.w_kiwi == 0}
     if any(not unweighted[name] for name in held_flat):
         print("      this is a wiring check, not a training result")
 
@@ -646,11 +654,14 @@ def main() -> None:
         )
         if torch.cuda.is_available():
             torch.cuda.reset_peak_memory_stats()
+        # The training call alone: the model load is paid once, so it is the rollout rate
+        # and not the wall clock of the process that extrapolates to the other arms.
+        started = time.perf_counter()
         trainer.train()
+        elapsed = round(time.perf_counter() - started, 3)
 
     vram = peak_vram()
-    if vram:
-        print(f"peak VRAM: {vram}")
+    print(f"{elapsed:.0f}s of training" + (f", peak VRAM: {vram}" if vram else ""))
     trainer.save_model(str(adapter_out))
     prune_ref_adapter(adapter_out)
     print(f"\n{state.rollout} rollouts, adapter written to {adapter_out}, log {step_log}")
@@ -673,6 +684,7 @@ def main() -> None:
         "stop_reason": state.stop_reason,
         "adapter_dir": str(adapter_out),
         "adapter_delta": adapter_delta(model, snapshot),
+        "elapsed_sec": elapsed,
         "peak_vram": vram,
         "judge": usage,
     }

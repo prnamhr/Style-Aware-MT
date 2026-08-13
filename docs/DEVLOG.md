@@ -108,6 +108,114 @@ their history.
 
 ---
 
+## 2026-08-13 — The schedule the run steps at, and a judge bought to be multiplied by zero
+
+### Summary
+
+The 50-rollout smoke was run to produce four numbers. It produced three. Reading them found a
+fifth thing: the manifest recorded `learning_rate` but not the schedule, so it did not determine
+the run it was written to determine. The schedule is now declared, chosen, and shared by the three
+arms; the run's wall clock is recorded; the micro-batch is doubled; and a cell that weights the
+judge at zero refuses to buy verdicts. No arm has run, so the pre-registration's pre-run settings
+table is amended rather than superseded.
+
+### What changed
+
+**The schedule.** `grpo_args` set `learning_rate` and left `lr_scheduler_type` to TRL, which takes
+HF's default of linear decay to zero. `outputs/rlsf/smoke50_steps.jsonl` records what that was:
+9.9e-07 at rollout 1, 3e-08 at rollout 49. `configs/rlsf.yaml` now declares `lr_scheduler_type:
+constant` and `warmup_ratio: 0.0`, `src/rlsf/config.py:232-233` reads both into the `GRPOConfig`,
+and `run_manifest` needs no change — `src/rlsf/train.py:337` copies the whole `rlsf.train` block,
+which is why the settings belong in the YAML rather than in a code default.
+
+`assert_warmup_is_reachable` (`src/rlsf/config.py:193-203`) refuses a non-zero warmup under
+`constant`. `transformers` builds that schedule as `get_constant_schedule`, which takes no warmup
+argument, so the ramp would be discarded in silence and the manifest would again record something
+the run did not do. Same shape and same reason as `assert_single_normalization` beside it.
+
+**`outcome.elapsed_sec`** (`src/rlsf/train.py:654-661`), `time.perf_counter()` around
+`trainer.train()` and nothing else. The model load is paid once; the rollout rate is what
+extrapolates from two rollouts to 300, and to the two arms after the first.
+
+**`train.per_device_train_batch_size` 1 → 2.** The smoke reserved 22.04 of 31.36 GiB.
+`grpo_args` derives grad accum 16 from it, and TRL's `dapo` loss normalizes by
+`num_items_in_batch` — a token count over the whole generation batch, rescaled by
+`current_gradient_accumulation_steps / steps_per_generation`, which `grpo_args` already holds at 1
+(`trl/trainer/grpo_trainer.py:3139-3144`). The micro-batch therefore does not enter the loss: the
+accumulated gradient is the same average over the same 8 groups.
+
+**The judge refusal** (`src/rlsf/train.py:551-560`). `RewardConfig.weights` keeps a zero-weight
+component, so `required_components` for `w3_0.0` still names `judge` and the reward path still
+asks for a score. Nothing but the operator remembering `--skip_judge` stood between RL-Metric and
+9,600 verdicts bought to be multiplied by zero. `main()` now refuses the run, ahead of the `--yes`
+gate so the objection is to the weight rather than to the spend.
+
+`notebooks/rlsf_train_colab.ipynb`: the pre-flight asserts the schedule and the micro-batch, and
+section 3's existing two-rollout wiring check is now also the memory probe — peak VRAM is set
+inside the first rollout, so no separate run buys the number. It refuses the arms above 29 GiB.
+
+### Rationale
+
+`constant` is the schedule a fixed rollout budget asks for. Under linear decay the last hundred of
+300 rollouts would step at rates too small to move an adapter, which makes "300 rollouts" a count
+of generations rather than of learning. The smoke shows the shape of that: `adapter_delta.rel`
+went from 0.00205 at rollout 39 to 0.00207 at rollout 49, a move of 2e-05 against the 0.0021 the
+run had already accumulated. Those ten rollouts cost the same GPU-time as the first ten and bought
+a hundredth as much movement.
+
+No warmup, and not because warmup is wrong. The smoke's opening rollouts ran within 1% of the peak
+rate without instability, which is the evidence that none is needed here, and a ramp would spend
+part of a fixed budget below the rate the rest of it uses. The setting is written to the config
+anyway, at zero, so the manifest says so.
+
+The refusal is a refusal and not an auto-skip. `--yes` and `--overwrite` are already shaped that
+way: the run that happens is the run that was typed. A flag silently added on the operator's
+behalf is a run whose command line no longer describes it.
+
+### Verification
+
+`python -m pytest tests/` — 336 passed. Six new tests: the schedule reaches the trainer, a warmup
+under `constant` is refused, the micro-batch times the grad accum is one rollout at any micro-batch
+size, and `w3_0.0` requires a judge score it weights at zero. No existing test asserted a
+micro-batch of 1 or a grad accum of 32, so the geometry change broke nothing.
+
+The refusal, which costs nothing and loads no model:
+
+```
+$ python manage.py rlsf_train --cell w3_0.0 --steps 300
+w3_0.0 weights the judge at 0, so no verdict it buys can enter the reward: 9600 calls
+would be paid for and multiplied by zero. Pass --skip_judge; at omega_3 = 0 that is the
+arm as declared.
+```
+
+`python manage.py rlsf_train --dry_run` was run on CPU with the 0.5B stand-in: it forces the
+micro-batch back to 1 and is a signature check, not a memory one. 0 paid calls throughout.
+
+### Reproduction
+
+```
+python -m pytest tests/
+python manage.py rlsf_train --dry_run
+python manage.py rlsf_train --cell w3_0.0 --steps 300              # expect the refusal
+python manage.py rlsf_train --cell w3_0.0 --steps 300 --skip_judge
+python manage.py rlsf_train --cell w3_2.0 --steps 300 --yes
+python manage.py rlsf_train --cell w3_6.0 --steps 300 --yes
+```
+
+### Limitations and risks
+
+* **The micro-batch is unverified at 2.** The claim that it holds under 29 GiB rests on the
+  smoke's 22.04 and on the doubled micro-batch being the only term that grows. The local card is
+  an 8 GiB RTX 4060 Laptop, so nothing here measures it; the notebook's section 3 does, before the
+  first arm launches. If it fails, the setting and the pre-registration row go back to 1 together.
+* **A constant rate does not anneal.** The final adapter is wherever the last rollout left the
+  policy rather than a settled point. `save_every_rollouts: 25` and `rlsf_select` already existed;
+  this makes them load-bearing rather than convenient.
+* The refusal covers `w_judge == 0`. A cell weighting Kiwi at zero would still start the COMET
+  worker; no pre-registered grid cell does, and no exploratory cell is trained.
+
+---
+
 ## 2026-08-13 — A third arm, the geometry the run is made at, and the telemetry that reads it
 
 ### Summary

@@ -202,6 +202,40 @@ def test_a_micro_batch_that_does_not_divide_the_rollout_is_refused(cfg, tmp_path
         grpo_args(cfg, output_dir=tmp_path, rollout_steps=1, **CPU)
 
 
+def test_the_micro_batch_is_a_memory_knob_and_not_a_change_to_the_gradient(cfg, args):
+    """Whatever the micro-batch, the accumulation window is one rollout: loss_type dapo
+    normalizes by the generation batch's token count, so the gradient averages the same
+    prompts_per_step groups and the pre-registered geometry is unchanged by it."""
+    micro = args.per_device_train_batch_size
+    assert micro * args.gradient_accumulation_steps == rollout_batch(cfg)
+    assert args.gradient_accumulation_steps == args.steps_per_generation
+
+
+def test_the_lr_schedule_is_declared_and_reaches_the_trainer(cfg, args):
+    """learning_rate alone does not determine the LR the run steps at. Left to TRL the
+    schedule is HF's linear-to-zero, which over a fixed rollout budget spends the last
+    rollouts at nearly nothing while the manifest records only the peak."""
+    train = cfg["rlsf"]["train"]
+    assert args.lr_scheduler_type == train["lr_scheduler_type"] == "constant"
+    assert args.warmup_ratio == train["warmup_ratio"] == 0.0
+
+
+def test_a_warmup_the_constant_schedule_would_discard_is_refused(cfg, tmp_path):
+    cfg = copy.deepcopy(cfg)
+    cfg["rlsf"]["train"]["warmup_ratio"] = 0.03
+    with pytest.raises(ValueError, match="constant_with_warmup"):
+        grpo_args(cfg, output_dir=tmp_path, rollout_steps=1, **CPU)
+
+
+def test_a_cell_that_does_not_weight_the_judge_still_requires_its_score(cfg):
+    """Why RL-Metric must be run with --skip_judge rather than left to the weights: a zero
+    weight does not drop the component, so the reward path would buy 9,600 verdicts and
+    multiply every one of them by zero. src.rlsf.train refuses the run instead."""
+    rc = arm_reward_config(cfg, "w3_0.0")
+    assert rc.w_judge == 0 and not rc.gated
+    assert "judge" in rc.required_components
+
+
 def test_the_config_carries_grpo_field_names_not_ppo_ones(cfg):
     train = cfg["rlsf"]["train"]
     assert not {"ppo_epochs", "clip_range", "kl_coef"} & set(train)

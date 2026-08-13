@@ -165,7 +165,7 @@ predicted.
 
 ## Third arm, and the settings the run is made at
 
-Written before any GRPO step has run. It adds an arm, changes six training settings, and
+Written before any GRPO step has run. It adds an arm, changes seven training settings, and
 records what those changes cost the stop rule. The two arms above are unchanged in ω, in
 initialization and in what they are predicted to do, and predictions 1–4 for RLSF-Judge are
 scored exactly as written.
@@ -202,7 +202,8 @@ rule was pre-registered over and remains the one reported as selection.
 |---|---|---|---|
 | `reference.beta` | 0.05 | 0.01 | the KL anchor is a frozen adapter, not the base; at 0.05 the "uninformative outcome" clause below was the likelier reading of a null result than any statement about the reward |
 | `rollout.prompts_per_step` | 16 | 8 | GPU budget for three arms rather than two |
-| `train.per_device_train_batch_size` | 4 | 1 | memory; `grpo_args` derives grad accum 32, so the gradient still averages 8 groups |
+| `train.per_device_train_batch_size` | 4 | 2 | memory; `grpo_args` derives grad accum 16, and `loss_type: dapo` normalizes by the generation batch's token count, so the gradient still averages the same 8 groups |
+| `train.lr_scheduler_type` | unset, so HF's `linear` | `constant` | a fixed rollout budget, not a fixed token budget; see below |
 | `generator.max_tokens` | 256 | 192 | still 3× the dev reference p95 of 61 tokens, so nothing feasible is truncated |
 | `train.save_every_rollouts` | 10 | 25 | 12 checkpoints over 300 rollouts |
 | rollouts per arm | 500 | 300 | three arms inside the same envelope |
@@ -212,6 +213,23 @@ loosens the constraint holding the policy at its initialization, which makes mov
 likely in both arms — including in RL-Metric, which is predicted not to move on `marker_rate`.
 That prediction is therefore now made under a weaker anchor and is correspondingly easier to
 falsify. This is stated in advance so a `w3_0.0` trip cannot afterwards be attributed to β.
+
+The schedule is the second of these that changes training dynamics rather than cost, and it is
+recorded here on the same argument. It was never declared: `grpo_args` set `learning_rate` and
+left the schedule to TRL, which takes HF's default of linear decay to zero. The 50-rollout smoke
+therefore stepped at 9.9e-07 at its first optimizer step and 3e-08 at its last, and
+`adapter_delta.rel` sat at 0.0021 for its final ten rollouts. Over 300 rollouts the same schedule
+would spend the last hundred on steps too small to move an adapter, which makes "300 rollouts" a
+count of generations rather than of learning. `constant` holds every rollout at 1e-6, so the
+budget means what it says. There is no warmup: the smoke's opening rollouts ran within 1% of the
+peak rate without instability, which is the evidence that none is needed, and a ramp would spend
+part of a fixed budget below the rate the rest of it uses. All three arms share the schedule.
+Two consequences are stated in advance rather than discovered afterwards. Movement in any arm is
+now made under a step size that does not decay, so a `w3_0.0` trip cannot be attributed to the
+schedule any more than to β. And a constant rate does not anneal, so the final adapter is
+wherever the last rollout left the policy rather than a settled point; this is what
+`save_every_rollouts: 25` and the dev-slice checkpoint selection below are for, and it is now
+their reason rather than an extra.
 
 The "uninformative outcome" clause stands unchanged: if neither arm moves, the run is reported
 as a null run of the optimizer and not as evidence about the reward. `adapter_delta_rel` in the
@@ -267,7 +285,7 @@ prefers those completions, not that a policy optimized against it arrives there.
 ### Everything else held
 
 Same frozen PEFT initialization, same reference adapter, same prompt assembly as the PEFT
-condition, rollout at T = 1.0 / top-p 0.95, G = 4, `loss_type: dapo`, lr 1e-6, μ = 4, ε = 0.2,
+condition, rollout at T = 1.0 / top-p 0.95, G = 4, `loss_type: dapo`, lr 1e-6 constant, μ = 4, ε = 0.2,
 seed 42, length band [0.5, 2.0] with `on_violation: floor`, `normalization: group_z`,
 `scale_rewards: none`, unquantized BF16 policy, and the frozen training rubric
 `prompts/judge_train.txt` digest-verified on load. All three arms are trained under one set of

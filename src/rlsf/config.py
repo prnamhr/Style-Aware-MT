@@ -163,6 +163,7 @@ def worst_case_judge_calls(cfg: dict, *, group_size: int | None = None) -> int:
 # compute_rewards hands GRPOTrainer a combined z-score, so the trainer's own group
 # normalization has to be off. See assert_single_normalization.
 _REWARD_SCALING = "none"
+_CONSTANT = "constant"
 
 
 def rollout_batch(cfg: dict) -> int:
@@ -186,6 +187,19 @@ def assert_single_normalization(args) -> None:
             f"not crash; it would train on a distorted advantage and the omega grid would stop "
             f"meaning what docs/budget.md says it means. Set train.scale_rewards to "
             f"{_REWARD_SCALING!r}, or hand the trainer the raw omega-weighted sum instead."
+        )
+
+
+def assert_warmup_is_reachable(args) -> None:
+    """Refuse a warmup the scheduler builds without."""
+    if args.lr_scheduler_type == _CONSTANT and (args.warmup_ratio or args.warmup_steps):
+        raise ValueError(
+            f"lr_scheduler_type is {_CONSTANT!r} with warmup_ratio={args.warmup_ratio} and "
+            f"warmup_steps={args.warmup_steps}. transformers builds {_CONSTANT!r} as "
+            f"get_constant_schedule, which takes no warmup argument, so the ramp is discarded "
+            f"without a word and the manifest stops describing the run it records. Set "
+            f"train.lr_scheduler_type to 'constant_with_warmup' to get the ramp, or zero the "
+            f"warmup to get the schedule."
         )
 
 
@@ -213,6 +227,10 @@ def grpo_args(
         "output_dir": str(output_dir),
         "seed": rlsf["seed"],
         "learning_rate": train["learning_rate"],
+        # Declared rather than defaulted: the manifest copies this block verbatim, so a
+        # schedule left to TRL is a schedule the run's own record does not name.
+        "lr_scheduler_type": train["lr_scheduler_type"],
+        "warmup_ratio": train["warmup_ratio"],
         "num_iterations": train["num_iterations"],
         "epsilon": train["epsilon"],
         "beta": rlsf["reference"]["beta"],
@@ -242,6 +260,7 @@ def grpo_args(
         fields["save_strategy"] = "no"
     args = GRPOConfig(**{**fields, **overrides})
     assert_single_normalization(args)
+    assert_warmup_is_reachable(args)
     if args.steps_per_generation != args.gradient_accumulation_steps:
         raise ValueError(
             f"TRL derived steps_per_generation={args.steps_per_generation} against "
