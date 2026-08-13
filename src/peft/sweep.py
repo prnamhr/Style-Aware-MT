@@ -1,18 +1,6 @@
 """
 PEFT (LoRA) hyperparameter sweep over the Phase 2 grid, with MATCHED selection.
 
-Selection is deliberately identical in shape to the AFSP sweep (src.infer.afsp_sweep),
-but epoch is a tuned axis: a candidate here is one trained (r, lr, epoch) checkpoint.
-Each cell trains for the full epoch budget with load_best_model_at_end:false and
-save_total_limit:null, so every epoch checkpoint is kept. eval_loss (val token-level
-cross-entropy) is used ONLY as a free pre-filter to prune which checkpoints get
-generated -- never as the selector. The reported adapter is picked on the same axis
-AFSP freezes on: chrF adequacy band + register fidelity (register_fit / Phi) here,
-confirmed on COMET (+ judge Phi) in src.peft.verify.
-
-Pipeline: train (save every epoch) -> eval_loss prunes candidates -> generate val ->
-score chrF + register_fit -> rank. Then `python -m src.peft.verify` for COMET/Phi.
-
 Usage:
     python -m src.peft.sweep --config configs/peft_sweep.yaml
     python -m src.peft.sweep --dry-run                 # print the grid plan, train nothing
@@ -26,11 +14,18 @@ import argparse
 import copy
 import json
 import os
+import yaml
+import gc
+
 from pathlib import Path
 
-import yaml
-
 from src.peft.train import train
+from src.eval._io import load_condition
+from src.eval.quick import score as quick_score
+from src.eval.stylometrics import aggregate, distance_to_centroid
+from src.infer.afsp_sweep import _register_fit_fn
+from src.infer.run import build_zeroshot_user, make_client
+
 
 
 def _lr_tag(lr: float) -> str:
@@ -167,13 +162,7 @@ def generate_cell(
     *,
     overwrite: bool = False,
 ) -> None:
-    """Generate zero-shot val predictions with this candidate's adapter checkpoint.
-
-    Byte-identical prompt to the `peft` inference condition (zero-shot user directive;
-    the register is carried by the adapter), so the sweep scores what the frozen
-    system would emit.
-    """
-    from src.infer.run import build_zeroshot_user, make_client
+    """Generate zero-shot val predictions with this candidate's adapter checkpoint."""
 
     out_path = sweep_dir / f"{tag}_{split}.jsonl"
     if out_path.exists() and not overwrite:
@@ -218,7 +207,6 @@ def generate_cell(
 
 def _free_gpu() -> None:
     """Drop the trainer's model before loading the inference model (OOM guard)."""
-    import gc
 
     gc.collect()
     try:
@@ -240,12 +228,6 @@ def _read_eval_loss(out_dir: Path) -> float | None:
 
 def score_candidates(cfg: dict, candidates: list[dict], split: str) -> list[dict]:
     """Score each present candidate on the matched proxy axis (chrF + register_fit)."""
-    # afsp_sweep pulls src.infer.run -> torch at import; keep it lazy so --dry-run
-    # and --help need no GPU stack.
-    from src.eval._io import load_condition
-    from src.eval.quick import score as quick_score
-    from src.eval.stylometrics import aggregate, distance_to_centroid
-    from src.infer.afsp_sweep import _register_fit_fn
 
     sweep_dir = _sweep_dir(cfg)
     centroid_path = Path(cfg.get("register", {}).get("centroid_file", ""))

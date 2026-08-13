@@ -30,7 +30,16 @@ from src.rlsf.train import (
     make_reward_fn,
     run_manifest,
 )
+from src.rlsf.config import grid_reward_configs
+from src.rlsf.reward import RewardConfig
+import sys
 
+from src.rlsf import train
+import copy
+import torch
+from src.rlsf.train import make_optim_callback
+from src.rlsf.train import adapter_delta, trainable_snapshot
+from src.rlsf.stop import DriftMonitor
 CENTROID = {
     "features": ["lex_density", "ttr", "root_ttr", "marker_rate"],
     "mean": [0.4344, 0.8540, 4.0437, 0.0327],
@@ -79,8 +88,6 @@ def test_the_grid_cells_reach_the_optimizer_at_one_advantage_scale():
     """As declared, the cells separate by 1.68x in advantage magnitude, ordered by the norm
     of their weight vector -- an online grid would spend that as a larger optimizer step
     rather than as a different weighting. grid_reward_configs holds ||omega|| at 1."""
-    from src.rlsf.config import grid_reward_configs
-    from src.rlsf.reward import RewardConfig
 
     rng = np.random.default_rng(0)
     prompts, group_size = 200, 4
@@ -112,12 +119,12 @@ def test_the_grid_cells_reach_the_optimizer_at_one_advantage_scale():
         for cell in cfg["rlsf"]["weight_grid"]["cells"]
     ]
     assert declared == sorted(declared)
-    assert declared[-1] / declared[0] == pytest.approx(1.68, abs=0.02)
+    assert declared[-1] / declared[0] == pytest.approx(4.44, abs=0.02)
 
-    # The 1.68x is gone; the 3.5% left is the judge's integer scale going flat inside a
-    # group, which varies with the weight direction rather than with ||omega||.
+    # The spread is gone; the few percent left is the judge's integer scale going flat inside
+    # a group, which varies with the weight direction rather than with ||omega||.
     delivered = [advantages(rc).std(axis=1).mean() for _, rc in grid_reward_configs(cfg)]
-    assert max(delivered) / min(delivered) < 1.05
+    assert max(delivered) / min(delivered) < 1.10
 
 
 def test_trainer_scaling_would_rescale_every_group_to_unit_advantage():
@@ -179,15 +186,14 @@ def test_caps_count_rollouts_and_the_trainer_is_given_optimizer_steps(cfg, args)
 
 
 def test_a_generation_batch_is_exactly_one_rollout(cfg, args):
-    assert rollout_batch(cfg) == 64
-    assert args.generation_batch_size == 64
+    assert rollout_batch(cfg) == 32
+    assert args.generation_batch_size == 32
     assert args.num_generations == cfg["rlsf"]["rollout"]["group_size"]
     # Equal, or a rollout stops being mu optimizer steps and the cap stops counting them.
     assert args.steps_per_generation == args.gradient_accumulation_steps
 
 
 def test_a_micro_batch_that_does_not_divide_the_rollout_is_refused(cfg, tmp_path):
-    import copy
 
     cfg = copy.deepcopy(cfg)
     cfg["rlsf"]["train"]["per_device_train_batch_size"] = 5
@@ -232,9 +238,6 @@ def test_the_budget_refuses_the_block_that_would_cross_the_call_cap():
 
 
 def test_asking_for_more_rollouts_than_the_cap_is_refused(cfg, monkeypatch):
-    import sys
-
-    from src.rlsf import train
 
     cap = cfg["rlsf"]["caps"]["max_steps"]
     monkeypatch.setattr(sys, "argv", ["rlsf_train", "--steps", str(cap + 1), "--yes"])
@@ -253,10 +256,12 @@ def test_the_budget_refuses_once_the_measured_spend_reaches_the_dollar_cap():
 # the pre-registered arms
 
 
-# docs/preregistration_rlsf.md, "The two arms": omega at unit norm, (bleu, kiwi, judge).
+# docs/preregistration_rlsf.md and its 2026-08-13 addendum, which adds the third arm:
+# omega at unit norm, (bleu, kiwi, judge).
 PREREGISTERED = {
     "w3_0.0": (0.7071, 0.7071, 0.0),
     "w3_2.0": (0.4082, 0.4082, 0.8165),
+    "w3_6.0": (0.1622, 0.1622, 0.9733),
 }
 
 
@@ -284,10 +289,10 @@ def test_an_exploratory_cell_cannot_be_trained(cfg):
         arm_reward_config(cfg, "mix_stylo")
 
 
-def test_the_two_arms_do_not_write_to_one_anothers_paths(cfg):
+def test_the_arms_do_not_write_to_one_anothers_paths(cfg):
     logs = {arm_path(cfg["output"]["step_log"], cell) for cell in PREREGISTERED}
     adapters = {arm_path(cfg["output"]["adapter_dir"], cell) for cell in PREREGISTERED}
-    assert len(logs) == len(adapters) == 2
+    assert len(logs) == len(adapters) == len(PREREGISTERED)
     assert arm_path(cfg["output"]["step_log"], None) == Path(cfg["output"]["step_log"])
 
 
@@ -319,7 +324,6 @@ def test_holding_the_judge_flat_leaves_the_ablation_arms_reward_untouched(cfg):
 def test_a_step_line_carries_the_drift_verdict_the_run_acted_on(cfg, tmp_path):
     # The pre-registration reports the verdict at every step. Replaying it later reads
     # whatever rule is on disk then, which is not necessarily the one that halted the run.
-    from src.rlsf.stop import DriftMonitor
 
     step_log = tmp_path / "steps.jsonl"
     state = LoopState()
@@ -350,7 +354,6 @@ def test_a_step_line_carries_the_drift_verdict_the_run_acted_on(cfg, tmp_path):
 def test_the_configs_kiwi_placement_reaches_the_worker(cfg, monkeypatch):
     """Left unset, the worker auto-detects the card GRPO is training on and allocates
     inside the first reward call, next to the rollout's logits."""
-    import sys
 
     monkeypatch.setenv("RLSF_COMET_PYTHON", sys.executable)
     kiwi_cfg = dict(cfg["rlsf"]["reward"]["kiwi"], python=None)
@@ -370,3 +373,63 @@ def test_the_manifest_names_the_arm_and_what_was_held_flat(cfg):
     # The comparison is only between arms trained under one drift rule and one initialization.
     assert man["drift_rule"]["min_delta"] == 0.23
     assert man["generator"]["adapter_path"] == cfg["rlsf"]["reference"]["adapter_path"]
+
+
+def test_the_manifest_pins_the_libraries_the_update_depends_on(cfg):
+    """A GRPO step is defined by trl and peft as much as by the config, so a run's numbers
+    are only attributable to a build if that build is recorded with them."""
+    man = run_manifest(cfg, cell="w3_0.0", rc=arm_reward_config(cfg, "w3_0.0"), steps=1,
+                       held_flat=[])
+    versions = man["versions"]
+    for name in ("torch", "transformers", "trl", "peft", "accelerate"):
+        assert versions[name], f"{name} version not recorded"
+    assert "cuda" in versions and "device" in versions
+
+
+def test_the_optimizer_block_names_the_rollout_that_produced_it():
+    """The mu passes log after the rollout's reward call, so attributing them to the line
+    they are written on would shift every kl and grad_norm forward by one step."""
+    state = LoopState()
+    assert state.take_optim() == {}, "nothing has been optimized before the first rollout"
+    state.rollout = 1
+    state.optim_block = [{"kl": 0.0, "grad_norm": 2.0}, {"kl": 0.4, "grad_norm": 4.0}]
+    block = state.take_optim()
+    assert block == {"rollout": 0, "passes": 2, "kl": 0.2, "grad_norm": 3.0}
+    assert state.take_optim() == {}, "a block is reported once, not carried into the next step"
+
+
+def test_the_callback_keeps_the_optimizer_keys_and_drops_the_rest():
+    """What the trainer logs is wider than what the step log carries, and `epoch` or a
+    string-valued entry reaching the JSON line would break the schema consumers read."""
+
+    mu = 4
+    state = LoopState()
+    callback = make_optim_callback(state)
+    for _ in range(mu):
+        callback.on_log(None, None, None, logs={
+            "kl": 0.5, "grad_norm": 1.0, "learning_rate": 1e-6, "loss": 0.25,
+            "epoch": 0.01, "num_tokens": 4096, "mode": "train",
+        })
+    state.rollout = 1
+    block = state.take_optim()
+    assert block["passes"] == mu, "every mu pass should be collected, not just the last"
+    assert set(block) == {"rollout", "passes", "kl", "grad_norm", "learning_rate", "loss"}
+
+    callback.on_log(None, None, None, logs={"epoch": 0.02, "mode": "eval"})
+    callback.on_log(None, None, None, logs=None)
+    assert not state.optim_block, "a log carrying no optimizer key should add nothing"
+
+
+def test_adapter_delta_is_zero_at_the_initialization_and_positive_after_a_step():
+    """A flat style score is not evidence about the reward if the adapter never moved."""
+
+    model = torch.nn.Linear(4, 4, bias=False)
+    torch.nn.init.constant_(model.weight, 0.5)
+    snapshot = trainable_snapshot(model)
+    assert adapter_delta(model, snapshot) == {"l2": 0.0, "rel": 0.0}
+
+    with torch.no_grad():
+        model.weight += 0.1
+    moved = adapter_delta(model, snapshot)
+    assert moved["l2"] == pytest.approx(0.4)      # 16 entries, each 0.1
+    assert moved["rel"] == pytest.approx(0.2)     # ||0.5|| over 16 entries is 2.0

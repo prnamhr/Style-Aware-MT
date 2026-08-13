@@ -162,3 +162,120 @@ the grid. Flat remains the prediction for the trained arms — the decline is sm
 selection-time reading is a different quantity from a training trajectory — but the
 direction of that decline is recorded now so it is not read afterwards as having been
 predicted.
+
+## Third arm, and the settings the run is made at
+
+Written before any GRPO step has run. It adds an arm, changes six training settings, and
+records what those changes cost the stop rule. The two arms above are unchanged in ω, in
+initialization and in what they are predicted to do, and predictions 1–4 for RLSF-Judge are
+scored exactly as written.
+
+### The third arm
+
+| Arm | Cell | ω as declared | ω at unit norm (bleu, kiwi, judge) | ω₃² |
+|---|---|---|---|---|
+| RL-Metric | `w3_0.0` | (1, 1, 0) | (0.7071, 0.7071, 0.0) | 0 |
+| RLSF-Judge | `w3_2.0` | (1, 1, 2) | (0.4082, 0.4082, 0.8165) | 2/3 |
+| RLSF-Judge-High | `w3_6.0` | (1, 1, 6) | (0.1622, 0.1622, 0.9733) | 36/38 |
+
+The two-arm design was chosen because the argument needs the judge term present and absent
+rather than a dose-response curve. That is still true of the argument, and it is not true of
+the outcome the arms are being run to locate. Two arms can show that a rubric term moves the
+policy; they cannot separate *how far it moves* from *how much semantic quality that costs*,
+because with two points every trade-off is a line. `w3_6.0` is the third point. It is
+predicted, in the same direction and for the same reason as `w3_2.0`, to raise training-time Φ
+and `marker_rate` z further and to worsen held-out register distance further, and — unlike
+`w3_2.0`, for which prediction 3 says Kiwi is flat — to show adequacy falling: at ω₃² = 36/38
+the metric terms hold 1/19 of the reward's variance and are no longer a guardrail in any
+meaningful sense. If instead `w3_6.0` matches `w3_2.0` on both style and adequacy, the
+reward has saturated and the ω axis is not the axis that governs the outcome.
+
+`w3_6.0` did not exist when the pre-registered ω grid was ranked on the cached pool, so it has
+no selection-rule ranking and is not a candidate for selection. It is a training arm only.
+Re-running `manage.py rlsf_omega` over the five cells re-ranks a cached pool and buys no new
+judge calls; the four-cell ranking recorded in the addendum above is the one the selection
+rule was pre-registered over and remains the one reported as selection.
+
+### Settings changed
+
+| Setting | Was | Is | Why |
+|---|---|---|---|
+| `reference.beta` | 0.05 | 0.01 | the KL anchor is a frozen adapter, not the base; at 0.05 the "uninformative outcome" clause below was the likelier reading of a null result than any statement about the reward |
+| `rollout.prompts_per_step` | 16 | 8 | GPU budget for three arms rather than two |
+| `train.per_device_train_batch_size` | 4 | 1 | memory; `grpo_args` derives grad accum 32, so the gradient still averages 8 groups |
+| `generator.max_tokens` | 256 | 192 | still 3× the dev reference p95 of 61 tokens, so nothing feasible is truncated |
+| `train.save_every_rollouts` | 10 | 25 | 12 checkpoints over 300 rollouts |
+| rollouts per arm | 500 | 300 | three arms inside the same envelope |
+
+β is the one of these that changes what is being tested rather than what it costs. Lowering it
+loosens the constraint holding the policy at its initialization, which makes movement more
+likely in both arms — including in RL-Metric, which is predicted not to move on `marker_rate`.
+That prediction is therefore now made under a weaker anchor and is correspondingly easier to
+falsify. This is stated in advance so a `w3_0.0` trip cannot afterwards be attributed to β.
+
+The "uninformative outcome" clause stands unchanged: if neither arm moves, the run is reported
+as a null run of the optimizer and not as evidence about the reward. `adapter_delta_rel` in the
+step log is what distinguishes the two, and it is read before any statement about style is
+made.
+
+### What the geometry costs the stop rule
+
+The rule is unchanged: `baseline_steps: 20`, `window: 5`, `k_sigma: 4.0`, `min_delta: 0.23`.
+Its operating characteristic is not. At the smoke's measured per-prompt error, halving the
+rollout raises the per-step standard error by √2 and the band with it, from 0.660 to 0.933
+centroid standard deviations (`manage.py drift_oc`, 1,000 runs, seed 42):
+
+| Geometry | Band | Null (false alarm) | Step +0.23 | Step +0.35 |
+|---|---:|---:|---:|---:|
+| 16 prompts, 500 steps (as pre-registered) | 0.660 | 1.3 % | 45.4 % | 88.8 % |
+| 8 prompts, 500 steps | 0.933 | 2.1 % | 30.4 % | 64.7 % |
+| 8 prompts, 300 steps (the run) | 0.933 | 1.5 % | 21.4 % | 49.7 % |
+
+The false-alarm rate is what the operating point was chosen on and it holds. Power does not:
+against a +0.35 step the rule now fires about half the time rather than nine times in ten. The
+rule was not retuned to recover it, because retuning a stop rule to a power target after
+choosing the geometry that lost it is the kind of edit this document exists to prevent. The
+consequence is recorded instead: **a run that does not halt is now much weaker evidence that it
+did not drift than it was under the pre-registered geometry.** Drift is measured in the val
+table and in the step log's `marker_rate` z either way; the monitor is a safety halt, not the
+measurement. The three commitments above are unchanged — a halt is a result, the rule is not
+edited after a trip, and a `w3_0.0` trip is reported as evidence against the attribution of
+drift to the judge term before it is reported as a false alarm.
+
+The `ramp +0.50` scenario is omitted from the table above deliberately: `src/rlsf/drift_oc.py`
+hard-codes the ramp to reach its endpoint at step 500, so at 300 steps the simulated drift only
+reaches +0.28 and the resulting figure measures the simulator, not the rule.
+
+### Disclosure: the pool reading taken after these predictions were written
+
+`manage.py rlsf_omega` was re-run over the five cells after the predictions above were fixed,
+to a scratch path; `outputs/rlsf/pool_omega.json` still holds the four-cell selection the
+pre-registration cites and was not overwritten. The reading buys no judge calls — it re-argmaxes
+completions already paid for.
+
+At G = 4, register distance rises monotonically across the grid: `w3_0.0` 0.5581, `w3_0.5`
+0.5995, `w3_1.0` 0.6195, `w3_2.0` 0.6645, `w3_6.0` 0.6909. The `marker_rate` shift of each
+cell's picks over their own groups rises with it, `w3_6.0` at +0.187 [+0.125, +0.248] between
+`w3_2.0` (+0.158) and `judge_only` (+0.206). The selection rule still ranks `w3_0.0` first and
+`w3_6.0` now last.
+
+This is consistent with the direction predicted for `w3_6.0` and is recorded so it is not later
+read as having been predicted from the training run. It is a selection-time reading over
+best-of-N picks, which is a different quantity from a training trajectory: it says the reward
+prefers those completions, not that a policy optimized against it arrives there.
+
+### Everything else held
+
+Same frozen PEFT initialization, same reference adapter, same prompt assembly as the PEFT
+condition, rollout at T = 1.0 / top-p 0.95, G = 4, `loss_type: dapo`, lr 1e-6, μ = 4, ε = 0.2,
+seed 42, length band [0.5, 2.0] with `on_violation: floor`, `normalization: group_z`,
+`scale_rewards: none`, unquantized BF16 policy, and the frozen training rubric
+`prompts/judge_train.txt` digest-verified on load. All three arms are trained under one set of
+these, and `steps_<cell>_manifest.json` records the installed `torch`, `transformers`, `trl`,
+`peft`, `accelerate` and CUDA versions with each.
+
+Checkpoint selection is added and is a dev-slice operation: `manage.py rlsf_select` scores each
+saved checkpoint on `data/splits/rlsf_dev.jsonl` and ranks on the chrF adequacy band then
+held-out register distance, the rule `src/peft/sweep.py` already uses. It carries no judge —
+ranking on the rubric the paid arms optimize would be circular, and the evaluation raters are
+spent once, on val. Selection reads no val and no test figure, so the seal is untouched.

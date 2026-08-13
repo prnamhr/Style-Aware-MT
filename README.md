@@ -156,9 +156,17 @@ The index is built over the **source** side (not the English targets) so that th
   grid cell changes the weighting and not the effective step size. Weights are tuned on the
   RLSF dev slice over four cells including a `ω₃ = 0` ablation, in
   [`configs/rlsf.yaml`](configs/rlsf.yaml).
+- **Arms:** three are trained, at ω₃² = 0, 2/3 and 36/38 of the reward's variance —
+  `w3_0.0` (RL-Metric, free, `--skip_judge`), `w3_2.0` and `w3_6.0`. The first two are
+  pre-registered in [`docs/preregistration_rlsf.md`](docs/preregistration_rlsf.md); the third is
+  added by that document's 2026-08-13 addendum, which also records β 0.05 → 0.01, the rollout at
+  8 prompts × G = 4, and 300 rollouts per arm. `w3_6.0` is a training arm only and is not a
+  candidate for the ω selection rule, which was pre-registered over the original four cells.
 - **Reward judge:** `gpt-4o-mini`, **model-distinct from both evaluation raters** (Φ_A `claude-haiku-4-5`, Φ_B `gpt-5.6-terra`). RLSF is the only arm optimized against a judge, so it is the arm whose Φ most needs raters it was not trained against; training on either would spend one of them. It is also the only candidate honouring both `temperature: 0` and `seed: 42`, which matters here because group normalization turns rater noise into gradient noise. A Qwen judge is excluded as self-preference bias against a Qwen policy.
-- **Bounded:** capped at **$25 of judge spend**, declared 2026-08-08 and derived in [`docs/budget.md`](docs/budget.md) from the smoke's measured $7.375e-5 per call. The plan under it is 500 rollout steps plus a dev-slice best-of-N pool, $2.65; the step caps (600 final, 200 grid) bind first at $7.55 worst case, and the call and dollar caps are a backstop against the per-call rate moving. `src/rlsf/config.py:assert_caps_declared` refuses to load the config if any cap is nulled again.
-- **Register-drift stop:** the run halts if `marker_rate` leaves the regime it opened in — the direction the register reward can be gamed. The band is set from a simulated false-alarm rate over a 500-step run rather than a per-check σ level (DEVLOG, 2026-08-09), and the operating point is pinned by a test.
+- **Bounded:** capped at **$25 of judge spend**, declared 2026-08-08 and derived in [`docs/budget.md`](docs/budget.md) from the smoke's measured $7.375e-5 per call. The plan under it, re-priced 2026-08-13, is three arms of 300 rollouts plus the dev-slice best-of-N pool, $1.43; the step caps (600 final, 200 grid) bind first at $3.78 worst case, and the call and dollar caps are a backstop against the per-call rate moving. `src/rlsf/config.py:assert_caps_declared` refuses to load the config if any cap is nulled again.
+- **Register-drift stop:** the run halts if `marker_rate` leaves the regime it opened in — the direction the register reward can be gamed. The band is set from a simulated false-alarm rate rather than a per-check σ level (DEVLOG, 2026-08-09), and the operating point is pinned by a test. At the 8-prompt rollout the band widens to 0.933 centroid σ and power against a +0.35 step falls to about half; the rule was not retuned to recover it, and the addendum records what that costs.
+- **Checkpoint selection:** `manage.py rlsf_select` scores every saved checkpoint of an arm on the dev slice and ranks on the chrF adequacy band then held-out register distance — the rule `src/peft/sweep.py` uses. No judge: the training rubric is what the paid arms optimize, and the evaluation raters are spent once, on val.
+- **Per-step telemetry:** reward mean and spread, per-component raw and normalized means, feasibility and degenerate-group fraction, signed z per centroid feature with clustered error, the drift verdict, the trainer's own `kl`/`grad_norm`/`learning_rate`, and `adapter_delta` — how far the LoRA weights have travelled from the initialization. The last exists so a flat style score can be told apart from an optimizer that never moved.
 - **Fallback:** if the GRPO run does not converge under budget, RLSF is reported using **best-of-N reranking** of PEFT-checkpoint samples, scored with the same reward.
 
 ---
@@ -451,11 +459,18 @@ python manage.py rlsf_smoke --hyps_file outputs/rlsf/smoke_hyps.jsonl --yes  # r
 
 # RLSF training and the ω grid. Implemented, not yet run.
 # python manage.py rlsf_train --dry_run                     # CPU wiring check, 0.5B, no spend
-# python manage.py rlsf_train --steps 500 --yes
+# python manage.py drift_oc --steps 300                     # operating characteristic of the stop rule
+# python manage.py rlsf_train --cell w3_0.0 --steps 50 --skip_judge \
+#   --out outputs/rlsf/smoke50_steps.jsonl --adapter_out models/rlsf_smoke50 --overwrite
+# python manage.py rlsf_train --cell w3_0.0 --steps 300 --skip_judge   # RL-Metric, free
+# python manage.py rlsf_train --cell w3_2.0 --steps 300 --yes          # 9,600 calls, $0.71
+# python manage.py rlsf_train --cell w3_6.0 --steps 300 --yes          # 9,600 calls, $0.71
 # python manage.py rlsf_pool  --yes                         # dev-slice best-of-N pool
 # python manage.py rlsf_omega                               # re-argmax the pool per ω cell, free
-# python manage.py drift_oc                                 # operating characteristic of the stop rule
-# python manage.py infer --condition rlsf --config configs/rlsf.yaml
+# python manage.py rlsf_select --cell w3_2.0 --dev-limit 200  # checkpoint selection, free
+# There is no `rlsf` inference condition: a trained adapter is scored through `peft`.
+# python manage.py infer --condition peft --config configs/rlsf_eval_w3_2.0.yaml \
+#   --out-name rlsf_w3_2.0
 ```
 
 The GPU stages (sweeps, training, full-split inference) do not fit an 8 GB development

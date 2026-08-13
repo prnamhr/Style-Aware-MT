@@ -108,6 +108,169 @@ their history.
 
 ---
 
+## 2026-08-13 — A third arm, the geometry the run is made at, and the telemetry that reads it
+
+### Summary
+
+The GRPO loop was complete and pre-registered but had never taken a step. Preparing it to run
+added a third ω cell, halved the rollout, lowered β, and added four logging channels without
+which a null result cannot be distinguished from an optimizer that never moved. The
+pre-registration is amended by dated addendum, not rewritten; `docs/budget.md` carries the
+re-priced volumes.
+
+### What changed
+
+`configs/rlsf.yaml`:
+
+* `weight_grid.cells` gains `w3_6.0` = (1, 1, 6), unit ω (0.1622, 0.1622, 0.9733). Three arms
+  are trained: `w3_0.0`, `w3_2.0`, `w3_6.0`.
+* `reference.beta` 0.05 → 0.01; `rollout.prompts_per_step` 16 → 8;
+  `train.per_device_train_batch_size` 4 → 1 (grad accum derives to 32);
+  `generator.max_tokens` 256 → 192; `train.save_every_rollouts` 10 → 25.
+
+`src/rlsf/train.py`:
+
+* `library_versions()` records `torch`, CUDA, the device name and the installed
+  `transformers`/`trl`/`peft`/`accelerate`/`bitsandbytes` into the run manifest. A GRPO step is
+  defined by TRL and PEFT as much as by the config.
+* `load_policy(require_ref=True)` raises when β is non-zero and no `ref` adapter registered,
+  and prints the adapter list and the active adapter. The existing assertions only fired inside
+  the branch that loads a reference; with β set and no init adapter the run anchored KL to the
+  bare base silently. The dry run passes `require_ref=False` — it has no init adapter by design.
+* `make_optim_callback` collects TRL's `kl`, `grad_norm`, `learning_rate`, `loss`, `entropy`,
+  `clip_ratio/region_mean` and `completions/mean_length`; `LoopState.take_optim` averages the μ
+  passes and stamps them with the rollout that produced them. They arrive *after* that rollout's
+  reward call, so the step-log line carries `optim.rollout = step - 1`. Naming it is preferable
+  to writing every KL one step forward of the rollout it came from.
+* `trainable_snapshot` / `adapter_delta` measure ‖θ − θ₀‖₂ and its ratio to ‖θ₀‖₂ over the
+  trainable `default` adapter, per rollout and once more into the manifest's `outcome`.
+
+`src/rlsf/select.py`, new, dispatched as `manage.py rlsf_select`: scores every saved checkpoint
+of an arm on the dev slice and ranks on the chrF adequacy band then held-out register distance.
+`configs/rlsf_eval_w3_*.yaml`, new: the val inference route for a trained adapter, through the
+`peft` condition with `--out-name`.
+
+### Rationale
+
+Two arms can show that a rubric term moves the policy. They cannot separate how far it moves
+from what that costs, because with two points every trade-off is a line. `w3_6.0` is the third
+point, at ω₃² = 36/38 where the metric terms hold 1/19 of the reward's variance and stop being
+a guardrail in any useful sense.
+
+β is the change that alters what is tested rather than what it costs. The KL anchor here is a
+frozen adapter, not the base model, so 0.05 was constraining movement away from a policy the
+arm starts at; the pre-registration's own "uninformative outcome" clause — neither arm moves,
+nothing is tested — was the likelier reading of a null result than any statement about the
+reward. The addendum records that RL-Metric's no-movement prediction is now made under a
+weaker anchor and is correspondingly easier to falsify.
+
+The adapter-delta channel exists for the same clause. A flat style score is evidence about the
+reward only if the adapter was updating; without the measurement the two are indistinguishable
+in the log, and the temptation is to read the more interesting of them.
+
+Checkpoint selection carries no judge deliberately. The training rubric is what the two paid
+arms optimize, so ranking checkpoints on it is circular, and the evaluation raters are spent
+once, on the reported val pass.
+
+### Verification
+
+`python -m pytest tests/` — 325 passed. Four assertions moved with the geometry and are
+recorded here as changed expectations, not as fixes: the generation batch is 32 rather than 64,
+the step-capped worst case is 51,200 calls and $3.78 at the group-size ceiling rather than
+102,400 and $7.55, and the declared cells now separate by 4.44× in advantage magnitude rather
+than 1.68× before `unit_omega` removes it. New tests pin the manifest's version block, the
+optimizer block's rollout attribution, and that `adapter_delta` reads zero at the
+initialization.
+
+`manage.py drift_oc` was re-run because the stop rule's band is set from the per-step standard
+error, which the rollout halving raises by √2. At 16 prompts and 500 steps it reproduces the
+2026-08-09 operating point exactly (band 0.660; 1.3 % / 45.4 % / 88.8 % against null / +0.23 /
++0.35), which is what makes the comparison readable: at 8 prompts the band widens to 0.933 and
+power against a +0.35 step falls to 64.7 % at 500 steps, 49.7 % at the 300 the run uses.
+
+### Reproduction
+
+```
+python manage.py drift_oc --steps 300
+python manage.py rlsf_train --dry_run
+python manage.py rlsf_train --cell w3_0.0 --steps 50 --skip_judge \
+  --out outputs/rlsf/smoke50_steps.jsonl --adapter_out models/rlsf_smoke50 --overwrite
+python manage.py rlsf_train --cell w3_0.0 --steps 300 --skip_judge
+python manage.py rlsf_train --cell w3_2.0 --steps 300 --yes
+python manage.py rlsf_train --cell w3_6.0 --steps 300 --yes
+python manage.py rlsf_select --cell w3_2.0 --dev-limit 200
+```
+
+### Limitations and risks
+
+* **The stop rule lost power and was not retuned.** A run that does not halt is now much weaker
+  evidence that it did not drift. Retuning `k_sigma` to recover the power target after choosing
+  the geometry that lost it is the edit the pre-registration exists to prevent, so the cost is
+  recorded rather than removed. `marker_rate` z is in the step log and the val table regardless.
+* `optim` is empty on the first line of every step log: no optimizer pass has run at rollout 0.
+  Consumers reading `optim.kl` off line 1 will find nothing there, by construction.
+* `adapter_delta` copies 80.7 M parameters to host memory each rollout. The cost is small
+  against a rollout but it is not free, and the float32 baseline holds ~323 MB of RAM.
+* Whether PEFT writes a `ref/` subdirectory beside each checkpoint's root adapter is unverified
+  until the smoke runs; if it does, each arm's 12 checkpoints cost twice the expected disk.
+
+---
+
+## 2026-08-12 — The COMET worker: off the training card, and not deadlocked behind its own stderr
+
+### Summary
+
+Three fixes to the reward path, none of which changes a number, all of which decide whether a
+GRPO run finishes: commits `e72b2fb`, `5403993` and `536bc2f`. Recorded late — the run they
+prepare had not started when they were made.
+
+### What changed
+
+**`e72b2fb` — the worker's device is the config's to choose.** `reward.kiwi.gpus` reaches
+`src/rlsf/_kiwi_worker.py`, which sets both Lightning knobs rather than one:
+
+```python
+accelerator = "gpu" if gpus else "cpu"
+devices = list(range(gpus)) if gpus else "auto"
+```
+
+Setting `gpus: 0` alone was not enough — `comet` forces `accelerator="cpu"` at zero devices,
+and leaving `devices` unset let Lightning auto-detect the card GRPO was training on. The
+committed value is 0: the encoder allocates on CPU rather than competing for the 32 GB the 7B
+policy and its rollout logits already fill. `src/rlsf/train.py` correspondingly applies
+`reserve_vram` only when `kiwi.gpus` is truthy, so `torch.cuda.set_per_process_memory_fraction`
+does not cap the trainer at 85 % of a card it is not sharing.
+
+**`5403993` — the worker's stderr is a file, not a pipe.**
+
+```python
+# Not a pipe: nothing drains the worker's stderr between requests, so once Lightning
+# has written the 64 KB pipe buffer full the worker blocks inside predict and the
+# training loop waits on a score that never comes.
+self._log = self.stderr_log.open("wb")
+```
+
+`KiwiScorer.score` blocks on `readline` from the worker's stdout. With stderr as a pipe that
+nobody reads between requests, Lightning's progress output fills the 64 KB buffer, the worker
+blocks writing to it, and both processes wait on each other. The failure has no error and no
+traceback: a rollout simply never returns, which on rented GPU time is the most expensive shape
+a bug can take. `logs/kiwi_worker.err` is the destination (git-ignored), and `_stderr()` tails
+its last 2,000 bytes into any `KiwiError` so the log is still what the exception quotes.
+
+**`536bc2f` — two config values that would have been discovered by running.**
+`generator.max_tokens` 1024 → 256, roughly 4× less GRPO activation for a completion budget the
+dev references never approach; and `save_strategy`/`save_steps` wired from
+`train.save_every_rollouts`, without which a drift halt would have ended the run with no
+checkpoint before the drifted final step.
+
+### Limitations and risks
+
+The deadlock fix is verified by construction rather than by reproduction: the pipe-full
+condition needs a long enough Lightning run to fill 64 KB, and no test forces it. What is
+pinned is the placement (`tests/test_rlsf_train.py`), not the drain.
+
+---
+
 ## 2026-08-12 — The training loop could not select an arm
 
 ### Summary

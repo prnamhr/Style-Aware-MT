@@ -4,7 +4,7 @@ generator:
   provider: local
   model: Qwen/Qwen2.5-7B-Instruct         # locked base, unquantized, as in every condition
   adapter_path: models/peft_lora_r32_lr2e-4/checkpoint-1358   # RLSF init = frozen PEFT cell
-  max_tokens: 256                         # covers the 2x-ref feasibility band (dev refs p95=61 tok,
+  max_tokens: 192                         # covers the 2x-ref feasibility band (dev refs p95=61 tok,
                                           #  0% in-band truncation); 1024 was ~4x the GRPO activation
   dtype: bfloat16
   device_map: auto
@@ -23,13 +23,13 @@ rlsf:
   rollout:
     temperature: 1.0                      # -> GRPOConfig.temperature
     top_p: 0.95                           # -> GRPOConfig.top_p
-    prompts_per_step: 16
-    group_size: 4                         # -> GRPOConfig.num_generations; 16 x 4 = 64 calls/step
+    prompts_per_step: 8
+    group_size: 4                         # -> GRPOConfig.num_generations; 8 x 4 = 32 calls/step
 
 
   reference:
     adapter_path: models/peft_lora_r32_lr2e-4/checkpoint-1358   # frozen copy of the init
-    beta: 0.05                            # -> GRPOConfig.beta, the KL coefficient
+    beta: 0.01                            # -> GRPOConfig.beta, the KL coefficient
 
 
   # GRPO field names throughout: TRL has no ppo_epochs or clip_range, and a PPO-shaped
@@ -41,11 +41,11 @@ rlsf:
     epsilon: 0.2                          # clip range on the importance ratio
     loss_type: dapo                       # token-normalized over the batch; no length bias
     scale_rewards: none
-    per_device_train_batch_size: 4        # memory knob; grad accum is derived from it
+    per_device_train_batch_size: 1        # memory knob; grad accum is derived from it
     logging_steps: 1                      # one StepLog JSON line per rollout (reward.py:334)
     gpu_memory_fraction: 0.85             # applied only when reward.kiwi.gpus > 0, so the
                                           #  COMET encoder is not left to OOM on 0.4 GB
-    save_every_rollouts: 10               # 0 disables; rollouts between GRPO checkpoints
+    save_every_rollouts: 25               # 0 disables; rollouts between GRPO checkpoints
     save_total_limit: null          
 
 
@@ -74,6 +74,7 @@ rlsf:
       - {name: w3_0.5, w_kiwi: 1.0, w_bleu: 1.0, w_judge: 0.5}
       - {name: w3_1.0, w_kiwi: 1.0, w_bleu: 1.0, w_judge: 1.0}
       - {name: w3_2.0, w_kiwi: 1.0, w_bleu: 1.0, w_judge: 2.0}
+      - {name: w3_6.0, w_kiwi: 1.0, w_bleu: 1.0, w_judge: 6.0}
 
     exploratory:
       # One component each: which term is doing the work the combined reward gets credit for.

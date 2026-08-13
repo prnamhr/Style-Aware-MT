@@ -1,0 +1,24 @@
+# Val inference for the RLSF-High arm (cell w3_6.0), run through the `peft` condition.
+
+generator:
+  provider: local
+  model: Qwen/Qwen2.5-7B-Instruct
+  adapter_path: models/rlsf_grpo_w3_6.0    # replace with the selected checkpoint-N
+  max_tokens: 1024
+  temperature: 0.0          # greedy, deterministic (locked decoding)
+  top_p: 1.0
+  seed: 42
+  dtype: bfloat16
+  device_map: auto
+  load_in_4bit: false
+
+prompt:
+  style_instruction_file: prompts/style_instruction.txt
+
+data:
+  eval_file: data/splits/val.jsonl
+  limit: null
+
+output:
+  dir: outputs
+  name: rlsf_w3_6.0

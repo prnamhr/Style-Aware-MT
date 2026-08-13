@@ -6,6 +6,8 @@ import json
 import math
 import threading
 import time
+import sacrebleu
+
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field, replace
 from pathlib import Path
@@ -13,6 +15,7 @@ from pathlib import Path
 import numpy as np
 
 from src.eval.stylometrics import distance_to_centroid, features, signed_z
+from src.eval.judge import _JUDGE_SYSTEM, build_prompt, parse_score
 
 _CENTROID_PATH = Path("results/stylometrics_centroid.json")
 _TRAIN_TEMPLATE = Path("prompts/judge_train.txt")
@@ -135,13 +138,7 @@ class RewardConfig:
 
 
 def overlap_scores(hyps: list[str], refs: list[str], metric: str = "bleu") -> list[float]:
-    """Smoothed sentence-BLEU, or chrF++ as the swappable alternative.
-
-    Corpus BLEU is undefined per segment without smoothing; sacrebleu's exponential
-    smoothing is used so a hypothesis with no 4-gram match still scores above zero and
-    the group retains variance.
-    """
-    import sacrebleu
+    """Smoothed sentence-BLEU, or chrF++ as the swappable alternative."""
 
     if metric == "chrf":
         scorer = sacrebleu.CHRF(word_order=2)  # chrF++
@@ -151,11 +148,7 @@ def overlap_scores(hyps: list[str], refs: list[str], metric: str = "bleu") -> li
 
 
 def stylo_scores(hyps: list[str], centroid: dict) -> list[float]:
-    """Negated per-sample distance to the target register over the centroid's features.
-
-    Negated because every other component is better when larger, and the combination is a
-    weighted sum. Free: stylometrics are counted off the text, so this term costs no call.
-    """
+    """Negated per-sample distance to the target register over the centroid's features."""
     return [-distance_to_centroid(features(h), centroid) for h in hyps]
 
 
@@ -199,13 +192,7 @@ def judge_scores(
     max_workers: int = 1,
     timing: JudgeTiming | None = None,
 ) -> list[float]:
-    """Training-time Phi, one paid call per sample; nan where the verdict did not parse.
-
-    The calls are latency-bound and independent, so ``max_workers`` above 1 fans them out
-    over threads rather than holding the rented GPU idle for a step's worth of verdicts.
-    A ``timing`` is filled in with the block's wall clock and the summed call time.
-    """
-    from src.eval.judge import _JUDGE_SYSTEM, build_prompt, parse_score
+    """Training-time Phi, one paid call per sample; nan where the verdict did not parse."""
 
     prompts = [build_prompt(template, src, ref, hyp) for src, ref, hyp in zip(sources, refs, hyps)]
 

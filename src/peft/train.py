@@ -8,14 +8,22 @@ from __future__ import annotations
 
 import argparse
 import json
+import yaml
+import torch
+
 from pathlib import Path
 
-import yaml
+from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
+from transformers import (
+    AutoModelForCausalLM,
+    AutoTokenizer,
+    BitsAndBytesConfig,
+    DataCollatorForSeq2Seq,
+    Trainer,
+    TrainingArguments,
+    set_seed,
+)
 
-# Zero-shot user directive. Kept byte-identical to
-# ``src.infer.run.build_zeroshot_user`` so the PEFT inference condition sees the
-# exact prompt the adapter was trained on. Replicated (not imported) to avoid
-# pulling the commercial-API client imports of ``run.py`` into training.
 _ZEROSHOT_USER = "Translate the following text into English:\n\n{source}"
 
 
@@ -86,18 +94,6 @@ class SFTDataset:
 
 def train(cfg: dict) -> None:
     # Heavy deps imported lazily so `import`/`--help` need no GPU stack.
-    import torch
-    from transformers import (
-        AutoModelForCausalLM,
-        AutoTokenizer,
-        BitsAndBytesConfig,
-        DataCollatorForSeq2Seq,
-        Trainer,
-        TrainingArguments,
-        set_seed,
-    )
-
-    from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
 
     gen = cfg["generator"]
     pcfg = cfg["peft"]

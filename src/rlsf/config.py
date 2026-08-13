@@ -8,6 +8,7 @@ import yaml
 from src.infer.run import make_client
 from src.rlsf.reward import RewardConfig
 from src.rlsf.stop import DriftRule
+from trl import GRPOConfig
 
 _CONFIG = Path("configs/rlsf.yaml")
 
@@ -177,7 +178,6 @@ def grpo_args(
     **overrides,
 ):
     """Build the ``GRPOConfig`` for a run of ``rollout_steps`` rollouts (default: the cap)."""
-    from trl import GRPOConfig
 
     rlsf = cfg["rlsf"]
     rollout, train = rlsf["rollout"], rlsf["train"]

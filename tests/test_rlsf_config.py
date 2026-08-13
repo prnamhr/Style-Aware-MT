@@ -85,9 +85,9 @@ def test_worst_case_calls_default_to_the_ceiling_not_the_operative_group_size():
     cfg = load_config()
     at_ceiling = worst_case_judge_calls(cfg)
     operative = worst_case_judge_calls(cfg, group_size=cfg["rlsf"]["rollout"]["group_size"])
-    # 800 capped steps x 16 prompts x 8, and the same at the operative group size of 4.
-    assert at_ceiling == 102_400
-    assert operative == 51_200
+    # 800 capped steps x 8 prompts x 8, and the same at the operative group size of 4.
+    assert at_ceiling == 51_200
+    assert operative == 25_600
     assert at_ceiling > operative
 
 
@@ -98,11 +98,11 @@ def test_priced_worst_case_matches_hand_arithmetic():
 
 
 def test_the_step_caps_bind_before_the_call_and_dollar_caps():
-    # docs/budget.md, 2026-08-08: the call and spend caps are a backstop against the
-    # per-call rate moving, not a second opinion on the step count.
+    # docs/budget.md, 2026-08-08 and the 2026-08-13 re-pricing: the call and spend caps are a
+    # backstop against the per-call rate moving, not a second opinion on the step count.
     caps = load_config()["rlsf"]["caps"]
     calls = worst_case_judge_calls(load_config())
-    assert calls * _MEASURED_USD_PER_CALL == pytest.approx(7.55, abs=0.01)
+    assert calls * _MEASURED_USD_PER_CALL == pytest.approx(3.78, abs=0.01)
     assert calls < caps["max_judge_calls"]
     assert calls * _MEASURED_USD_PER_CALL < caps["max_judge_spend_usd"]
 
@@ -121,10 +121,10 @@ def test_reward_config_reads_the_weights_and_ignores_sub_blocks():
 
 def test_weight_grid_varies_only_omega_3_and_includes_the_ablation():
     cells = grid_reward_configs(load_config(require_caps=False))
-    assert [name for name, _ in cells] == ["w3_0.0", "w3_0.5", "w3_1.0", "w3_2.0"]
+    assert [name for name, _ in cells] == ["w3_0.0", "w3_0.5", "w3_1.0", "w3_2.0", "w3_6.0"]
     assert all(rc.w_kiwi == pytest.approx(rc.w_bleu) for _, rc in cells)
     # The cells are delivered at unit ||omega||, so the name is the ratio, not the weight.
-    assert [rc.w_judge / rc.w_bleu for _, rc in cells] == pytest.approx([0.0, 0.5, 1.0, 2.0])
+    assert [rc.w_judge / rc.w_bleu for _, rc in cells] == pytest.approx([0.0, 0.5, 1.0, 2.0, 6.0])
 
 
 def test_the_reward_and_every_grid_cell_are_delivered_at_unit_omega_norm():

@@ -75,7 +75,48 @@ caps below at run time through `JudgeBudget`, which refuses a judge block that w
 `max_judge_calls` and refuses to start one once `judge.usage` reports spend at
 `max_judge_spend_usd`.
 
+### RLSF arms — re-priced at the three-arm geometry (2026-08-13)
+
+Supersedes the volumes in the 2026-08-08 entry below; the measured per-call rate of
+**$7.375e-5** is unchanged and every figure here is priced at it. What changed is the run:
+`docs/preregistration_rlsf.md`'s addendum of this date trains three arms rather than two, and
+the rollout halved from 16 prompts to 8. A step is now **32 judge calls, $0.0024**.
+
+| Line item | Judge calls | Cost |
+|---|---:|---:|
+| RLSF-0 (`w3_0.0`), 300 rollouts, `--skip_judge` | 0 | $0.00 |
+| RLSF-Mid (`w3_2.0`), 300 rollouts | 9,600 | $0.71 |
+| RLSF-High (`w3_6.0`), 300 rollouts | 9,600 | $0.71 |
+| 50-rollout smoke, `--skip_judge` | 0 | $0.00 |
+| 3-rollout judge-path smoke | 96 | $0.01 |
+| Checkpoint selection on the dev slice, `manage.py rlsf_select` | 0 | $0.00 |
+| ω grid re-scored over the cached pool, now five cells | 0 | $0.00 |
+| **Planned total** | **19,296** | **$1.43** |
+
+Three arms cost less than the two priced in 2026-08-08 for two reasons that have nothing to do
+with the reward: 300 rollouts rather than 500, and 32 calls a rollout rather than 64. The
+step-capped worst case falls with them — 800 capped steps at the operative group size are now
+25,600 calls and $1.89, and at the authorized ceiling of group size 8, 51,200 calls and $3.78.
+The caps themselves are unchanged: `max_steps` 600, `max_grid_steps` 200,
+`max_judge_calls` 340,000, `max_judge_spend_usd` $25.00. They now sit further above the plan
+than they did, which is the direction that needs no new authorisation.
+
+Judge latency, which is the constraint that actually binds, falls in proportion: a 32-call step
+holds the GPU idle for roughly 4.3 s at `judge.concurrency: 8`, and 300 rollouts for about
+0.36 GPU-hours per paid arm.
+
+**Not yet authorized: the val evaluation pass.** Scoring three RLSF conditions on
+`data/splits/val.jsonl` is 1,323 segments × 3 = 3,969 calls per rater, 7,938 across
+`claude-haiku-4-5` and `gpt-5.6-terra`. That volume is priced under the evaluation raters, not
+at the reward judge's rate, and is a separate authorisation under rule 1: price it here from
+`results/judge_*_val_usage.json` before the pass runs, and prefer the Batch route for the GPT
+rater under rule 5. The test split stays sealed and is not priced here.
+
 ### RLSF arm — caps declared (2026-08-08)
+
+**Volumes superseded by the 2026-08-13 entry above.** The measured per-call rate, the caps and
+the reasoning about what the caps are for all still stand.
+
 
 The smoke has now run twice and reports a **measured** per-call rate of **$7.375e-5**
 (`outputs/rlsf/smoke_usage.json`: 80 calls, 417 prompt and 18 completion tokens each,

@@ -6,11 +6,11 @@ from __future__ import annotations
 
 import argparse
 import json
-from pathlib import Path
-
 import numpy as np
-from scipy import stats
+import matplotlib.pyplot as plt
 
+from pathlib import Path
+from scipy import stats
 from src.eval._io import condition_path
 from src.eval.stylometrics import (
     CENTROID_FEATURES,
@@ -228,7 +228,6 @@ def _ci_band(ax, cells, k, ci_key, lo_hi_from_z=None):
 
 
 def figure_stylo_dist(report: dict, path: Path) -> None:
-    import matplotlib.pyplot as plt
 
     cells, refs = report["cells"], report["references"]
     fig, ax = plt.subplots(figsize=(7.0, 4.6))
@@ -266,7 +265,6 @@ def figure_stylo_dist(report: dict, path: Path) -> None:
 
 
 def figure_z_deviations(report: dict, path: Path) -> None:
-    import matplotlib.pyplot as plt
 
     cells, refs = report["cells"], report["references"]
     fig, axes = plt.subplots(2, 2, figsize=(9.5, 6.8), sharex=True)
@@ -302,7 +300,6 @@ def figure_z_deviations(report: dict, path: Path) -> None:
 
 
 def figure_tradeoff(report: dict, path: Path) -> None:
-    import matplotlib.pyplot as plt
 
     cells = report["cells"]
     if not any("comet_system" in c for c in cells):
@@ -357,7 +354,6 @@ def figure_tradeoff(report: dict, path: Path) -> None:
 
 
 def figure_judge_overlay(report: dict, path: Path) -> None:
-    import matplotlib.pyplot as plt
 
     cells = report["cells"]
     judged = [c for c in cells if "judge_mean" in c]

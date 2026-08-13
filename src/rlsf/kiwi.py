@@ -7,6 +7,7 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+import argparse
 
 DEFAULT_MODEL = "Unbabel/wmt22-cometkiwi-da"
 
@@ -214,7 +215,6 @@ class KiwiScorer:
 
 def main() -> None:
     """Smoke the worker on a handful of segments: `python -m src.rlsf.kiwi`."""
-    import argparse
 
     parser = argparse.ArgumentParser(description="COMET-Kiwi subprocess smoke check.")
     parser.add_argument("--model", default=DEFAULT_MODEL)

@@ -13,7 +13,14 @@ import argparse
 import json
 import math
 import os
+import torch
+
 from dataclasses import dataclass, field
+from datasets import Dataset
+from importlib.metadata import PackageNotFoundError, version as pkg_version
+from transformers import AutoModelForCausalLM, AutoTokenizer, TrainerCallback
+from peft import LoraConfig, get_peft_model, PeftModel
+from trl import GRPOTrainer
 from pathlib import Path
 
 from src.infer.run import build_zeroshot_user
@@ -39,6 +46,7 @@ from src.rlsf.reward import (
     stylo_scores,
 )
 from src.rlsf.stop import DriftMonitor
+from src.eval.stylometrics import REWARD_FEATURES, subcentroid
 
 # Small enough to run on CPU, same tokenizer family as the locked base.
 _DRY_RUN_MODEL = "Qwen/Qwen2.5-0.5B-Instruct"
@@ -46,6 +54,16 @@ _DRY_RUN_MODEL = "Qwen/Qwen2.5-0.5B-Instruct"
 # What a component contributes when it is held flat: one constant, so group_normalize
 # returns zeros and the term drops out rather than inventing a signal.
 _HELD_FLAT = 1.0
+
+# Libraries whose version changes the update, recorded per run for reproducibility.
+_PINNED = ("transformers", "trl", "peft", "accelerate", "bitsandbytes")
+
+# Trainer log keys carried into the step log. A flat style score is not evidence about the
+# reward unless these show the optimizer was actually moving the adapter.
+_OPTIM_KEYS = (
+    "loss", "grad_norm", "learning_rate", "kl", "entropy",
+    "clip_ratio/region_mean", "completions/mean_length",
+)
 
 
 class BudgetExceeded(RuntimeError):
@@ -85,6 +103,20 @@ class LoopState:
     rollout: int = 0
     stop_reason: str | None = None
     timing: JudgeTiming = field(default_factory=JudgeTiming)
+    optim_block: list[dict] = field(default_factory=list)
+
+    def take_optim(self) -> dict:
+        """Mean of the optimizer logs collected since the last rollout, and whose they are."""
+        block, self.optim_block = self.optim_block, []
+        if not block:
+            return {}
+        out = {}
+        for key in sorted(set().union(*block)):
+            values = [b[key] for b in block if key in b]
+            out[key] = round(sum(values) / len(values), 8)
+        # The mu passes run after this rollout's reward call, so they belong to the rollout
+        # named here, not to the step-log line they are written on.
+        return {"rollout": self.rollout - 1, "passes": len(block), **out}
 
 
 def completion_text(completion) -> str:
@@ -97,7 +129,6 @@ def completion_text(completion) -> str:
 def build_dataset(cfg: dict, split_file: str | Path, limit: int | None = None):
     """One row per source segment: the chat prompt plus the source and reference the
     reward needs, which TRL forwards to the reward function as extra columns."""
-    from datasets import Dataset
 
     style = Path(cfg["prompt"]["style_instruction_file"]).read_text(encoding="utf-8")
     rows = []
@@ -127,7 +158,6 @@ def reserve_vram(fraction: float | None) -> None:
     """Cap this process's share of the card so a co-resident COMET worker can allocate."""
     if not fraction:
         return
-    import torch
 
     if not torch.cuda.is_available():
         return
@@ -135,12 +165,48 @@ def reserve_vram(fraction: float | None) -> None:
     print(f"trainer capped at {fraction:.0%} of the card; the rest is the COMET worker's")
 
 
+def library_versions() -> dict:
+    """The training stack as installed, so a run's numbers stay attributable to a build."""
+
+    out = {"torch": torch.__version__, "cuda": torch.version.cuda}
+    for name in _PINNED:
+        try:
+            out[name] = pkg_version(name)
+        except PackageNotFoundError:
+            out[name] = None
+    out["device"] = torch.cuda.get_device_name(0) if torch.cuda.is_available() else None
+    return out
+
+
+def trainable_snapshot(model) -> list[tuple]:
+    """CPU float32 copy of the trainable adapter: the baseline `adapter_delta` measures from."""
+
+    return [
+        (name, p.detach().to("cpu", torch.float32).clone())
+        for name, p in model.named_parameters()
+        if p.requires_grad
+    ]
+
+
+def adapter_delta(model, snapshot: list[tuple]) -> dict:
+    """How far the trainable adapter has travelled from its initialization."""
+
+    live = dict(model.named_parameters())
+    moved = origin = 0.0
+    for name, before in snapshot:
+        now = live[name].detach().to("cpu", torch.float32)
+        moved += float(((now - before) ** 2).sum())
+        origin += float((before**2).sum())
+    return {
+        "l2": round(math.sqrt(moved), 8),
+        "rel": round(math.sqrt(moved / origin), 8) if origin else float("nan"),
+    }
+
+
 def load_policy(*, model_id: str, adapter_path: str | None, ref_adapter_path: str | None,
-                dtype: str, device_map):
+                dtype: str, device_map, require_ref: bool = False):
     """The policy as a trainable PeftModel, with the frozen KL reference loaded as a second
     "ref" adapter so TRL anchors to the init, not the bare base."""
-    import torch
-    from transformers import AutoModelForCausalLM, AutoTokenizer
 
     tokenizer = AutoTokenizer.from_pretrained(adapter_path or model_id)
     load_kwargs = {"dtype": getattr(torch, dtype)}
@@ -149,7 +215,6 @@ def load_policy(*, model_id: str, adapter_path: str | None, ref_adapter_path: st
     model = AutoModelForCausalLM.from_pretrained(model_id, **load_kwargs)
 
     if adapter_path:
-        from peft import PeftModel
 
         model = PeftModel.from_pretrained(model, adapter_path, is_trainable=True)
         if ref_adapter_path:
@@ -161,7 +226,6 @@ def load_policy(*, model_id: str, adapter_path: str | None, ref_adapter_path: st
             live = [n for n, p in model.named_parameters() if "ref" in n and p.requires_grad]
             assert not live, f"ref adapter is trainable ({len(live)} params); the KL anchor would drift"
     else:
-        from peft import LoraConfig, get_peft_model
 
         model = get_peft_model(
             model,
@@ -175,6 +239,16 @@ def load_policy(*, model_id: str, adapter_path: str | None, ref_adapter_path: st
                 task_type="CAUSAL_LM",
             ),
         )
+    if require_ref and "ref" not in model.peft_config:
+        raise SystemExit(
+            f"beta is non-zero but no 'ref' adapter registered, so TRL's disable_adapter would "
+            f"anchor the KL at the bare {model_id} instead of the frozen initialization. The "
+            f"arm would penalize distance from a policy it never started at. Set "
+            f"generator.adapter_path and rlsf.reference.adapter_path, or set beta to 0 "
+            f"deliberately."
+        )
+    active = getattr(model, "active_adapters", None) or model.active_adapter
+    print(f"adapters {sorted(model.peft_config)}, active {active}")
     # use_cache is left on: TRL disables it per forward during training and rollout
     # generation needs the KV cache, which turning it off here makes quadratic.
     return model, tokenizer
@@ -235,6 +309,7 @@ def run_manifest(cfg: dict, *, cell: str | None, rc, steps: int, held_flat: list
         "length_band": [rc.len_min_ratio, rc.len_max_ratio],
         "drift_rule": vars(drift_rule(cfg)),
         "train_file": cfg["data"]["train_file"],
+        "versions": library_versions(),
     }
 
 
@@ -242,7 +317,6 @@ def _stylo_centroid(cfg: dict, rc) -> dict | None:
     """The reward-side centroid, loaded only for a cell that weights the stylometric term."""
     if not rc.w_stylo:
         return None
-    from src.eval.stylometrics import REWARD_FEATURES, subcentroid
 
     return subcentroid(load_centroid(cfg["data"]["split_centroid_file"]), REWARD_FEATURES)
 
@@ -262,6 +336,7 @@ def make_reward_fn(
     judge_workers: int,
     budget: JudgeBudget,
     state: LoopState,
+    delta_fn=None,
 ):
     """The single reward function TRL calls once per rollout."""
 
@@ -302,9 +377,17 @@ def make_reward_fn(
         # Read before the line is written, so the log carries the verdict the run acted on
         # rather than one replayed later against a rule that may have been edited since.
         verdict = monitor.update(log)
-        with step_log.open("a", encoding="utf-8") as fh:
+        delta = delta_fn() if delta_fn is not None else {}
+        line = {
             # Named per line, so lines pooled across arms stay attributable without the sidecar.
-            fh.write(json.dumps({"cell": cell, **log.as_dict(), "drift": verdict.as_dict()}) + "\n")
+            "cell": cell,
+            **log.as_dict(),
+            "drift": verdict.as_dict(),
+            "optim": state.take_optim(),
+            "adapter_delta": delta,
+        }
+        with step_log.open("a", encoding="utf-8") as fh:
+            fh.write(json.dumps(line) + "\n")
 
         if verdict.tripped:
             state.stop_reason = verdict.reason
@@ -313,6 +396,7 @@ def make_reward_fn(
             f"  rollout {log.step}: reward {log.reward_mean:+.3f} sd {log.reward_sd:.3f}, "
             f"{log.n_feasible}/{log.n_samples} feasible, "
             f"{log.degenerate_groups}/{log.n_groups} degenerate, "
+            f"adapter {delta.get('rel', float('nan')):.2e} from init, "
             f"{budget.calls} judge calls (${budget.spend_usd:.4f})"
         )
         return [float(r) if math.isfinite(r) else None for r in rewards]
@@ -320,9 +404,25 @@ def make_reward_fn(
     return style_reward
 
 
+def make_optim_callback(state: LoopState):
+    """Collects the trainer's own optimizer metrics for the next step-log line."""
+
+    class OptimLog(TrainerCallback):
+        def on_log(self, args, trainer_state, control, logs=None, **kwargs):
+            kept = {
+                k: float(v)
+                for k, v in (logs or {}).items()
+                if k in _OPTIM_KEYS and isinstance(v, (int, float)) and not isinstance(v, bool)
+            }
+            if kept:
+                state.optim_block.append(kept)
+            return control
+
+    return OptimLog()
+
+
 def make_stop_callback(state: LoopState):
     """Ends the run when the register-drift rule fires."""
-    from transformers import TrainerCallback
 
     class DriftStop(TrainerCallback):
         def on_step_end(self, args, trainer_state, control, **kwargs):
@@ -458,7 +558,10 @@ def main() -> None:
         ref_adapter_path=ref_adapter_path,
         dtype=cfg["generator"]["dtype"],
         device_map=cfg["generator"].get("device_map"),
+        # The dry run has no init adapter and anchors to the bare base by design.
+        require_ref=bool(rlsf["reference"]["beta"]) and not args.dry_run,
     )
+    snapshot = trainable_snapshot(model)
     dataset = build_dataset(cfg, cfg["data"]["train_file"], args.limit or cfg["data"]["limit"])
     print(f"policy {cfg['generator']['model']} on {model.device}, {len(dataset)} training rows")
 
@@ -467,7 +570,6 @@ def main() -> None:
     budget = JudgeBudget(caps["max_judge_calls"] or 0, caps["max_judge_spend_usd"] or 0.0)
     judge = None if skip_judge else make_judge_client(cfg)
 
-    from trl import GRPOTrainer
 
     with _kiwi_or_none(kiwi_cfg, skip_kiwi) as kiwi:
         reward_fn = make_reward_fn(
@@ -484,6 +586,7 @@ def main() -> None:
             judge_workers=judge_concurrency(cfg),
             budget=budget,
             state=state,
+            delta_fn=lambda: adapter_delta(model, snapshot),
         )
         trainer = GRPOTrainer(
             model=model,
@@ -491,7 +594,7 @@ def main() -> None:
             args=training_args,
             train_dataset=dataset,
             processing_class=tokenizer,
-            callbacks=[make_stop_callback(state)],
+            callbacks=[make_stop_callback(state), make_optim_callback(state)],
         )
         trainer.train()
 
@@ -515,6 +618,7 @@ def main() -> None:
         "halted_at_step": state.rollout - 1 if state.stop_reason else None,
         "stop_reason": state.stop_reason,
         "adapter_dir": str(adapter_out),
+        "adapter_delta": adapter_delta(model, snapshot),
         "judge": usage,
     }
     sidecar(step_log, "manifest.json").write_text(

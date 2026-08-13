@@ -27,6 +27,7 @@ from src.rlsf.config import (
 from src.rlsf.kiwi import KiwiScorer
 from src.rlsf.reward import JudgeTiming, judge_scores, load_train_template, overlap_scores
 from src.rlsf.train import JudgeBudget
+from transformers import set_seed
 
 # Usage artefacts the per-call rate is measured from, newest first.
 _USAGE_RECORDS = (Path("outputs/rlsf/pool_usage.json"), Path("outputs/rlsf/smoke_usage.json"))
@@ -341,7 +342,6 @@ def main() -> None:
 
     policy = None
     if remaining:
-        from transformers import set_seed
 
         policy = make_client(cfg["generator"])
         print(f"policy {cfg['generator']['model']} + {cfg['generator'].get('adapter_path')}")
