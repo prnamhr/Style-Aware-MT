@@ -1,15 +1,13 @@
 {
-  "cell": "w3_0.0",
+  "cell": "w3_6.0",
   "omega": {
-    "bleu": 0.707107,
-    "kiwi": 0.707107,
-    "judge": 0.0
+    "bleu": 0.162221,
+    "kiwi": 0.162221,
+    "judge": 0.973329
   },
   "omega_norm": 1.0,
-  "held_flat": [
-    "judge"
-  ],
-  "steps_requested": 2,
+  "held_flat": [],
+  "steps_requested": 300,
   "generator": {
     "model": "Qwen/Qwen2.5-7B-Instruct",
     "adapter_path": "models/peft_lora_r32_lr2e-4/checkpoint-1358",
@@ -62,23 +60,5 @@
     "accelerate": "1.14.0",
     "bitsandbytes": "0.49.2",
     "device": "NVIDIA GeForce RTX 5090"
-  },
-  "outcome": {
-    "rollouts": 2,
-    "halted_at_step": null,
-    "stop_reason": null,
-    "adapter_dir": "models/rlsf_wiring",
-    "adapter_delta": {
-      "l2": 0.04512174,
-      "rel": 0.000629
-    },
-    "elapsed_sec": 57.329,
-    "peak_vram": {
-      "max_allocated_gib": 17.709,
-      "max_reserved_gib": 18.051,
-      "device_total_gib": 31.358,
-      "device": "NVIDIA GeForce RTX 5090"
-    },
-    "judge": null
   }
 }
