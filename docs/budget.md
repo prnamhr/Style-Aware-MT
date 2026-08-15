@@ -44,7 +44,24 @@ from `train.jsonl`; the test split is sealed and has had no paid call made again
 | 2026-08-05 | Cross-family second judge Φ_B, 7 conditions, Batch API at 50 % discount | `gpt-5.6-terra` | 9,261 | $6.1173 | `results/judge_gpt_val_usage.json` |
 | 2026-08-07 | RLSF reward-path smoke, 20 dev segments × G=4 | `gpt-4o-mini` | 80 | $0.0059 | `outputs/rlsf/smoke_usage.json` @ `a988c57` |
 | 2026-08-08 | Same smoke re-run once the judge block was timed | `gpt-4o-mini` | 80 | $0.0059 | `outputs/rlsf/smoke_usage.json` |
-| **Recorded total** | | | **10,744** | **$6.7607** | |
+| 2026-08-14 | RLSF arm `w3_2.0`, 300 rollouts × 32 calls | `gpt-4o-mini` | 9,600 | $0.7423 | `outputs/rlsf/steps_w3_2.0_usage.json` |
+| 2026-08-14 | RLSF arm `w3_6.0`, 300 rollouts × 32 calls | `gpt-4o-mini` | 9,600 | $0.7431 | `outputs/rlsf/steps_w3_6.0_usage.json` |
+| **Recorded total** | | | **29,944** | **$8.2461** | |
+| 2026-08-14 | `w3_6.0` first attempt, killed at rollout 208 | `gpt-4o-mini` | 6,656 | ~$0.5149 | **reconstructed** — see below |
+| **Including the reconstructed row** | | | **36,600** | **$8.7610** | |
+
+`w3_0.0` ran 300 rollouts under `--skip_judge` on 2026-08-13 and bought no verdicts, so it has
+no row and no usage artefact. Its absence from this table is the arm behaving as declared.
+
+**The aborted row is the only figure here that is not provider-reported.** The usage sidecar is
+written after `trainer.train()` returns (`src/rlsf/train.py:675`), so a kernel kill loses it. The
+surviving step log `outputs/rlsf/aborted/steps_w3_6.0_kernelkill_208.jsonl` records 208 rollouts
+and 6,656 samples, one judge call each, priced at the realised rate below. It is kept separate
+from the recorded total rather than folded into it, and rule 4's concern — that an unpriced call
+silently understates spend — applies to omitting it entirely, which is why it is here at all.
+
+Against the $25 declared arm cap, RLSF judge spend to date is **$2.0121 over 26,016 calls**: the
+two smokes, the aborted attempt, and the two paid arms. That is 8.0 % of the declared figure.
 
 Two qualifications on that total:
 
@@ -79,10 +96,39 @@ caps below at run time through `JudgeBudget`, which refuses a judge block that w
 `max_judge_spend_usd`. `JudgeBudget` is constructed once per invocation and opens at zero
 calls and zero dollars, so those two caps bound **one run**; see *per-run semantics* below.
 
+### The realised per-call rate (2026-08-15)
+
+The three arms have run. The rate they were planned at came from an 80-call smoke; the rate they
+actually paid is measured over 19,200 calls, and it is higher.
+
+| Source | Calls | Prompt tokens/call | Completion tokens/call | $/call |
+|---|---:|---:|---:|---:|
+| Smoke, 20 dev segments (planning rate) | 80 | 416.6 | 18.5 | $7.375e-5 |
+| `w3_2.0` | 9,600 | 442.7 | 18.2 | $7.732e-5 |
+| `w3_6.0` | 9,600 | 443.2 | 18.2 | $7.741e-5 |
+| **Realised, blended** | **19,200** | **443.0** | **18.2** | **$7.737e-5** |
+
+The realised rate is 1.049× the planning rate, and the whole of the difference is on the prompt
+side: 443 tokens against 417. The rubric is byte-identical between the two, so what grew is the
+segment. The smoke drew 20 segments from the dev slice and the arms drew from
+`data/splits/rlsf_train.jsonl`; a 6 % longer mean source is enough to move the bill by 5 %.
+
+This does not change any authorisation. Every planned figure below re-prices upward by 4.9 %,
+which leaves the planned three-arm total at $1.50 rather than $1.43 and the step-capped worst
+case at $2.97 rather than $2.83 — both still far inside `max_judge_spend_usd` of $8.00 per run,
+and the two arms came in at $0.7423 and $0.7431 against $0.71 planned. The point of recording it
+is rule 4's: the caps were sized as a backstop against the rate moving, and it moved, in the
+direction and by roughly the margin that a smoke-derived rate should be expected to move.
+
+Future RLSF pricing on this page uses **$7.737e-5**. Figures in the dated entries below are left
+at the rate they were authorised against, since they are the record of decisions already taken.
+
 ### RLSF arms — re-priced at the three-arm geometry (2026-08-13)
 
-Supersedes the volumes in the 2026-08-08 entry below; the measured per-call rate of
-**$7.375e-5** is unchanged and every figure here is priced at it. What changed is the run:
+**The rate below has since been superseded: the arms ran at $7.737e-5, not $7.375e-5. The volumes
+are correct and the arms came in on them.** Supersedes the volumes in the 2026-08-08 entry below;
+the measured per-call rate of **$7.375e-5** is unchanged and every figure here is priced at it.
+What changed is the run:
 `docs/preregistration_rlsf.md`'s addendum of this date trains three arms rather than two, and
 the rollout halved from 16 prompts to 8. A step is now **32 judge calls, $0.0024**.
 
@@ -129,6 +175,29 @@ tokens per call**, $6.604e-4 a call through the Batch API at `pricing: [2.00, 12
 | Φ_B `gpt-5.6-terra` | Batch, 50 % | 3,969 | $6.604e-4 | **$2.62** |
 | Φ_A `claude-haiku-4-5` | Synchronous | 3,969 | $6.187e-4 | **$2.46** (estimated) |
 | **Total** | | **7,938** | | **$5.08** |
+
+**Re-priced as a band (2026-08-15).** The rates above are point estimates carried from a pass
+that scored seven other conditions. The arms have since shown what that kind of carry-over costs:
+the reward judge's realised prompt length beat its smoke-derived figure by 6 %, and the bill with
+it. The same failure mode is available here, because the judge prompt is rubric plus source plus
+reference plus candidate, and only the candidate differs between the 2026-08-05 pass and this one.
+
+The candidate is bounded. Across the three arms `length_ratio_mean` finished at 0.99, 1.02 and
+1.05 against the reference, so the longest RLSF condition runs about 5 % over reference length.
+Even taking the candidate to be the *entire* non-rubric part of the prompt — which it is not —
+5 % is the ceiling on the prompt growth, and the truth is a fraction of that.
+
+| Rater | Calls | Per call | Cost |
+|---|---:|---:|---:|
+| Φ_B `gpt-5.6-terra`, batch 50 % | 3,969 | $6.604e-4 – $6.809e-4 | **$2.62 – $2.70** |
+| Φ_A `claude-haiku-4-5`, synchronous | 3,969 | $6.187e-4 – $6.391e-4 | **$1.96 – $3.04** (estimated) |
+| **Total** | **7,938** | | **$4.58 – $5.74** |
+
+Φ_B's band is one-sided upward from its measured rate and is narrow because the rate is measured
+and only the candidate can move. Φ_A's is wide for a different reason and the two should not be
+read as comparable: its ±20 % tokenizer band, described below, dominates the 5 % candidate term
+and is what makes its low end fall below the point estimate. The authorisation this section asks
+for is the top of the range, **$5.74**, not the midpoint.
 
 Two qualifications, in the order they matter:
 
@@ -308,7 +377,8 @@ validation pass once the condition set is final.
 ## Related records
 
 * `README.md` — Constraints, and the Φ reliability open issue.
-* `docs/DEVLOG.md` — 2026-08-08 (smoke green, caps declared), 2026-08-05 (both entries),
-  2026-08-04, for the runs priced above.
+* `docs/DEVLOG.md` — 2026-08-15 (three arms run, realised rate, the aborted attempt),
+  2026-08-08 (smoke green, caps declared), 2026-08-05 (both entries), 2026-08-04, for the runs
+  priced above.
 * `results/judge_gpt_val_usage.json`, `outputs/*_val_usage.json` — the primary artefacts;
   authoritative over this summary.

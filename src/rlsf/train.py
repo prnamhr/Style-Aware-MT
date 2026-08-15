@@ -670,6 +670,7 @@ def main() -> None:
     usage = None
     if judge is not None:
         usage = judge.usage.summary()
+        usage["per_call_usd"] = usage["cost_usd"] / usage["calls"] if usage["calls"] else 0.0
         usage["model"] = cfg["judge"]["model"]
         usage.update(state.timing.summary())
         sidecar(step_log, "usage.json").write_text(

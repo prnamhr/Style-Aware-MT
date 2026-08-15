@@ -108,6 +108,136 @@ their history.
 
 ---
 
+## 2026-08-15 — Three arms run to 300 rollouts, and a judge that does not repeat itself
+
+### Summary
+
+All three pre-registered arms trained to their full 300 rollouts. None halted on the
+register-drift rule. Φ rises monotonically in ω₃, which is the reward working rather than a
+result; COMET-Kiwi does not fall in any arm, which is the half of the pre-registered Goodhart
+pair that did not appear. What the arms show instead is a cost: the adequacy gain shrinks as ω₃
+grows, and only the high-ω arm separates from the metric-only control.
+
+`w3_6.0` was run twice. The first attempt died at rollout 208 to a kernel kill and its log is
+kept. Comparing it against the restart turned out to be the most informative thing in the run,
+because the two attempts share a seed and diverge anyway.
+
+### What changed
+
+`w3_0.0` ran 300 rollouts under `--skip_judge` at 0 paid calls; `w3_2.0` and `w3_6.0` ran 300
+each at 9,600 judge calls, $0.7423 and $0.7431. Step logs, manifests and usage sidecars are at
+`outputs/rlsf/steps_w3_{0.0,2.0,6.0}.jsonl` and their `_manifest.json` / `_usage.json` siblings;
+adapters are at `models/rlsf_grpo_w3_*` and stay out of the repo. The aborted first attempt at
+`w3_6.0` is at `outputs/rlsf/aborted/steps_w3_6.0_kernelkill_208.jsonl`.
+
+`src/rlsf/train.py:673` now writes `per_call_usd` into the usage sidecar. `src/rlsf/smoke.py:301`
+and `src/rlsf/pool.py:398` already did, so the three writers disagreed on the shape of the file
+they all produce. The two arm sidecars written before this change do not carry the field; they
+are run artefacts and have not been rewritten, and the rate is `cost_usd / calls`.
+
+### The four figures, by quartile of the 300 rollouts
+
+| | w3_0.0 | w3_2.0 | w3_6.0 |
+|---|---:|---:|---:|
+| Φ, q1 → q4 | 1.0000 → 1.0000 | 2.9129 → 3.2842 | 2.9521 → 3.3750 |
+| COMET-Kiwi, q1 → q4 | 0.6665 → 0.6844 | 0.6644 → 0.6796 | 0.6627 → 0.6699 |
+| BLEU, q1 → q4 | 31.66 → 36.34 | 30.45 → 34.96 | 31.33 → 33.61 |
+| `marker_rate` z, q1 → q4 | −0.0119 → 0.0491 | −0.0196 → 0.1384 | 0.0100 → 0.1718 |
+
+Φ is flat at 1.0 in `w3_0.0` by construction: `--skip_judge` holds it there, so that row carries
+no information and is printed only to show the hold worked.
+
+Read across the rows rather than along them. Kiwi rises everywhere, by +0.0179, +0.0152 and
++0.0072 — the gain falls as ω₃ rises, and the same ordering holds for BLEU (+4.68, +4.51, +2.27).
+Over the last 75 rollouts `w3_6.0` sits 0.0145 below the control on Kiwi and `w3_2.0` sits 0.0048
+below. So the judge term is paid for out of adequacy improvement forgone, not adequacy lost.
+
+`marker_rate` z moves +0.158 in `w3_2.0` and +0.162 in `w3_6.0` while ω₃² goes from 2/3 to 36/38.
+The pre-registration's 2026-08-13 addendum set up a disjunction here — either the high arm goes
+further along the same axis, or the reward has saturated and ω is not the governing axis. Neither
+branch holds cleanly: style saturates between the two paid arms while adequacy keeps paying, so ω
+still governs one of the two and no longer governs the other.
+
+### The restart, and what it says about the judge
+
+The kernel kill left an unplanned replicate: two attempts at `w3_6.0` under seed 42, the same
+config and the same frozen initialization. At rollout 0 both produce the same completions — BLEU
+and Kiwi agree to 1e-9 — and the judge scores them 2.5625 and 2.46875. `configs/rlsf.yaml` sets
+`judge.temperature: 0.0` and `judge.seed: 42`; `gpt-4o-mini` honours neither in a way that
+reproduces. That single disagreement enters the reward, changes the gradient, and the runs
+diverge from rollout 1 onward: 1 of 208 overlapping rollouts share a BLEU value.
+
+The aggregates over those 208 rollouts do not care:
+
+| | aborted | restarted | difference | sd of the restart |
+|---|---:|---:|---:|---:|
+| Φ | 3.0455 | 3.0775 | +0.0320 | 0.4056 |
+| COMET-Kiwi | 0.6651 | 0.6647 | −0.0004 | 0.0284 |
+| BLEU | 32.36 | 32.12 | −0.2448 | 7.2254 |
+| `marker_rate` z | 0.0129 | 0.0268 | +0.0139 | 0.3114 |
+
+Every difference is a small fraction of the run's own step-to-step spread. The trajectory is not
+reproducible; the arm-level reading is. That is the useful form of the claim, and it is stronger
+evidence than a re-run at the same seed would have been, because the two attempts were not
+seeded to agree at rollout 1 and still land in the same place.
+
+### Verification
+
+19,200 paid verdicts across the two arms, 0 unmeasured. The 2026-08-08 entry made unparseable
+verdicts a measured quantity rather than an assumed zero; here it is genuinely zero, so the
+asymmetry it was introduced to detect does not arise in this run.
+
+Degenerate group fractions were 0.032, 0.025 and 0.023, so gradients were carried throughout.
+Relative adapter movement from initialization was 9.305e-3, 9.337e-3 and 9.396e-3 — the three
+arms travelled almost exactly the same distance, which is what a shared learning rate, a shared
+constant schedule and a shared step count should produce, and it means the differences above are
+not a difference in how far each arm moved.
+
+Peak VRAM was 20.3 of 31.4 GiB on an RTX 5090 in all three, against the 29 GiB bound the wiring
+check asserts. Wall clock was 4.71 h for `w3_0.0` and 3.08 h and 3.10 h for the paid arms. The
+free arm taking the longest is the opposite of the expected ordering, since the paid arms add a
+serial judge block per rollout; no cause is recorded and the manifests carry nothing that
+distinguishes the sessions.
+
+### Reproduction
+
+```
+python manage.py rlsf_train --cell w3_0.0 --steps 300 --skip_judge
+python manage.py rlsf_train --cell w3_2.0 --steps 300 --yes
+python manage.py rlsf_train --cell w3_6.0 --steps 300 --yes
+python manage.py rlsf_select --cell w3_2.0
+```
+
+The judge is not reproducible, so re-running either paid arm reproduces the aggregates above and
+not the step sequence. `w3_0.0` is free and should reproduce exactly.
+
+### Limitations and risks
+
+* **Φ rising is not a result.** Φ here is `prompts/judge_train.txt` scored by the reward judge,
+  which is the quantity being optimized. Goodhart requires an independent target to move the
+  wrong way, and both independent targets — held-out register distance over `ttr`, `root_ttr`
+  and `marker_rate`, and the evaluation rubric under a different rater — are val measurements
+  that do not exist yet. The pair the pre-registration predicts cannot be scored from these logs.
+* **Within-arm movements are small against step noise.** Expressed in units of each arm's own
+  step-to-step sd, the q4 − q1 movements are 0.62/0.50/0.25 for Kiwi, 0.61/0.59/0.31 for BLEU and
+  0.94/1.02 for Φ. The between-arm contrast over the final 75 rollouts is the stronger reading.
+  A Welch t on that contrast gives −3.19 for `w3_6.0` against the control, but consecutive
+  rollout means are autocorrelated, so it is a description and not a test — the same caveat the
+  2026-08-13 telemetry entry attaches to the Φ / `marker_rate` correlation.
+* **No arm halted, and that is weak evidence.** The 2026-08-13 addendum measured the rule as
+  firing against a +0.35 step about half the time at 8 prompts per rollout. Three runs that did
+  not trip are consistent with drift the rule cannot see at this rollout width.
+* **The aborted run's spend is reconstructed, not measured.** The usage sidecar is written after
+  `trainer.train()` returns, so a kernel kill loses it. 208 rollouts × 32 calls = 6,656 calls,
+  ~$0.51 at the realised rate, inferred from `n_samples` in the surviving step log. It is
+  recorded in `docs/budget.md` as reconstructed and is the one figure there that is not
+  provider-reported.
+* **Judge non-determinism is unquantified beyond this one pair.** Two attempts give one estimate
+  of how far a trajectory moves under it, at one ω. Nothing here measures the verdict-level
+  disagreement rate, which would need the same completions scored twice on purpose.
+
+---
+
 ## 2026-08-13 — The schedule the run steps at, and a judge bought to be multiplied by zero
 
 ### Summary
