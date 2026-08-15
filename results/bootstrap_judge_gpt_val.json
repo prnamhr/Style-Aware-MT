@@ -1,0 +1,54 @@
+{
+  "metric": "judge",
+  "judge_tag": "gpt",
+  "split": "val",
+  "conditions": [
+    "peft",
+    "rlsf_w3_0.0",
+    "rlsf_w3_2.0",
+    "rlsf_w3_6.0"
+  ],
+  "baseline": "peft",
+  "adjacent": false,
+  "n_resamples": 10000,
+  "alpha": 0.05,
+  "seed": 42,
+  "comparisons": [
+    {
+      "a": "rlsf_w3_0.0",
+      "b": "peft",
+      "n": 1293,
+      "mean_a": 3.6017014694508895,
+      "mean_b": 3.6125290023201857,
+      "diff": -0.010827532869296164,
+      "ci_low": -0.04253673627223531,
+      "ci_high": 0.020881670533642982,
+      "p_value": 0.5248,
+      "significant": false
+    },
+    {
+      "a": "rlsf_w3_2.0",
+      "b": "peft",
+      "n": 1290,
+      "mean_a": 3.651937984496124,
+      "mean_b": 3.6131782945736433,
+      "diff": 0.03875968992248069,
+      "ci_low": 0.005426356589147463,
+      "ci_high": 0.07286821705426316,
+      "p_value": 0.024,
+      "significant": true
+    },
+    {
+      "a": "rlsf_w3_6.0",
+      "b": "peft",
+      "n": 1293,
+      "mean_a": 3.634957463263728,
+      "mean_b": 3.6140757927300853,
+      "diff": 0.020881670533642538,
+      "ci_low": -0.011600928074245953,
+      "ci_high": 0.052590873936581684,
+      "p_value": 0.2126,
+      "significant": false
+    }
+  ]
+}

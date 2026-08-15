@@ -4,26 +4,22 @@
   "transport": "batch",
   "batch_discount": 0.5,
   "conditions": [
-    "afsp_full",
-    "afsp_margin",
-    "commercial_haiku",
-    "knn_fewshot",
-    "peft",
-    "random_fewshot",
-    "zeroshot"
+    "rlsf_w3_0.0",
+    "rlsf_w3_2.0",
+    "rlsf_w3_6.0"
   ],
   "limit": null,
   "priced": true,
   "session": {
-    "calls": 9236,
-    "prompt_tokens": 3784961,
-    "completion_tokens": 385774,
-    "cost_usd": 6.0996
+    "calls": 3969,
+    "prompt_tokens": 1627757,
+    "completion_tokens": 162819,
+    "cost_usd": 2.6047
   },
   "cumulative": {
-    "calls": 9261,
-    "prompt_tokens": 3796497,
-    "completion_tokens": 386804,
-    "cost_usd": 6.1173
+    "calls": 13230,
+    "prompt_tokens": 5424254,
+    "completion_tokens": 549623,
+    "cost_usd": 8.722
   }
 }
