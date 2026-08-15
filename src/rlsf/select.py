@@ -2,7 +2,7 @@
 Checkpoint selection for a trained RLSF arm, on the dev slice.
 
 Usage:
-    python manage.py rlsf_select --cell w3_0.0 --dev-limit 200
+    python manage.py rlsf_select --cell w3_0.0
     python manage.py rlsf_select --cell w3_2.0 --skip_kiwi        # chrF and register only
 """
 
@@ -166,7 +166,10 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--config", default="configs/rlsf.yaml")
     parser.add_argument("--cell", required=True, help="the trained arm, e.g. w3_2.0")
     parser.add_argument("--adapter_dir", default=None, help="default: output.adapter_dir per arm")
-    parser.add_argument("--dev-limit", type=int, default=0, help="dev segments per checkpoint")
+    parser.add_argument(
+        "--dev-limit", type=int, default=0,
+        help="dev segments per checkpoint; 0 = full dev slice (499)",
+    )
     parser.add_argument("--adequacy-margin", type=float, default=_ADEQUACY_MARGIN)
     parser.add_argument("--skip_kiwi", action="store_true", help="no COMET worker")
     parser.add_argument("--overwrite", action="store_true", help="regenerate existing dev files")

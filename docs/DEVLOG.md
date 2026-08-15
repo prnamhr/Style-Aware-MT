@@ -315,7 +315,7 @@ python manage.py rlsf_train --cell w3_0.0 --steps 50 --skip_judge \
 python manage.py rlsf_train --cell w3_0.0 --steps 300 --skip_judge
 python manage.py rlsf_train --cell w3_2.0 --steps 300 --yes
 python manage.py rlsf_train --cell w3_6.0 --steps 300 --yes
-python manage.py rlsf_select --cell w3_2.0 --dev-limit 200
+python manage.py rlsf_select --cell w3_2.0
 ```
 
 ### Limitations and risks

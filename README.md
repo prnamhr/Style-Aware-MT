@@ -471,7 +471,7 @@ python manage.py rlsf_smoke --hyps_file outputs/rlsf/smoke_hyps.jsonl --yes  # r
 # python manage.py rlsf_train --cell w3_6.0 --steps 300 --yes          # 9,600 calls, $0.71
 # python manage.py rlsf_pool  --yes                         # dev-slice best-of-N pool
 # python manage.py rlsf_omega                               # re-argmax the pool per ω cell, free
-# python manage.py rlsf_select --cell w3_2.0 --dev-limit 200  # checkpoint selection, free
+# python manage.py rlsf_select --cell w3_2.0                # checkpoint selection on all 499 dev segments, free
 # There is no `rlsf` inference condition: a trained adapter is scored through `peft`.
 # python manage.py infer --condition peft --config configs/rlsf_eval_w3_2.0.yaml \
 #   --out-name rlsf_w3_2.0
