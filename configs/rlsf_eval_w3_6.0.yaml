@@ -3,7 +3,7 @@
 generator:
   provider: local
   model: Qwen/Qwen2.5-7B-Instruct
-  adapter_path: models/rlsf_grpo_w3_6.0    # replace with the selected checkpoint-N
+  adapter_path: models/rlsf_grpo_w3_6.0/checkpoint-100    # step100, selected on the dev slice
   max_tokens: 1024
   temperature: 0.0          # greedy, deterministic (locked decoding)
   top_p: 1.0
