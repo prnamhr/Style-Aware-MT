@@ -147,6 +147,26 @@ are run artefacts and have not been rewritten, and the rate is `cost_usd / calls
 Φ is flat at 1.0 in `w3_0.0` by construction: `--skip_judge` holds it there, so that row carries
 no information and is printed only to show the hold worked.
 
+Φ in full, since the endpoints above hide the shape:
+
+| Φ, mean over the block | q1 | q2 | q3 | q4 | q4 − q1 | own sd |
+|---|---:|---:|---:|---:|---:|---:|
+| `w3_2.0` | 2.9129 | 3.0783 | 3.1529 | 3.2842 | +0.3712 | 0.3967 |
+| `w3_6.0` | 2.9521 | 3.0867 | 3.2404 | 3.3750 | +0.4229 | 0.4132 |
+
+Φ rises in both paid arms, monotonically across all four blocks, and by roughly one of each arm's
+own standard deviations. Four increasing blocks out of four is a stronger statement than the
+endpoint difference on its own, and it is the clearest movement anywhere in this run. The high arm
+also sits above the mid arm at every quartile, so the ordering in ω₃ holds throughout — but the
+gap between the two paid arms never clears its own standard error, reaching at most t = 1.52 at
+q3. **Φ is monotone in ω₃ as an ordering and not separable from noise as a magnitude.**
+
+Neither statement is a result. Φ is `prompts/judge_train.txt` scored by the reward judge, which is
+the quantity the reward maximizes, so a Φ that failed to rise would indicate a broken loop rather
+than an absent effect. It is reported here because the pre-registration asks for it and because it
+establishes that the judge term did what it was weighted to do; the limitations below say why it
+cannot carry a Goodhart claim by itself.
+
 Read across the rows rather than along them. Kiwi rises everywhere, by +0.0179, +0.0152 and
 +0.0072 — the gain falls as ω₃ rises, and the same ordering holds for BLEU (+4.68, +4.51, +2.27).
 Over the last 75 rollouts `w3_6.0` sits 0.0145 below the control on Kiwi and `w3_2.0` sits 0.0048
