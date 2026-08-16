@@ -12,20 +12,19 @@ from __future__ import annotations
 
 import argparse
 import copy
+import gc
 import json
 import os
-import yaml
-import gc
-
 from pathlib import Path
 
-from src.peft.train import train
+import yaml
+
 from src.eval._io import load_condition
 from src.eval.quick import score as quick_score
 from src.eval.stylometrics import aggregate, distance_to_centroid
 from src.infer.afsp_sweep import _register_fit_fn
 from src.infer.run import build_zeroshot_user, make_client
-
+from src.peft.train import train
 
 
 def _lr_tag(lr: float) -> str:

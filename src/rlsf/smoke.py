@@ -92,8 +92,7 @@ def verdicts(
         (
             "reward variance",
             degenerate_frac <= _MAX_DEGENERATE,
-            f"{degenerate_frac:.0%} of groups have no reward spread across their "
-            f"feasible samples",
+            f"{degenerate_frac:.0%} of groups have no reward spread across their feasible samples",
         ),
         ("steplog written", log_written, f"n_samples={log.get('n_samples')}"),
         (
@@ -277,16 +276,20 @@ def main() -> None:
     print(f"\nreward mean {log.reward_mean:.3f} sd {log.reward_sd:.3f}, wrote {out_path}")
     for name, stats in variance.items():
         print(f"  {name:6s} degenerate groups {stats['degenerate']}/{stats['groups']}")
-    print(f"  {'reward':6s} degenerate groups {log.degenerate_groups}/{log.n_groups}"
-          f"  (min group sd {log.min_group_sd})")
+    print(
+        f"  {'reward':6s} degenerate groups {log.degenerate_groups}/{log.n_groups}"
+        f"  (min group sd {log.min_group_sd})"
+    )
 
     # One draw of the drift baseline, not the baseline: the rule averages the run's first
     # steps, and a single step's error is wide enough that one draw cannot stand for it.
     rule = drift_rule(cfg)
-    print(f"\ndrift stop: {rule.feature} z {log.z[rule.feature]:+.3f} +/- "
-          f"{log.z_se[rule.feature]:.3f} over {args.segments} prompts. The rule opens its "
-          f"baseline on the first {rule.baseline_steps} training steps and fires only after "
-          f"{rule.window} consecutive steps past it.")
+    print(
+        f"\ndrift stop: {rule.feature} z {log.z[rule.feature]:+.3f} +/- "
+        f"{log.z_se[rule.feature]:.3f} over {args.segments} prompts. The rule opens its "
+        f"baseline on the first {rule.baseline_steps} training steps and fires only after "
+        f"{rule.window} consecutive steps past it."
+    )
 
     print()
     failed = 0

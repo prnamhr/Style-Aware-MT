@@ -9,21 +9,15 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import gc
 import json
 import os
 import re
-import gc
 from pathlib import Path
-
-from src.eval._io import load_condition
-from src.rlsf.config import load_config
-from src.rlsf.train import arm_path
-from src.rlsf.reward import load_centroid
-from src.rlsf.train import _kiwi_or_none
-from src.infer.run import build_zeroshot_user, make_client
 
 from sacrebleu.metrics import BLEU, CHRF
 
+from src.eval._io import load_condition
 from src.eval.quick import _marker_rate
 from src.eval.stylometrics import (
     HELDOUT_FEATURES,
@@ -33,6 +27,10 @@ from src.eval.stylometrics import (
     signed_z,
     subcentroid,
 )
+from src.infer.run import build_zeroshot_user, make_client
+from src.rlsf.config import load_config
+from src.rlsf.reward import load_centroid
+from src.rlsf.train import _kiwi_or_none, arm_path
 
 _CHECKPOINT_RE = re.compile(r"^checkpoint-(\d+)$")
 
@@ -167,7 +165,9 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--cell", required=True, help="the trained arm, e.g. w3_2.0")
     parser.add_argument("--adapter_dir", default=None, help="default: output.adapter_dir per arm")
     parser.add_argument(
-        "--dev-limit", type=int, default=0,
+        "--dev-limit",
+        type=int,
+        default=0,
         help="dev segments per checkpoint; 0 = full dev slice (499)",
     )
     parser.add_argument("--adequacy-margin", type=float, default=_ADEQUACY_MARGIN)
@@ -207,7 +207,6 @@ def main() -> None:
             continue
         generate({**base_gen, "adapter_path": str(path)}, rows, style, out_path, tag=tag)
         free_gpu()
-
 
     centroid = load_centroid(cfg["data"]["split_centroid_file"])
     with _kiwi_or_none(cfg["rlsf"]["reward"]["kiwi"], args.skip_kiwi) as kiwi:

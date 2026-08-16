@@ -8,12 +8,10 @@ from __future__ import annotations
 
 import argparse
 import json
-import yaml
-import torch
-
 from pathlib import Path
 
-from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
+import torch
+import yaml
 from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
@@ -23,6 +21,8 @@ from transformers import (
     TrainingArguments,
     set_seed,
 )
+
+from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
 
 _ZEROSHOT_USER = "Translate the following text into English:\n\n{source}"
 

@@ -10,7 +10,7 @@ from typing import Dict, List, Tuple
 # Increase CSV field size limit for large paragraph blocks
 csv.field_size_limit(sys.maxsize)
 
-# Configuration & Regex 
+# Configuration & Regex
 ARABIC_SCRIPT_RE = re.compile(
     r"[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]"
 )
@@ -20,7 +20,7 @@ PERSIAN_STANDARDIZATION_MAP = str.maketrans({"ي": "ی", "ك": "ک", "ـ": ""})
 
 ENGLISH_PUNCTUATION_MAP = str.maketrans({"“": '"', "”": '"', "‘": "'", "’": "'", "…": "..."})
 
-# Normalization Functions 
+# Normalization Functions
 
 
 def normalize_text(text: str, is_source: bool = True) -> str:
@@ -65,7 +65,7 @@ def validate_record(source: str, target: str, min_ar: int, min_en: int) -> List[
     return reasons
 
 
-# Parsing Logic 
+# Parsing Logic
 
 
 def process_file(
@@ -189,7 +189,7 @@ def write_outputs(output_dir: Path, filename_stem: str, cleaned: List[Dict], dro
             f.write(json.dumps(obj, ensure_ascii=False) + "\n")
 
 
-# Main Execution 
+# Main Execution
 
 
 def main():

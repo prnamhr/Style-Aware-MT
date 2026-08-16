@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 import hashlib
@@ -6,16 +5,15 @@ import json
 import math
 import threading
 import time
-import sacrebleu
-
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 import numpy as np
+import sacrebleu
 
-from src.eval.stylometrics import distance_to_centroid, features, signed_z
 from src.eval.judge import _JUDGE_SYSTEM, build_prompt, parse_score
+from src.eval.stylometrics import distance_to_centroid, features, signed_z
 
 _CENTROID_PATH = Path("results/stylometrics_centroid.json")
 _TRAIN_TEMPLATE = Path("prompts/judge_train.txt")
@@ -134,7 +132,7 @@ class RewardConfig:
         )
 
 
-# components 
+# components
 
 
 def overlap_scores(hyps: list[str], refs: list[str], metric: str = "bleu") -> list[float]:
@@ -218,9 +216,7 @@ def judge_scores(
     return scores
 
 
-def frozen_digest(
-    path: str | Path, hashes_path: str | Path = _TEMPLATE_HASHES
-) -> str:
+def frozen_digest(path: str | Path, hashes_path: str | Path = _TEMPLATE_HASHES) -> str:
     """The digest recorded for a rubric when it was frozen.
 
     Unrecorded raises rather than being read on trust: that is the `template_verified:
@@ -269,9 +265,7 @@ def load_train_template(
     return text
 
 
-
 def group_normalize(values: np.ndarray, valid: np.ndarray) -> np.ndarray:
-
     out = np.zeros_like(values, dtype=float)
     if valid.sum() < 2:
         return out
@@ -317,7 +311,6 @@ def _measured_mean(values: np.ndarray) -> float:
 
 
 def length_feasible(hyps: list[str], refs: list[str], cfg: RewardConfig) -> np.ndarray:
-
     out = np.ones(len(hyps), dtype=bool)
     for i, (hyp, ref) in enumerate(zip(hyps, refs)):
         n_hyp = len(hyp.split())
@@ -328,8 +321,6 @@ def length_feasible(hyps: list[str], refs: list[str], cfg: RewardConfig) -> np.n
             ratio = n_hyp / n_ref
             out[i] = cfg.len_min_ratio <= ratio <= cfg.len_max_ratio
     return out
-
-
 
 
 def reward_degeneracy(rewards: np.ndarray, feasible: np.ndarray, group_size: int) -> dict:
@@ -439,7 +430,6 @@ def compute_rewards(
     centroid: dict,
     step: int = 0,
 ) -> tuple[np.ndarray, np.ndarray, StepLog]:
-
     n = len(hyps)
     if not (len(sources) == len(refs) == n):
         raise ValueError(f"ragged batch: {len(sources)} sources, {n} hyps, {len(refs)} refs")
@@ -455,8 +445,7 @@ def compute_rewards(
             raise ValueError(f"component {name!r} has {len(values)} scores for {n} samples")
 
     raw = {
-        name: np.asarray(component_scores[name], dtype=float)
-        for name in cfg.required_components
+        name: np.asarray(component_scores[name], dtype=float) for name in cfg.required_components
     }
     measured = np.logical_and.reduce([np.isfinite(values) for values in raw.values()])
     feasible = length_feasible(hyps, refs, cfg) & measured

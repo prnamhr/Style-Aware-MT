@@ -1,13 +1,11 @@
-
-
 from __future__ import annotations
 
+import argparse
 import json
 import os
 import subprocess
 import sys
 from pathlib import Path
-import argparse
 
 DEFAULT_MODEL = "Unbabel/wmt22-cometkiwi-da"
 
@@ -67,7 +65,6 @@ class KiwiScorer:
         self._next_id = 0
         self.reference_free = "kiwi" in model.lower()
 
-
     def start(self) -> None:
         if self._proc is not None:
             return
@@ -85,9 +82,9 @@ class KiwiScorer:
         env = dict(os.environ)
         # The worker is addressed as a module of this repository, so the repo root has
         # to be importable by an interpreter that was never installed into it.
-        env["PYTHONPATH"] = os.pathsep.join(
-            [str(self._cwd), env.get("PYTHONPATH", "")]
-        ).rstrip(os.pathsep)
+        env["PYTHONPATH"] = os.pathsep.join([str(self._cwd), env.get("PYTHONPATH", "")]).rstrip(
+            os.pathsep
+        )
         # Not a pipe: nothing drains the worker's stderr between requests, so once Lightning
         # has written the 64 KB pipe buffer full the worker blocks inside predict and the
         # training loop waits on a score that never comes.
@@ -136,7 +133,6 @@ class KiwiScorer:
     def __exit__(self, *exc_info) -> None:
         self.stop()
 
-
     def score(
         self,
         sources: list[str],
@@ -157,9 +153,7 @@ class KiwiScorer:
         if not self.reference_free and references is None:
             raise ValueError(f"{self.model} is reference-based; references are required")
         if references is not None and len(references) != len(sources):
-            raise ValueError(
-                f"references differ in length: {len(references)} vs {len(sources)}"
-            )
+            raise ValueError(f"references differ in length: {len(references)} vs {len(sources)}")
 
         if self._proc is None:
             self.start()
@@ -187,7 +181,7 @@ class KiwiScorer:
             )
         return [float(x) for x in scores]
 
-    # -- plumbing 
+    # -- plumbing
 
     def _read_line(self, timeout: float | None) -> dict:
         proc = self._proc

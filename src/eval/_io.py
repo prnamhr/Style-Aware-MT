@@ -14,7 +14,6 @@ def condition_path(out_dir: str | Path, condition: str, split: str) -> Path:
 
 
 def merge_results(path: str | Path, new: dict[str, dict]) -> list[str]:
-
     path = Path(path)
     existing: dict = {}
     if path.exists():

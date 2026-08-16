@@ -57,8 +57,7 @@ def select_works(
     *,
     exclude: set[str] | None = None,
 ) -> list[str]:
-    """Choose whole works whose segment count is closest to target.
-    """
+    """Choose whole works whose segment count is closest to target."""
     if target < 1:
         raise ValueError(f"target must be >= 1, got {target}")
     blocked = {_UNKNOWN} | (exclude or set())
@@ -120,9 +119,7 @@ def main() -> None:
     parser.add_argument("--splits_dir", default=str(_SPLITS_DIR))
     parser.add_argument("--target", type=int, default=500, help="approximate dev segments")
     parser.add_argument("--group_key", default="source", help="metadata field naming the work")
-    parser.add_argument(
-        "--exclude", nargs="*", default=[], help="works that must stay in training"
-    )
+    parser.add_argument("--exclude", nargs="*", default=[], help="works that must stay in training")
     parser.add_argument(
         "--seed", type=int, default=42, help="recorded for provenance; selection is deterministic"
     )

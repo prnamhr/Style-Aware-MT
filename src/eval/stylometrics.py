@@ -375,8 +375,10 @@ def main() -> None:
             print(f"  {name:<{width}}  mean {m:9.4f}   std {s:9.4f}{side}")
         if split:
             _assert_shared_features_agree(centroid)
-            print(f"\n  the {len(CENTROID_FEATURES)} features it shares with {_CENTROID_PATH} "
-                  f"reproduce it exactly, so this is an extension and not a refit")
+            print(
+                f"\n  the {len(CENTROID_FEATURES)} features it shares with {_CENTROID_PATH} "
+                f"reproduce it exactly, so this is an extension and not a refit"
+            )
         print()
         return
 

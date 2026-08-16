@@ -1,5 +1,3 @@
-
-
 from __future__ import annotations
 
 import argparse
@@ -21,7 +19,6 @@ def main() -> None:
     parser.add_argument("--gpus", type=int, default=None)
     args = parser.parse_args()
 
-
     try:
         from comet import download_model, load_from_checkpoint
     except Exception as exc:  # pragma: no cover - environment-dependent
@@ -31,7 +28,6 @@ def main() -> None:
     try:
         model = load_from_checkpoint(download_model(args.model))
     except Exception as exc:  # pragma: no cover - environment-dependent
-
         _emit({"ready": False, "error": f"cannot load {args.model}: {exc}"})
         raise SystemExit(1) from exc
 

@@ -30,17 +30,27 @@ def _mu(t: int, delta: float, ramp: bool) -> float:
     return delta * (t - SHIFT_AT) / (500 - SHIFT_AT) if ramp else delta
 
 
-def trip_step(rule: DriftRule, rng, delta: float, *, steps: int, prompts: int,
-              sigma_prompt: float, ramp: bool = False) -> int | None:
+def trip_step(
+    rule: DriftRule,
+    rng,
+    delta: float,
+    *,
+    steps: int,
+    prompts: int,
+    sigma_prompt: float,
+    ramp: bool = False,
+) -> int | None:
     """The step the rule halts a simulated run at, or None if it runs to the end."""
     monitor = DriftMonitor(rule)
     for t in range(steps):
         draws = rng.normal(_mu(t, delta, ramp), sigma_prompt, prompts)
-        verdict = monitor.update({
-            "step": t,
-            "z": {rule.feature: draws.mean()},
-            "z_se": {rule.feature: draws.std(ddof=1) / np.sqrt(prompts)},
-        })
+        verdict = monitor.update(
+            {
+                "step": t,
+                "z": {rule.feature: draws.mean()},
+                "z_se": {rule.feature: draws.std(ddof=1) / np.sqrt(prompts)},
+            }
+        )
         if verdict.tripped:
             return t
     return None
@@ -77,26 +87,44 @@ def main() -> None:
 
     rules = [configured]
     rules += [
-        DriftRule(feature=configured.feature, baseline_steps=b, window=w, k_sigma=k,
-                  min_delta=configured.min_delta)
+        DriftRule(
+            feature=configured.feature,
+            baseline_steps=b,
+            window=w,
+            k_sigma=k,
+            min_delta=configured.min_delta,
+        )
         for b, w, k in CANDIDATES
         if (b, w, k) != (configured.baseline_steps, configured.window, configured.k_sigma)
     ]
 
-    print(f"{prompts} prompts/step, per-prompt sd {args.sigma_prompt:.3f} -> per-step sd "
-          f"{per_step_sd:.3f}; {args.runs} runs of {args.steps} steps, seed {args.seed}")
+    print(
+        f"{prompts} prompts/step, per-prompt sd {args.sigma_prompt:.3f} -> per-step sd "
+        f"{per_step_sd:.3f}; {args.runs} runs of {args.steps} steps, seed {args.seed}"
+    )
     print(f"\n{'rule':<24} {'band':>6}  " + "  ".join(f"{name:>12}" for name in labels))
     for i, rule in enumerate(rules):
         se = per_step_sd * np.sqrt(1 / rule.baseline_steps + 1 / rule.window)
-        cells = profile(rule, scenarios, runs=args.runs, seed=args.seed, steps=args.steps,
-                        prompts=prompts, sigma_prompt=args.sigma_prompt)
-        name = (f"b{rule.baseline_steps} w{rule.window} k{rule.k_sigma}"
-                + (" (configured)" if i == 0 else ""))
-        row = [f"{rate:>7.1%}" + (f"@{med:<4}" if med is not None else "     ")
-               for rate, med in cells]
+        cells = profile(
+            rule,
+            scenarios,
+            runs=args.runs,
+            seed=args.seed,
+            steps=args.steps,
+            prompts=prompts,
+            sigma_prompt=args.sigma_prompt,
+        )
+        name = f"b{rule.baseline_steps} w{rule.window} k{rule.k_sigma}" + (
+            " (configured)" if i == 0 else ""
+        )
+        row = [
+            f"{rate:>7.1%}" + (f"@{med:<4}" if med is not None else "     ") for rate, med in cells
+        ]
         print(f"{name:<24} {max(rule.min_delta, rule.k_sigma * se):>6.3f}  " + "  ".join(row))
-    print("\ncell: halt rate @ median halt step. The drift starts at step "
-          f"{SHIFT_AT}; a halt under 'null' is a false alarm.")
+    print(
+        "\ncell: halt rate @ median halt step. The drift starts at step "
+        f"{SHIFT_AT}; a halt under 'null' is a false alarm."
+    )
 
 
 if __name__ == "__main__":

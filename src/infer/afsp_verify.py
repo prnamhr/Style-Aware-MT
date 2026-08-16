@@ -12,14 +12,14 @@ import yaml
 
 from src.eval import comet as comet_mod
 from src.eval._io import load_condition
+from src.eval.judge import (
+    _DEFAULT_TEMPLATE,
+    _RESULTS_DIR,
+    _aggregate,
+    score_condition,
+)
 from src.infer.afsp_sweep import _sweep_dir, generate_cells, ranked_cells
 from src.infer.run import make_client
-from src.eval.judge import (
-        _DEFAULT_TEMPLATE,
-        _RESULTS_DIR,
-        _aggregate,
-        score_condition,
-)
 
 
 def _run_judge(judge_config: str, top: list[dict], sweep_dir: Path, split: str) -> dict[str, dict]:

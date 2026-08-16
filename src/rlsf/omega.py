@@ -98,9 +98,7 @@ def argmax_picks(
     picks: list[int | None] = []
     for start in range(0, len(rewards), n):
         candidates = [
-            start + i
-            for i in range(n)
-            if feasible[start + i] and np.isfinite(rewards[start + i])
+            start + i for i in range(n) if feasible[start + i] and np.isfinite(rewards[start + i])
         ]
         if not candidates:
             picks.append(None)
@@ -307,17 +305,31 @@ def cell_reading(
         "degenerate_groups": log.degenerate_groups,
         "groups": log.n_groups,
         # A gate strict enough to empty every group is a reading about the gate, not a crash.
-        "picks": None if all(p is None for p in picks) else pick_reading(
-            hyps, refs, raw, picks,
-            n=n, centroid=centroid, z_all=z_all, feature=feature, dists=dists,
+        "picks": None
+        if all(p is None for p in picks)
+        else pick_reading(
+            hyps,
+            refs,
+            raw,
+            picks,
+            n=n,
+            centroid=centroid,
+            z_all=z_all,
+            feature=feature,
+            dists=dists,
         ),
     }
     if subgroup and subgroup < n and n % subgroup == 0:
         # The pool's N samples are exchangeable draws from one segment, so splitting them
         # into groups of the training size estimates the degeneracy training will see.
         sub_rewards, sub_feasible, sub = compute_rewards(
-            sources, hyps, refs,
-            cfg=rc, group_size=subgroup, component_scores=raw, centroid=centroid,
+            sources,
+            hyps,
+            refs,
+            cfg=rc,
+            group_size=subgroup,
+            component_scores=raw,
+            centroid=centroid,
         )
         sub_picks = argmax_picks(sub_rewards, sub_feasible, subgroup, seed=seed)
         reading["subgroup"] = {
@@ -327,9 +339,18 @@ def cell_reading(
             "degenerate_frac": sub.degenerate_frac,
             # Selection ranks on this reading, not the one at N: the degeneracy gate is
             # already read here, and a best-of-N pick is not one the run at G ever makes.
-            "picks": None if all(p is None for p in sub_picks) else pick_reading(
-                hyps, refs, raw, sub_picks,
-                n=subgroup, centroid=centroid, z_all=z_all, feature=feature, dists=dists,
+            "picks": None
+            if all(p is None for p in sub_picks)
+            else pick_reading(
+                hyps,
+                refs,
+                raw,
+                sub_picks,
+                n=subgroup,
+                centroid=centroid,
+                z_all=z_all,
+                feature=feature,
+                dists=dists,
             ),
         }
     return reading, picks
@@ -525,8 +546,16 @@ def main() -> None:
 
     read = partial(
         cell_reading,
-        sources=sources, hyps=hyps, refs=refs, raw=raw,
-        n=n, subgroup=subgroup, centroid=centroid, z_all=z_all, feature=feature, dists=dists,
+        sources=sources,
+        hyps=hyps,
+        refs=refs,
+        raw=raw,
+        n=n,
+        subgroup=subgroup,
+        centroid=centroid,
+        z_all=z_all,
+        feature=feature,
+        dists=dists,
         seed=seed,
     )
     scored = [read(name, rc) for name, rc in grid]
@@ -549,15 +578,27 @@ def main() -> None:
 
     # Feasibility does not depend on the weights, so any cell's mask reads the components.
     _, feasible, _ = compute_rewards(
-        sources, hyps, refs, cfg=grid[0][1], group_size=n,
-        component_scores=raw, centroid=centroid,
+        sources,
+        hyps,
+        refs,
+        cfg=grid[0][1],
+        group_size=n,
+        component_scores=raw,
+        centroid=centroid,
     )
     per_component = component_degeneracy(raw, feasible, n)
     anchor_picks = random_picks(feasible, n, seed)
     anchors = {
         key: pick_reading(
-            hyps, refs, raw, picks,
-            n=n, centroid=centroid, z_all=z_all, feature=feature, dists=dists,
+            hyps,
+            refs,
+            raw,
+            picks,
+            n=n,
+            centroid=centroid,
+            z_all=z_all,
+            feature=feature,
+            dists=dists,
         )
         for key, picks in (("random", anchor_picks), ("pool", None))
     }
@@ -578,18 +619,23 @@ def main() -> None:
             reading["heldout_vs_random"] = paired_diff(draws, anchor_draws, alpha=_ALPHA)
 
     verdict = select(
-        readings, cells,
-        max_degenerate=_MAX_DEGENERATE, warn_shift=drift_rule(cfg).min_delta, feature=feature,
+        readings,
+        cells,
+        max_degenerate=_MAX_DEGENERATE,
+        warn_shift=drift_rule(cfg).min_delta,
+        feature=feature,
     )
     floor = adequacy_floor([*readings, *exploratory], anchors["random"])
 
     print(f"\nper-component degeneracy at N={n}: what each term can separate on its own")
     for name, stats in per_component.items():
-        print(f"  {name:8s} {stats['degenerate']}/{stats['groups']} flat groups "
-              f"({stats['degenerate_frac']:.0%})")
+        print(
+            f"  {name:8s} {stats['degenerate']}/{stats['groups']} flat groups "
+            f"({stats['degenerate_frac']:.0%})"
+        )
 
     comps = sorted(readings[0]["picks"]["components"])
- 
+
     dist_keys = ["stylo_dist", "reward_dist", "reward_per_sample", "heldout_dist"]
     print(
         f"\n{'cell':13s} {'deg@' + str(n):>7s} {'deg@' + str(subgroup):>7s} {'picks':>6s} "
@@ -618,9 +664,7 @@ def main() -> None:
             "  Groups a gate empties make no pick, so a gated cell's component means are read "
             "over fewer segments than the cells above and are not paired with them."
         )
-    scored_vs_random = [
-        r for r in [*readings, *exploratory] if "heldout_vs_random" in r
-    ]
+    scored_vs_random = [r for r in [*readings, *exploratory] if "heldout_vs_random" in r]
     if scored_vs_random:
         pct = int(round(100 * (1 - _ALPHA)))
         print(
@@ -635,8 +679,11 @@ def main() -> None:
                 f"[{d['ci_low']:+.4f}, {d['ci_high']:+.4f}]  p={d['p_value']:.3f}"
                 f"{'  *' if d['significant'] else ''}"
             )
-        beat = [r["cell"] for r in scored_vs_random if r["heldout_vs_random"]["significant"]
-                and r["heldout_vs_random"]["diff"] < 0]
+        beat = [
+            r["cell"]
+            for r in scored_vs_random
+            if r["heldout_vs_random"]["significant"] and r["heldout_vs_random"]["diff"] < 0
+        ]
         print(f"  * = CI excludes 0. Beating the anchor: {', '.join(beat) if beat else 'none'}")
 
     if gated:
@@ -661,8 +708,10 @@ def main() -> None:
     )
     for reading in readings:
         at, p = ranked_at(reading)
-        print(f"  {reading['cell']:11s} G={at}  "
-              + (f"{p['stylo_dist']:.4f} over {p['picked']} picks" if p else "no pick"))
+        print(
+            f"  {reading['cell']:11s} G={at}  "
+            + (f"{p['stylo_dist']:.4f} over {p['picked']} picks" if p else "no pick")
+        )
     print(
         f"\nadequacy floor for Phase 2 arms: {floor['component']} >= {floor['floor']:.4f}, "
         f"the {floor['source']}. Read alongside `selected` below, never into it:"

@@ -1,14 +1,13 @@
-
 from __future__ import annotations
 
 from pathlib import Path
 
 import yaml
+from trl import GRPOConfig
 
 from src.infer.run import make_client
 from src.rlsf.reward import RewardConfig
 from src.rlsf.stop import DriftRule
-from trl import GRPOConfig
 
 _CONFIG = Path("configs/rlsf.yaml")
 
@@ -138,8 +137,7 @@ def _cells(cfg: dict, key: str) -> list[tuple[str, RewardConfig]]:
 
 
 def grid_reward_configs(cfg: dict) -> list[tuple[str, RewardConfig]]:
-    """The RQ3 weight grid as (cell name, reward config) pairs, each at unit ||omega||.
-    """
+    """The RQ3 weight grid as (cell name, reward config) pairs, each at unit ||omega||."""
     return _cells(cfg, "cells")
 
 

@@ -15,16 +15,18 @@ import math
 import os
 import shutil
 import time
-import torch
-
 from dataclasses import dataclass, field
-from datasets import Dataset
-from importlib.metadata import PackageNotFoundError, version as pkg_version
-from transformers import AutoModelForCausalLM, AutoTokenizer, TrainerCallback
-from peft import LoraConfig, get_peft_model, PeftModel
-from trl import GRPOTrainer
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as pkg_version
 from pathlib import Path
 
+import torch
+from datasets import Dataset
+from transformers import AutoModelForCausalLM, AutoTokenizer, TrainerCallback
+from trl import GRPOTrainer
+
+from peft import LoraConfig, PeftModel, get_peft_model
+from src.eval.stylometrics import REWARD_FEATURES, subcentroid
 from src.infer.run import build_zeroshot_user
 from src.rlsf.config import (
     drift_rule,
@@ -49,7 +51,6 @@ from src.rlsf.reward import (
     stylo_scores,
 )
 from src.rlsf.stop import DriftMonitor
-from src.eval.stylometrics import REWARD_FEATURES, subcentroid
 
 # Small enough to run on CPU, same tokenizer family as the locked base.
 _DRY_RUN_MODEL = "Qwen/Qwen2.5-0.5B-Instruct"
@@ -64,8 +65,13 @@ _PINNED = ("transformers", "trl", "peft", "accelerate", "bitsandbytes")
 # Trainer log keys carried into the step log. A flat style score is not evidence about the
 # reward unless these show the optimizer was actually moving the adapter.
 _OPTIM_KEYS = (
-    "loss", "grad_norm", "learning_rate", "kl", "entropy",
-    "clip_ratio/region_mean", "completions/mean_length",
+    "loss",
+    "grad_norm",
+    "learning_rate",
+    "kl",
+    "entropy",
+    "clip_ratio/region_mean",
+    "completions/mean_length",
 )
 
 
@@ -232,8 +238,15 @@ def adapter_delta(model, snapshot: list[tuple]) -> dict:
     }
 
 
-def load_policy(*, model_id: str, adapter_path: str | None, ref_adapter_path: str | None,
-                dtype: str, device_map, require_ref: bool = False):
+def load_policy(
+    *,
+    model_id: str,
+    adapter_path: str | None,
+    ref_adapter_path: str | None,
+    dtype: str,
+    device_map,
+    require_ref: bool = False,
+):
     """The policy as a trainable PeftModel, with the frozen KL reference loaded as a second
     "ref" adapter so TRL anchors to the init, not the bare base."""
 
@@ -243,32 +256,42 @@ def load_policy(*, model_id: str, adapter_path: str | None, ref_adapter_path: st
         load_kwargs["device_map"] = device_map
     model = AutoModelForCausalLM.from_pretrained(model_id, **load_kwargs)
     offloaded = {
-        k: v for k, v in (getattr(model, "hf_device_map", None) or {}).items()
+        k: v
+        for k, v in (getattr(model, "hf_device_map", None) or {}).items()
         if str(v).lower() in {"cpu", "disk"}
     }
     assert not offloaded, f"policy offloaded off-GPU: {offloaded}"
 
     if adapter_path:
-
         model = PeftModel.from_pretrained(model, adapter_path, is_trainable=True)
         if ref_adapter_path:
             # Without a "ref" adapter TRL's disable_adapter reverts to the bare base, so KL
             # would anchor to base rather than the frozen init (grpo_trainer use_adapter).
             model.load_adapter(ref_adapter_path, adapter_name="ref", is_trainable=False)
             model.set_adapter("default")
-            assert "ref" in model.peft_config, "ref adapter did not register; KL would anchor to base"
+            assert "ref" in model.peft_config, (
+                "ref adapter did not register; KL would anchor to base"
+            )
             live = [n for n, p in model.named_parameters() if "ref" in n and p.requires_grad]
-            assert not live, f"ref adapter is trainable ({len(live)} params); the KL anchor would drift"
+            assert not live, (
+                f"ref adapter is trainable ({len(live)} params); the KL anchor would drift"
+            )
     else:
-
         model = get_peft_model(
             model,
             LoraConfig(
                 r=32,
                 lora_alpha=64,
                 lora_dropout=0.05,
-                target_modules=["q_proj", "k_proj", "v_proj", "o_proj",
-                                "gate_proj", "up_proj", "down_proj"],
+                target_modules=[
+                    "q_proj",
+                    "k_proj",
+                    "v_proj",
+                    "o_proj",
+                    "gate_proj",
+                    "up_proj",
+                    "down_proj",
+                ],
                 bias="none",
                 task_type="CAUSAL_LM",
             ),
@@ -316,11 +339,12 @@ def run_manifest(cfg: dict, *, cell: str | None, rc, steps: int, held_flat: list
     gen, rlsf = cfg["generator"], cfg["rlsf"]
     beta = rlsf["reference"]["beta"]
     if not beta:
-        kl_anchor = None                                      # KL off; no reference used
+        kl_anchor = None  # KL off; no reference used
     elif gen.get("adapter_path"):
         kl_anchor = rlsf["reference"].get("adapter_path") or gen["adapter_path"]
     else:
-        kl_anchor = f"base:{gen['model']}"                    # no init adapter: disable reverts to base
+        # no init adapter: disable_adapter reverts to base
+        kl_anchor = f"base:{gen['model']}"
     return {
         "cell": cell or "config reward: block",
         "omega": {name: round(w, 6) for name, w in rc.weights.items()},
@@ -392,8 +416,13 @@ def make_reward_fn(
             # it, so a shared timer would report the run's call time over one block's clock.
             block = JudgeTiming()
             raw["judge"] = judge_scores(
-                judge, template, sources, refs, hyps,
-                max_workers=judge_workers, timing=block,
+                judge,
+                template,
+                sources,
+                refs,
+                hyps,
+                max_workers=judge_workers,
+                timing=block,
             )
             state.timing.wall_s += block.wall_s
             state.timing.call_s += block.call_s
@@ -401,7 +430,9 @@ def make_reward_fn(
             budget.spend_usd = judge.usage.summary()["cost_usd"]
 
         rewards, _, log = compute_rewards(
-            sources, hyps, refs,
+            sources,
+            hyps,
+            refs,
             cfg=rc,
             group_size=group_size,
             component_scores=raw,
@@ -532,8 +563,11 @@ def main() -> None:
         rlsf["train"]["per_device_train_batch_size"] = 1
         overrides["use_cpu"] = True
         cfg["generator"].update(
-            model=_DRY_RUN_MODEL, adapter_path=None, dtype="float32",
-            device_map=None, max_tokens=128,
+            model=_DRY_RUN_MODEL,
+            adapter_path=None,
+            dtype="float32",
+            device_map=None,
+            max_tokens=128,
         )
     if args.max_completion_length:
         cfg["generator"]["max_tokens"] = args.max_completion_length
@@ -624,7 +658,6 @@ def main() -> None:
     budget = JudgeBudget(caps["max_judge_calls"] or 0, caps["max_judge_spend_usd"] or 0.0)
     judge = None if skip_judge else make_judge_client(cfg)
 
-
     with _kiwi_or_none(kiwi_cfg, skip_kiwi) as kiwi:
         reward_fn = make_reward_fn(
             rc=rc,
@@ -649,7 +682,9 @@ def main() -> None:
             train_dataset=dataset,
             processing_class=tokenizer,
             callbacks=[
-                make_stop_callback(state), make_optim_callback(state), make_prune_callback(),
+                make_stop_callback(state),
+                make_optim_callback(state),
+                make_prune_callback(),
             ],
         )
         if torch.cuda.is_available():

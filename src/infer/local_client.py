@@ -91,7 +91,6 @@ class LocalChatClient:
         temperature: float | None = None,
         top_p: float | None = None,
     ) -> list[str]:
-        
         if n < 1:
             raise ValueError(f"n must be >= 1, got {n}")
 
@@ -127,7 +126,6 @@ class LocalChatClient:
 
         with torch.no_grad():
             out = self._model.generate(**inputs, **gen_kwargs)
-
 
         pad_id = gen_kwargs["pad_token_id"]
         texts: list[str] = []

@@ -15,6 +15,8 @@ import math
 import time
 from pathlib import Path
 
+from transformers import set_seed
+
 from src.data.rlsf_dev import sha256_file
 from src.infer.run import build_zeroshot_user, make_client
 from src.infer.usage import Usage
@@ -27,7 +29,6 @@ from src.rlsf.config import (
 from src.rlsf.kiwi import KiwiScorer
 from src.rlsf.reward import JudgeTiming, judge_scores, load_train_template, overlap_scores
 from src.rlsf.train import JudgeBudget
-from transformers import set_seed
 
 # Usage artefacts the per-call rate is measured from, newest first.
 _USAGE_RECORDS = (Path("outputs/rlsf/pool_usage.json"), Path("outputs/rlsf/smoke_usage.json"))
@@ -342,7 +343,6 @@ def main() -> None:
 
     policy = None
     if remaining:
-
         policy = make_client(cfg["generator"])
         print(f"policy {cfg['generator']['model']} + {cfg['generator'].get('adapter_path')}")
 
@@ -371,9 +371,16 @@ def main() -> None:
             if judge is not None:
                 budget.reserve(len(hyps))
             raw = score_chunk(
-                chunk_src, chunk_ref, hyps,
-                n=n, metric=rc.overlap_metric, kiwi=kiwi, judge=judge,
-                template=template, workers=workers, timing=block,
+                chunk_src,
+                chunk_ref,
+                hyps,
+                n=n,
+                metric=rc.overlap_metric,
+                kiwi=kiwi,
+                judge=judge,
+                template=template,
+                workers=workers,
+                timing=block,
             )
             if judge is not None:
                 total_timing.wall_s += block.wall_s
@@ -390,8 +397,9 @@ def main() -> None:
                 f"{budget.calls} judge calls (${budget.spend_usd:.4f})"
             )
 
-    held_flat = [name for name, skip in (("kiwi", args.skip_kiwi), ("judge", args.skip_judge))
-                 if skip]
+    held_flat = [
+        name for name, skip in (("kiwi", args.skip_kiwi), ("judge", args.skip_judge)) if skip
+    ]
     usage = None
     if judge is not None:
         usage = judge.usage.summary()
@@ -404,8 +412,13 @@ def main() -> None:
         )
 
     man = manifest(
-        cfg, n=n, segments=segments, pool_path=out_path,
-        resumed_from=done, held_flat=held_flat, usage=usage,
+        cfg,
+        n=n,
+        segments=segments,
+        pool_path=out_path,
+        resumed_from=done,
+        held_flat=held_flat,
+        usage=usage,
     )
     man_path = sidecar(out_path, "manifest.json")
     man_path.write_text(json.dumps(man, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
