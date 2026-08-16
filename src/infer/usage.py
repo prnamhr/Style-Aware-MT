@@ -4,6 +4,7 @@ Token and cost accounting shared across generator providers.
 
 from __future__ import annotations
 
+import threading
 from dataclasses import dataclass, field
 
 
@@ -14,13 +15,17 @@ class Usage:
     completion_tokens: int = 0
     calls: int = 0
     cost_usd: float = 0.0
+    _lock: threading.Lock = field(default_factory=threading.Lock, repr=False, compare=False)
 
     def add(self, model: str, prompt_tokens: int, completion_tokens: int) -> None:
-        self.prompt_tokens += prompt_tokens
-        self.completion_tokens += completion_tokens
-        self.calls += 1
-        in_rate, out_rate = self.pricing.get(model, (0.0, 0.0))
-        self.cost_usd += (prompt_tokens * in_rate + completion_tokens * out_rate) / 1e6
+        # Locked because a fanned-out judge loop shares one client, and these counters are
+        # what the spend caps are checked against; a lost increment understates the bill.
+        with self._lock:
+            self.prompt_tokens += prompt_tokens
+            self.completion_tokens += completion_tokens
+            self.calls += 1
+            in_rate, out_rate = self.pricing.get(model, (0.0, 0.0))
+            self.cost_usd += (prompt_tokens * in_rate + completion_tokens * out_rate) / 1e6
 
     def summary(self) -> dict:
         return {

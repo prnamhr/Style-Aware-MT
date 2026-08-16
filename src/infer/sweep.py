@@ -65,7 +65,7 @@ MODEL_REGISTRY: dict[str, dict] = {
 DEFAULT_MODELS = ["gpt-4o-mini", "claude-haiku-4-5", "claude-sonnet-4-6"]
 DEFAULT_N = [0, 2, 4, 8]
 
-# --- Cost pre-estimate ---------------------------------------------------------
+# Cost pre-estimate
 _EST_CHARS = {"src": 78, "ex_tgt": 147, "style": 889, "out": 140, "scaffold": 115, "labels": 20}
 
 

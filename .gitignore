@@ -24,16 +24,15 @@ env/
 .env
 
 # Generated artifacts
+logs/
 data/knn_index/
 __pycache__/
 
-# Batch-API request payloads: regenerable from outputs/ + the frozen rubric by
-# `manage.py judge --config configs/judge_eval_gpt.yaml`. The scores, the batch job
-# ids (results/judge_gpt_val_batch_state.json) and the usage record are tracked;
-# the 9,261 request lines are not.
 results/judge_gpt_val_batch/
 
 notebooks/Style-Aware-MT/
 
 models/
-.claude
+CLAUDE.md
+
+.venv-comet/

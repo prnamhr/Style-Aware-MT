@@ -8,6 +8,7 @@ import argparse
 import json
 from pathlib import Path
 
+import matplotlib.pyplot as plt
 import numpy as np
 from scipy import stats
 
@@ -228,8 +229,6 @@ def _ci_band(ax, cells, k, ci_key, lo_hi_from_z=None):
 
 
 def figure_stylo_dist(report: dict, path: Path) -> None:
-    import matplotlib.pyplot as plt
-
     cells, refs = report["cells"], report["references"]
     fig, ax = plt.subplots(figsize=(7.0, 4.6))
     for k in K_VALUES:
@@ -266,8 +265,6 @@ def figure_stylo_dist(report: dict, path: Path) -> None:
 
 
 def figure_z_deviations(report: dict, path: Path) -> None:
-    import matplotlib.pyplot as plt
-
     cells, refs = report["cells"], report["references"]
     fig, axes = plt.subplots(2, 2, figsize=(9.5, 6.8), sharex=True)
     for ax, name in zip(axes.ravel(), CENTROID_FEATURES):
@@ -302,8 +299,6 @@ def figure_z_deviations(report: dict, path: Path) -> None:
 
 
 def figure_tradeoff(report: dict, path: Path) -> None:
-    import matplotlib.pyplot as plt
-
     cells = report["cells"]
     if not any("comet_system" in c for c in cells):
         return
@@ -357,8 +352,6 @@ def figure_tradeoff(report: dict, path: Path) -> None:
 
 
 def figure_judge_overlay(report: dict, path: Path) -> None:
-    import matplotlib.pyplot as plt
-
     cells = report["cells"]
     judged = [c for c in cells if "judge_mean" in c]
     if not judged:

@@ -1,0 +1,9 @@
+{
+  "condition": "peft",
+  "output_name": "rlsf_w3_2.0",
+  "model": "Qwen/Qwen2.5-7B-Instruct",
+  "calls": 1323,
+  "prompt_tokens": 339773,
+  "completion_tokens": 44337,
+  "cost_usd": 0.0
+}

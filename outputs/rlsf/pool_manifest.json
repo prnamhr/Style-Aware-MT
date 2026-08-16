@@ -1,0 +1,49 @@
+{
+  "purpose": "omega selection by best-of-N reranking over the RLSF dev slice",
+  "generator": {
+    "model": "Qwen/Qwen2.5-7B-Instruct",
+    "adapter_path": "models/peft_lora_r32_lr2e-4/checkpoint-1358",
+    "load_in_4bit": false,
+    "max_tokens": 1024,
+    "temperature": 1.0,
+    "top_p": 0.95,
+    "seed": 42
+  },
+  "pool": {
+    "n": 8,
+    "segments": 499,
+    "samples": 3992,
+    "overlap_metric": "bleu",
+    "kiwi_model": "Unbabel/wmt22-cometkiwi-da",
+    "held_flat": [],
+    "resumed_from_segment": 499
+  },
+  "judge": {
+    "model": "gpt-4o-mini",
+    "temperature": 0.0,
+    "seed": 42,
+    "template_file": "prompts/judge_train.txt",
+    "usage": {
+      "calls": 0,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "cost_usd": 0.0,
+      "per_call_usd": 0.0,
+      "wall_s": 0.0,
+      "call_s": 0.0,
+      "mean_call_s": 0.0,
+      "calls_per_s": 0.0,
+      "achieved_parallelism": 0.0
+    },
+    "usage_covers": "this invocation only; a resumed pool paid for the rest earlier"
+  },
+  "hashes": {
+    "rlsf_dev.jsonl": "45b45e40b03ea3c3a49cc7b374304870aad0c023e5e47cbacb47a9cc72b4f8e9",
+    "pool.jsonl": "20935cdb729800e4261b7027cedb59409b485a45ab6a1bd2b06f1f1d11e4e6fd"
+  },
+  "caveats": [
+    "The dev slice is held out from PPO updates only. The PEFT checkpoint sampled here was trained on all of train.jsonl, this slice included.",
+    "Dev-slice figures select the reward weights and are never reported as a result; val remains the reported split.",
+    "Rewards are group-normalized within a segment, so pool scores are comparable across omega cells only at a fixed n."
+  ]
+}

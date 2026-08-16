@@ -16,6 +16,17 @@ from src.infer.usage import Usage
 _PRICING: dict[str, tuple[float, float]] = {}
 
 
+def _generated_len(tokens, pad_id: int | None, eos_id: int | None) -> int:
+    """Generated-token count with right-padding removed."""
+    n = int(tokens.shape[0])
+    if pad_id is None:
+        return n
+    keep_eos = pad_id == eos_id
+    while n > 0 and int(tokens[n - 1]) == pad_id:
+        n -= 1
+    return n + 1 if keep_eos and n < int(tokens.shape[0]) else n
+
+
 @dataclass
 class LocalChatClient:
     model: str
@@ -67,6 +78,32 @@ class LocalChatClient:
             self._device = self._model.device
 
     def complete(self, system: str, user: str) -> str:
+        """Single completion. Greedy unless ``temperature > 0``; the inference path
+        every reported condition uses, so its behaviour is deliberately unchanged."""
+        return self.complete_many(system, user, n=1)[0]
+
+    def complete_many(
+        self,
+        system: str,
+        user: str,
+        *,
+        n: int = 1,
+        temperature: float | None = None,
+        top_p: float | None = None,
+    ) -> list[str]:
+        if n < 1:
+            raise ValueError(f"n must be >= 1, got {n}")
+
+        temp = self.temperature if temperature is None else temperature
+        nucleus = self.top_p if top_p is None else top_p
+        sampling = bool(temp and temp > 0)
+        if n > 1 and not sampling:
+            raise ValueError(
+                f"n={n} with temperature={temp} is greedy: all {n} samples would be "
+                "identical and every group-normalized advantage would be zero. "
+                "Pass temperature > 0 for group sampling."
+            )
+
         messages = [
             {"role": "system", "content": system},
             {"role": "user", "content": user},
@@ -80,18 +117,22 @@ class LocalChatClient:
         gen_kwargs: dict = {
             "max_new_tokens": self.max_tokens,
             "pad_token_id": self._tokenizer.pad_token_id or self._tokenizer.eos_token_id,
+            "num_return_sequences": n,
         }
-        if self.temperature and self.temperature > 0:
-            gen_kwargs.update(do_sample=True, temperature=self.temperature, top_p=self.top_p)
+        if sampling:
+            gen_kwargs.update(do_sample=True, temperature=temp, top_p=nucleus)
         else:
             gen_kwargs["do_sample"] = False  # greedy; deterministic
 
         with torch.no_grad():
             out = self._model.generate(**inputs, **gen_kwargs)
 
-        # Slice off the prompt so only newly generated tokens are decoded/counted.
-        new_tokens = out[0][prompt_len:]
-        completion_len = int(new_tokens.shape[0])
-        self.usage.add(self.model, prompt_len, completion_len)
-        text = self._tokenizer.decode(new_tokens, skip_special_tokens=True)
-        return text.strip()
+        pad_id = gen_kwargs["pad_token_id"]
+        texts: list[str] = []
+        completion_total = 0
+        for row in out[:n]:
+            new_tokens = row[prompt_len:]
+            completion_total += _generated_len(new_tokens, pad_id, self._tokenizer.eos_token_id)
+            texts.append(self._tokenizer.decode(new_tokens, skip_special_tokens=True).strip())
+        self.usage.add(self.model, prompt_len, completion_total)
+        return texts

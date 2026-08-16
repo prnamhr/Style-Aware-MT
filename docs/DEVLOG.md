@@ -75,14 +75,1815 @@ absence is deliberate rather than an oversight; none has a recorded rationale.
 * The judge provider switch of 2026-07-20 has no recorded rationale; this is noted in
   the 2026-07-23 entry.
 
-These gaps were open as of the audit. Nothing in this list has been closed since.
+Added by the 2026-08-10 audit:
+
+* Three analysis stages have no entry and produce artifacts that the results rest on:
+  `src/eval/stylometrics_ci.py` (`results/stylometrics_ci_val.json` — the paired CIs and
+  rank distributions behind the `stylo_dist` ladder), `src/eval/metric_agreement.py`
+  (`results/metric_agreement_val.json` — all of RQ4), and `src/eval/peft_register.py`
+  (`results/peft_register_val.json`). Until this audit none of the three was named in
+  `README.md` either, and the README asserted that `stylo_dist` could not be resampled.
+* `bd806a7` (2026-08-10) added `src/rlsf/pool.py`, `src/rlsf/omega.py` and
+  `tests/test_rlsf_pool.py` — the dev-slice best-of-N pool and the offline ω grid — under a
+  commit message describing the drift-band change instead. `docs/budget.md` prices both
+  stages; no entry records their implementation.
+* `src/eval/human.py` is a human-judgment scaffold committed 2026-07-23. It has never been
+  run, holds no artifact, and no entry states whether human evaluation is in scope.
+
+These gaps are open. Nothing in this list has been closed since it was written.
 
 ### Audit
+
+A second audit on **2026-08-10** checked `README.md` and `docs/budget.md` against the
+artifacts rather than this log: split integrity and cross-split leakage, the provenance of
+the retrieval index, every number in the results table against the file it cites, the
+bootstrap estimator, and which pipeline stages are recorded anywhere. What it changed is
+listed under *Known documentation gaps* above and in the README's threats table; it opened
+no new entry because it recorded no new engineering work.
 
 This log was audited for internal consistency against the committed artifacts, configs,
 and git history on **2026-08-01**. Corrections made in that pass are marked inline as
 *Correction (2026-08-01)*; they amend the claims of earlier entries but do not restate
 their history.
+
+---
+
+## 2026-08-15 — Three arms run to 300 rollouts, and a judge that does not repeat itself
+
+### Summary
+
+All three pre-registered arms trained to their full 300 rollouts. None halted on the
+register-drift rule. Φ rises monotonically in ω₃, which is the reward working rather than a
+result; COMET-Kiwi does not fall in any arm, which is the half of the pre-registered Goodhart
+pair that did not appear. What the arms show instead is a cost: the adequacy gain shrinks as ω₃
+grows, and only the high-ω arm separates from the metric-only control.
+
+`w3_6.0` was run twice. The first attempt died at rollout 208 to a kernel kill and its log is
+kept. Comparing it against the restart turned out to be the most informative thing in the run,
+because the two attempts share a seed and diverge anyway.
+
+### What changed
+
+`w3_0.0` ran 300 rollouts under `--skip_judge` at 0 paid calls; `w3_2.0` and `w3_6.0` ran 300
+each at 9,600 judge calls, $0.7423 and $0.7431. Step logs, manifests and usage sidecars are at
+`outputs/rlsf/steps_w3_{0.0,2.0,6.0}.jsonl` and their `_manifest.json` / `_usage.json` siblings;
+adapters are at `models/rlsf_grpo_w3_*` and stay out of the repo. The aborted first attempt at
+`w3_6.0` is at `outputs/rlsf/aborted/steps_w3_6.0_kernelkill_208.jsonl`.
+
+`src/rlsf/train.py:673` now writes `per_call_usd` into the usage sidecar. `src/rlsf/smoke.py:301`
+and `src/rlsf/pool.py:398` already did, so the three writers disagreed on the shape of the file
+they all produce. The two arm sidecars written before this change do not carry the field; they
+are run artefacts and have not been rewritten, and the rate is `cost_usd / calls`.
+
+### The four figures, by quartile of the 300 rollouts
+
+| | w3_0.0 | w3_2.0 | w3_6.0 |
+|---|---:|---:|---:|
+| Φ, q1 → q4 | 1.0000 → 1.0000 | 2.9129 → 3.2842 | 2.9521 → 3.3750 |
+| COMET-Kiwi, q1 → q4 | 0.6665 → 0.6844 | 0.6644 → 0.6796 | 0.6627 → 0.6699 |
+| BLEU, q1 → q4 | 31.66 → 36.34 | 30.45 → 34.96 | 31.33 → 33.61 |
+| `marker_rate` z, q1 → q4 | −0.0119 → 0.0491 | −0.0196 → 0.1384 | 0.0100 → 0.1718 |
+
+Φ is flat at 1.0 in `w3_0.0` by construction: `--skip_judge` holds it there, so that row carries
+no information and is printed only to show the hold worked.
+
+Φ in full, since the endpoints above hide the shape:
+
+| Φ, mean over the block | q1 | q2 | q3 | q4 | q4 − q1 | own sd |
+|---|---:|---:|---:|---:|---:|---:|
+| `w3_2.0` | 2.9129 | 3.0783 | 3.1529 | 3.2842 | +0.3712 | 0.3967 |
+| `w3_6.0` | 2.9521 | 3.0867 | 3.2404 | 3.3750 | +0.4229 | 0.4132 |
+
+Φ rises in both paid arms, monotonically across all four blocks, and by roughly one of each arm's
+own standard deviations. Four increasing blocks out of four is a stronger statement than the
+endpoint difference on its own, and it is the clearest movement anywhere in this run. The high arm
+also sits above the mid arm at every quartile, so the ordering in ω₃ holds throughout — but the
+gap between the two paid arms never clears its own standard error, reaching at most t = 1.52 at
+q3. **Φ is monotone in ω₃ as an ordering and not separable from noise as a magnitude.**
+
+Neither statement is a result. Φ is `prompts/judge_train.txt` scored by the reward judge, which is
+the quantity the reward maximizes, so a Φ that failed to rise would indicate a broken loop rather
+than an absent effect. It is reported here because the pre-registration asks for it and because it
+establishes that the judge term did what it was weighted to do; the limitations below say why it
+cannot carry a Goodhart claim by itself.
+
+Read across the rows rather than along them. Kiwi rises everywhere, by +0.0179, +0.0152 and
++0.0072 — the gain falls as ω₃ rises, and the same ordering holds for BLEU (+4.68, +4.51, +2.27).
+Over the last 75 rollouts `w3_6.0` sits 0.0145 below the control on Kiwi and `w3_2.0` sits 0.0048
+below. So the judge term is paid for out of adequacy improvement forgone, not adequacy lost.
+
+`marker_rate` z moves +0.158 in `w3_2.0` and +0.162 in `w3_6.0` while ω₃² goes from 2/3 to 36/38.
+The pre-registration's 2026-08-13 addendum set up a disjunction here — either the high arm goes
+further along the same axis, or the reward has saturated and ω is not the governing axis. Neither
+branch holds cleanly: style saturates between the two paid arms while adequacy keeps paying, so ω
+still governs one of the two and no longer governs the other.
+
+### The restart, and what it says about the judge
+
+The kernel kill left an unplanned replicate: two attempts at `w3_6.0` under seed 42, the same
+config and the same frozen initialization. At rollout 0 both produce the same completions — BLEU
+and Kiwi agree to 1e-9 — and the judge scores them 2.5625 and 2.46875. `configs/rlsf.yaml` sets
+`judge.temperature: 0.0` and `judge.seed: 42`; `gpt-4o-mini` honours neither in a way that
+reproduces. That single disagreement enters the reward, changes the gradient, and the runs
+diverge from rollout 1 onward: 1 of 208 overlapping rollouts share a BLEU value.
+
+The aggregates over those 208 rollouts do not care:
+
+| | aborted | restarted | difference | sd of the restart |
+|---|---:|---:|---:|---:|
+| Φ | 3.0455 | 3.0775 | +0.0320 | 0.4056 |
+| COMET-Kiwi | 0.6651 | 0.6647 | −0.0004 | 0.0284 |
+| BLEU | 32.36 | 32.12 | −0.2448 | 7.2254 |
+| `marker_rate` z | 0.0129 | 0.0268 | +0.0139 | 0.3114 |
+
+Every difference is a small fraction of the run's own step-to-step spread. The trajectory is not
+reproducible; the arm-level reading is. That is the useful form of the claim, and it is stronger
+evidence than a re-run at the same seed would have been, because the two attempts were not
+seeded to agree at rollout 1 and still land in the same place.
+
+### Verification
+
+19,200 paid verdicts across the two arms, 0 unmeasured. The 2026-08-08 entry made unparseable
+verdicts a measured quantity rather than an assumed zero; here it is genuinely zero, so the
+asymmetry it was introduced to detect does not arise in this run.
+
+Degenerate group fractions were 0.032, 0.025 and 0.023, so gradients were carried throughout.
+Relative adapter movement from initialization was 9.305e-3, 9.337e-3 and 9.396e-3 — the three
+arms travelled almost exactly the same distance, which is what a shared learning rate, a shared
+constant schedule and a shared step count should produce, and it means the differences above are
+not a difference in how far each arm moved.
+
+Peak VRAM was 20.3 of 31.4 GiB on an RTX 5090 in all three, against the 29 GiB bound the wiring
+check asserts. Wall clock was 4.71 h for `w3_0.0` and 3.08 h and 3.10 h for the paid arms. The
+free arm taking the longest is the opposite of the expected ordering, since the paid arms add a
+serial judge block per rollout; no cause is recorded and the manifests carry nothing that
+distinguishes the sessions.
+
+### Reproduction
+
+```
+python manage.py rlsf_train --cell w3_0.0 --steps 300 --skip_judge
+python manage.py rlsf_train --cell w3_2.0 --steps 300 --yes
+python manage.py rlsf_train --cell w3_6.0 --steps 300 --yes
+python manage.py rlsf_select --cell w3_2.0
+```
+
+The judge is not reproducible, so re-running either paid arm reproduces the aggregates above and
+not the step sequence. `w3_0.0` is free and should reproduce exactly.
+
+### Limitations and risks
+
+* **Φ rising is not a result.** Φ here is `prompts/judge_train.txt` scored by the reward judge,
+  which is the quantity being optimized. Goodhart requires an independent target to move the
+  wrong way, and both independent targets — held-out register distance over `ttr`, `root_ttr`
+  and `marker_rate`, and the evaluation rubric under a different rater — are val measurements
+  that do not exist yet. The pair the pre-registration predicts cannot be scored from these logs.
+* **Within-arm movements are small against step noise.** Expressed in units of each arm's own
+  step-to-step sd, the q4 − q1 movements are 0.62/0.50/0.25 for Kiwi, 0.61/0.59/0.31 for BLEU and
+  0.94/1.02 for Φ. The between-arm contrast over the final 75 rollouts is the stronger reading.
+  A Welch t on that contrast gives −3.19 for `w3_6.0` against the control, but consecutive
+  rollout means are autocorrelated, so it is a description and not a test — the same caveat the
+  2026-08-13 telemetry entry attaches to the Φ / `marker_rate` correlation.
+* **No arm halted, and that is weak evidence.** The 2026-08-13 addendum measured the rule as
+  firing against a +0.35 step about half the time at 8 prompts per rollout. Three runs that did
+  not trip are consistent with drift the rule cannot see at this rollout width.
+* **The aborted run's spend is reconstructed, not measured.** The usage sidecar is written after
+  `trainer.train()` returns, so a kernel kill loses it. 208 rollouts × 32 calls = 6,656 calls,
+  ~$0.51 at the realised rate, inferred from `n_samples` in the surviving step log. It is
+  recorded in `docs/budget.md` as reconstructed and is the one figure there that is not
+  provider-reported.
+* **Judge non-determinism is unquantified beyond this one pair.** Two attempts give one estimate
+  of how far a trajectory moves under it, at one ω. Nothing here measures the verdict-level
+  disagreement rate, which would need the same completions scored twice on purpose.
+
+---
+
+## 2026-08-13 — The schedule the run steps at, and a judge bought to be multiplied by zero
+
+### Summary
+
+The 50-rollout smoke was run to produce four numbers. It produced three. Reading them found a
+fifth thing: the manifest recorded `learning_rate` but not the schedule, so it did not determine
+the run it was written to determine. The schedule is now declared, chosen, and shared by the three
+arms; the run's wall clock is recorded; the micro-batch stays where it was measured; and a cell
+that weights the judge at zero refuses to buy verdicts. No arm has run, so the pre-registration's pre-run settings
+table is amended rather than superseded.
+
+### What changed
+
+**The schedule.** `grpo_args` set `learning_rate` and left `lr_scheduler_type` to TRL, which takes
+HF's default of linear decay to zero. `outputs/rlsf/smoke50_steps.jsonl` records what that was:
+9.9e-07 at rollout 1, 3e-08 at rollout 49. `configs/rlsf.yaml` now declares `lr_scheduler_type:
+constant` and `warmup_ratio: 0.0`, `src/rlsf/config.py:232-233` reads both into the `GRPOConfig`,
+and `run_manifest` needs no change — `src/rlsf/train.py:337` copies the whole `rlsf.train` block,
+which is why the settings belong in the YAML rather than in a code default.
+
+`assert_warmup_is_reachable` (`src/rlsf/config.py:193-203`) refuses a non-zero warmup under
+`constant`. `transformers` builds that schedule as `get_constant_schedule`, which takes no warmup
+argument, so the ramp would be discarded in silence and the manifest would again record something
+the run did not do. Same shape and same reason as `assert_single_normalization` beside it.
+
+**`outcome.elapsed_sec`** (`src/rlsf/train.py:654-661`), `time.perf_counter()` around
+`trainer.train()` and nothing else. The model load is paid once; the rollout rate is what
+extrapolates from two rollouts to 300, and to the two arms after the first.
+
+**`train.per_device_train_batch_size` stays at 1.** It was briefly raised to 2 on the headroom in
+the smoke's 22.04 of 31.36 GiB, then withdrawn. TRL's `dapo` loss normalizes by
+`num_items_in_batch` — a token count over the whole generation batch, rescaled by
+`current_gradient_accumulation_steps / steps_per_generation`, which `grpo_args` already holds at 1
+(`trl/trainer/grpo_trainer.py:3139-3144`). The micro-batch therefore does not enter the loss: the
+accumulated gradient is the same average over the same 8 groups at either value. That argument
+cuts both ways. If 2 changes nothing about the gradient, it buys throughput and nothing else, and
+it costs an unmeasured amount of memory against a 31.36 GiB card. 22.04 GiB is the only number
+this project has, and it was read at 1.
+
+The notebook's two-rollout probe would not have licensed 2 either. Peak is set inside rollout 0
+for the forward/backward and the generation batch, but two rollouts never reach the first
+checkpoint write at `save_every_rollouts: 25`, and they see two draws from the prompt-length
+distribution. Earning 2 means a 25-rollout smoke at 2, not a re-reading of the 2-rollout probe.
+Until that exists, `grpo_args` derives grad accum 32 and the arms run at the measured setting.
+
+**The judge refusal** (`src/rlsf/train.py:551-560`). `RewardConfig.weights` keeps a zero-weight
+component, so `required_components` for `w3_0.0` still names `judge` and the reward path still
+asks for a score. Nothing but the operator remembering `--skip_judge` stood between RL-Metric and
+9,600 verdicts bought to be multiplied by zero. `main()` now refuses the run, ahead of the `--yes`
+gate so the objection is to the weight rather than to the spend.
+
+`notebooks/rlsf_train_colab.ipynb`: the pre-flight asserts the schedule and the micro-batch, and
+section 3's existing two-rollout wiring check is now also the memory probe — peak VRAM is set
+inside the first rollout, so no separate run buys the number. It refuses the arms above 29 GiB.
+
+### Rationale
+
+`constant` is the schedule a fixed rollout budget asks for. Under linear decay the last hundred of
+300 rollouts would step at rates too small to move an adapter, which makes "300 rollouts" a count
+of generations rather than of learning. The smoke shows the shape of that: `adapter_delta.rel`
+went from 0.00205 at rollout 39 to 0.00207 at rollout 49, a move of 2e-05 against the 0.0021 the
+run had already accumulated. Those ten rollouts cost the same GPU-time as the first ten and bought
+a hundredth as much movement.
+
+No warmup, and not because warmup is wrong. The smoke's opening rollouts ran within 1% of the peak
+rate without instability, which is the evidence that none is needed here, and a ramp would spend
+part of a fixed budget below the rate the rest of it uses. The setting is written to the config
+anyway, at zero, so the manifest says so.
+
+The refusal is a refusal and not an auto-skip. `--yes` and `--overwrite` are already shaped that
+way: the run that happens is the run that was typed. A flag silently added on the operator's
+behalf is a run whose command line no longer describes it.
+
+### Verification
+
+`python -m pytest tests/` — 336 passed. Six new tests: the schedule reaches the trainer, a warmup
+under `constant` is refused, the micro-batch times the grad accum is one rollout at any micro-batch
+size, and `w3_0.0` requires a judge score it weights at zero. No existing test asserted a
+micro-batch of 1 or a grad accum of 32, so the geometry change broke nothing.
+
+The refusal, which costs nothing and loads no model:
+
+```
+$ python manage.py rlsf_train --cell w3_0.0 --steps 300
+w3_0.0 weights the judge at 0, so no verdict it buys can enter the reward: 9600 calls
+would be paid for and multiplied by zero. Pass --skip_judge; at omega_3 = 0 that is the
+arm as declared.
+```
+
+`python manage.py rlsf_train --dry_run` was run on CPU with the 0.5B stand-in: it forces the
+micro-batch back to 1 and is a signature check, not a memory one. 0 paid calls throughout.
+
+### Reproduction
+
+```
+python -m pytest tests/
+python manage.py rlsf_train --dry_run
+python manage.py rlsf_train --cell w3_0.0 --steps 300              # expect the refusal
+python manage.py rlsf_train --cell w3_0.0 --steps 300 --skip_judge
+python manage.py rlsf_train --cell w3_2.0 --steps 300 --yes
+python manage.py rlsf_train --cell w3_6.0 --steps 300 --yes
+```
+
+### Limitations and risks
+
+* **The micro-batch is unverified at 2.** The claim that it holds under 29 GiB rests on the
+  smoke's 22.04 and on the doubled micro-batch being the only term that grows. The local card is
+  an 8 GiB RTX 4060 Laptop, so nothing here measures it; the notebook's section 3 does, before the
+  first arm launches. If it fails, the setting and the pre-registration row go back to 1 together.
+* **A constant rate does not anneal.** The final adapter is wherever the last rollout left the
+  policy rather than a settled point. `save_every_rollouts: 25` and `rlsf_select` already existed;
+  this makes them load-bearing rather than convenient.
+* The refusal covers `w_judge == 0`. A cell weighting Kiwi at zero would still start the COMET
+  worker; no pre-registered grid cell does, and no exploratory cell is trained.
+
+---
+
+## 2026-08-13 — A third arm, the geometry the run is made at, and the telemetry that reads it
+
+### Summary
+
+The GRPO loop was complete and pre-registered but had never taken a step. Preparing it to run
+added a third ω cell, halved the rollout, lowered β, and added four logging channels without
+which a null result cannot be distinguished from an optimizer that never moved. The
+pre-registration is amended by dated addendum, not rewritten; `docs/budget.md` carries the
+re-priced volumes.
+
+### What changed
+
+`configs/rlsf.yaml`:
+
+* `weight_grid.cells` gains `w3_6.0` = (1, 1, 6), unit ω (0.1622, 0.1622, 0.9733). Three arms
+  are trained: `w3_0.0`, `w3_2.0`, `w3_6.0`.
+* `reference.beta` 0.05 → 0.01; `rollout.prompts_per_step` 16 → 8;
+  `train.per_device_train_batch_size` 4 → 1 (grad accum derives to 32);
+  `generator.max_tokens` 256 → 192; `train.save_every_rollouts` 10 → 25.
+
+`src/rlsf/train.py`:
+
+* `library_versions()` records `torch`, CUDA, the device name and the installed
+  `transformers`/`trl`/`peft`/`accelerate`/`bitsandbytes` into the run manifest. A GRPO step is
+  defined by TRL and PEFT as much as by the config.
+* `load_policy(require_ref=True)` raises when β is non-zero and no `ref` adapter registered,
+  and prints the adapter list and the active adapter. The existing assertions only fired inside
+  the branch that loads a reference; with β set and no init adapter the run anchored KL to the
+  bare base silently. The dry run passes `require_ref=False` — it has no init adapter by design.
+* `make_optim_callback` collects TRL's `kl`, `grad_norm`, `learning_rate`, `loss`, `entropy`,
+  `clip_ratio/region_mean` and `completions/mean_length`; `LoopState.take_optim` averages the μ
+  passes and stamps them with the rollout that produced them. They arrive *after* that rollout's
+  reward call, so the step-log line carries `optim.rollout = step - 1`. Naming it is preferable
+  to writing every KL one step forward of the rollout it came from.
+* `trainable_snapshot` / `adapter_delta` measure ‖θ − θ₀‖₂ and its ratio to ‖θ₀‖₂ over the
+  trainable `default` adapter, per rollout and once more into the manifest's `outcome`.
+
+`src/rlsf/select.py`, new, dispatched as `manage.py rlsf_select`: scores every saved checkpoint
+of an arm on the dev slice and ranks on the chrF adequacy band then held-out register distance.
+`configs/rlsf_eval_w3_*.yaml`, new: the val inference route for a trained adapter, through the
+`peft` condition with `--out-name`.
+
+### Rationale
+
+Two arms can show that a rubric term moves the policy. They cannot separate how far it moves
+from what that costs, because with two points every trade-off is a line. `w3_6.0` is the third
+point, at ω₃² = 36/38 where the metric terms hold 1/19 of the reward's variance and stop being
+a guardrail in any useful sense.
+
+β is the change that alters what is tested rather than what it costs. The KL anchor here is a
+frozen adapter, not the base model, so 0.05 was constraining movement away from a policy the
+arm starts at; the pre-registration's own "uninformative outcome" clause — neither arm moves,
+nothing is tested — was the likelier reading of a null result than any statement about the
+reward. The addendum records that RL-Metric's no-movement prediction is now made under a
+weaker anchor and is correspondingly easier to falsify.
+
+The adapter-delta channel exists for the same clause. A flat style score is evidence about the
+reward only if the adapter was updating; without the measurement the two are indistinguishable
+in the log, and the temptation is to read the more interesting of them.
+
+Checkpoint selection carries no judge deliberately. The training rubric is what the two paid
+arms optimize, so ranking checkpoints on it is circular, and the evaluation raters are spent
+once, on the reported val pass.
+
+### Verification
+
+`python -m pytest tests/` — 325 passed. Four assertions moved with the geometry and are
+recorded here as changed expectations, not as fixes: the generation batch is 32 rather than 64,
+the step-capped worst case is 51,200 calls and $3.78 at the group-size ceiling rather than
+102,400 and $7.55, and the declared cells now separate by 4.44× in advantage magnitude rather
+than 1.68× before `unit_omega` removes it. New tests pin the manifest's version block, the
+optimizer block's rollout attribution, and that `adapter_delta` reads zero at the
+initialization.
+
+`manage.py drift_oc` was re-run because the stop rule's band is set from the per-step standard
+error, which the rollout halving raises by √2. At 16 prompts and 500 steps it reproduces the
+2026-08-09 operating point exactly (band 0.660; 1.3 % / 45.4 % / 88.8 % against null / +0.23 /
++0.35), which is what makes the comparison readable: at 8 prompts the band widens to 0.933 and
+power against a +0.35 step falls to 64.7 % at 500 steps, 49.7 % at the 300 the run uses.
+
+### Reproduction
+
+```
+python manage.py drift_oc --steps 300
+python manage.py rlsf_train --dry_run
+python manage.py rlsf_train --cell w3_0.0 --steps 50 --skip_judge \
+  --out outputs/rlsf/smoke50_steps.jsonl --adapter_out models/rlsf_smoke50 --overwrite
+python manage.py rlsf_train --cell w3_0.0 --steps 300 --skip_judge
+python manage.py rlsf_train --cell w3_2.0 --steps 300 --yes
+python manage.py rlsf_train --cell w3_6.0 --steps 300 --yes
+python manage.py rlsf_select --cell w3_2.0
+```
+
+### Limitations and risks
+
+* **The stop rule lost power and was not retuned.** A run that does not halt is now much weaker
+  evidence that it did not drift. Retuning `k_sigma` to recover the power target after choosing
+  the geometry that lost it is the edit the pre-registration exists to prevent, so the cost is
+  recorded rather than removed. `marker_rate` z is in the step log and the val table regardless.
+* `optim` is empty on the first line of every step log: no optimizer pass has run at rollout 0.
+  Consumers reading `optim.kl` off line 1 will find nothing there, by construction.
+* `adapter_delta` copies 80.7 M parameters to host memory each rollout. The cost is small
+  against a rollout but it is not free, and the float32 baseline holds ~323 MB of RAM.
+* Whether PEFT writes a `ref/` subdirectory beside each checkpoint's root adapter is unverified
+  until the smoke runs; if it does, each arm's 12 checkpoints cost twice the expected disk.
+
+---
+
+## 2026-08-12 — The COMET worker: off the training card, and not deadlocked behind its own stderr
+
+### Summary
+
+Three fixes to the reward path, none of which changes a number, all of which decide whether a
+GRPO run finishes: commits `e72b2fb`, `5403993` and `536bc2f`. Recorded late — the run they
+prepare had not started when they were made.
+
+### What changed
+
+**`e72b2fb` — the worker's device is the config's to choose.** `reward.kiwi.gpus` reaches
+`src/rlsf/_kiwi_worker.py`, which sets both Lightning knobs rather than one:
+
+```python
+accelerator = "gpu" if gpus else "cpu"
+devices = list(range(gpus)) if gpus else "auto"
+```
+
+Setting `gpus: 0` alone was not enough — `comet` forces `accelerator="cpu"` at zero devices,
+and leaving `devices` unset let Lightning auto-detect the card GRPO was training on. The
+committed value is 0: the encoder allocates on CPU rather than competing for the 32 GB the 7B
+policy and its rollout logits already fill. `src/rlsf/train.py` correspondingly applies
+`reserve_vram` only when `kiwi.gpus` is truthy, so `torch.cuda.set_per_process_memory_fraction`
+does not cap the trainer at 85 % of a card it is not sharing.
+
+**`5403993` — the worker's stderr is a file, not a pipe.**
+
+```python
+# Not a pipe: nothing drains the worker's stderr between requests, so once Lightning
+# has written the 64 KB pipe buffer full the worker blocks inside predict and the
+# training loop waits on a score that never comes.
+self._log = self.stderr_log.open("wb")
+```
+
+`KiwiScorer.score` blocks on `readline` from the worker's stdout. With stderr as a pipe that
+nobody reads between requests, Lightning's progress output fills the 64 KB buffer, the worker
+blocks writing to it, and both processes wait on each other. The failure has no error and no
+traceback: a rollout simply never returns, which on rented GPU time is the most expensive shape
+a bug can take. `logs/kiwi_worker.err` is the destination (git-ignored), and `_stderr()` tails
+its last 2,000 bytes into any `KiwiError` so the log is still what the exception quotes.
+
+**`536bc2f` — two config values that would have been discovered by running.**
+`generator.max_tokens` 1024 → 256, roughly 4× less GRPO activation for a completion budget the
+dev references never approach; and `save_strategy`/`save_steps` wired from
+`train.save_every_rollouts`, without which a drift halt would have ended the run with no
+checkpoint before the drifted final step.
+
+### Limitations and risks
+
+The deadlock fix is verified by construction rather than by reproduction: the pipe-full
+condition needs a long enough Lightning run to fill 64 KB, and no test forces it. What is
+pinned is the placement (`tests/test_rlsf_train.py`), not the drain.
+
+---
+
+## 2026-08-12 — The training loop could not select an arm
+
+### Summary
+
+`manage.py rlsf_train` had no way to name a weight-grid cell. It read `rlsf.reward` and
+trained ω = (1, 1, 1)/√3, which is neither pre-registered arm. `--cell` selects one of the
+four `weight_grid.cells` by name, and defaults its step log and adapter directory off that
+name so the arms cannot overwrite each other. The step log now carries the drift verdict the
+run acted on, and a manifest is written beside it. `notebooks/rlsf_train_colab.ipynb` (new)
+runs both arms in the pre-registered order.
+
+### What changed
+
+* `src/rlsf/train.py:165` — `arm_reward_config` resolves `--cell` through
+  `grid_reward_configs`, so a named arm arrives at unit ‖ω‖ like every other config path.
+  Only the pre-registered cells are reachable; an exploratory cell raises.
+* `src/rlsf/train.py:177` — `arm_path` tags the default step log and adapter directory with
+  the cell name: `outputs/rlsf/steps_w3_0.0.jsonl`, `models/rlsf_grpo_w3_2.0`. An explicit
+  `--out` or `--adapter_out` is used verbatim.
+* `src/rlsf/train.py:188` — `run_manifest`, written before the first rollout and rewritten
+  with the outcome at the end: ω, what was held flat, the initialization, the drift rule,
+  and the step a halt happened at.
+* `src/rlsf/train.py:228` — the drift verdict is read before the step line is written and
+  serialized into it under `drift`.
+* `src/rlsf/train.py:396` — "this is a wiring check, not a training result" is no longer
+  printed when the component held flat is one the cell weights at zero.
+* `src/rlsf/train.py:402` — a non-empty step log for the same arm is refused without
+  `--overwrite`.
+* `src/rlsf/train.py:448` — the resolved cell reaches both the reward function and
+  `_stylo_centroid`, which previously took the base `reward:` block.
+* `notebooks/rlsf_train_colab.ipynb` — new.
+* `tests/test_rlsf_train.py` — the two arms' ω against the pre-registration table, the
+  refusal of an exploratory cell, the per-arm paths, the flat-judge equivalence at ω₃ = 0,
+  the drift verdict in the step line, and the manifest.
+
+### Rationale
+
+The gap mattered in a way the weight names hide. ω = (1, 1, 1)/√3 differs from RL-Metric's
+(0.7071, 0.7071, 0) in more than the judge term: the two metric weights are 1.22× apart, and
+under a weighted sum of z-scores that is an effective step size, which is the confound
+`unit_omega` exists to prevent. Trained from the config as it stood, the ablation arm would
+have taken a smaller step than the arm it is the control for, and lr 1e-6 would have meant
+something different in each.
+
+Serializing the drift verdict rather than replaying it later is the same commitment the
+pre-registration makes about the rule: a verdict recomputed after the fact is read against
+whatever rule is on disk then. The rule is pinned by `tests/test_rlsf_config.py`, so a
+replay would agree today; the point is that the log states what halted the run without
+depending on that.
+
+### Verification
+
+`python -m pytest tests/ -q` — 320 passed. `python manage.py rlsf_train --dry_run --cell
+w3_0.0` prints `omega w3_0.0 = bleu 0.7071, kiwi 0.7071, judge 0.0000` and reaches the
+optimizer on CPU.
+
+### Reproduction
+
+```
+python manage.py rlsf_train --cell w3_0.0 --steps 500 --skip_judge
+python manage.py rlsf_train --cell w3_2.0 --steps 500 --yes
+```
+
+### Limitations and risks
+
+* There is no resume. A dropped session restarts the arm from its initialization, and the
+  partial log has to be moved aside or overwritten deliberately.
+* `--cell` defaults to none, which still trains the `reward:` block. Nothing refuses an
+  unnamed run; the arm is recorded in the manifest rather than enforced at the CLI.
+* The manifest's `halted_at_step` is the rollout index the reward function last logged. It
+  is the same number as the last `step` in the log, not an independent record of it.
+* The verdict's band fields are nan until the baseline and window are complete, so the
+  first 25 lines of every run carry bare `NaN`. Python reads it; `jq` does not. The step
+  log already emitted nan for an unmeasured component, so this widens an existing quirk
+  rather than introducing one.
+
+---
+
+## 2026-08-12 — Two arms pre-registered, and the Goodhart pattern already visible in the pool
+
+### Summary
+
+`docs/preregistration_rlsf.md` (new) fixes the RLSF comparison before it runs: two arms
+rather than four, RL-Metric (`w3_0.0`) against RLSF-Judge (`w3_2.0`), with the judge arm's
+outcome predicted in advance — training-time Φ and `marker_rate` rising together, COMET-Kiwi
+flat, distance over the held-out stylometric features worsening. The drift stop stays at
+b20 w5 k4.0 for both arms, and the test split stays sealed until Week 3.
+
+`outputs/rlsf/pool_omega.json` was then regenerated under `87659be`, as the entry below
+requires. It costs nothing: the ω grid re-ranks component scores the pool already paid for,
+so this run made **0 paid calls**. Selection now ranks at the training group size G = 4 and
+picks `w3_0.0` at a register distance of 0.5581.
+
+The reading confirms the predicted pattern at selection time, before any GRPO step. Across
+the four cells, as ω₃ goes 0 → 0.5 → 1 → 2, the judge score of the picked samples rises
+monotonically and every register measure outside the reward degrades monotonically with it.
+Best-of-N over a frozen policy is not training, so this is not the result the arms exist to
+produce. It is the same effect at one step of selection instead of five hundred of gradient
+descent, which makes it a prediction confirmed at the weakest place it could have been.
+
+### The pattern, at the training group size
+
+Picked samples per cell, G = 4, 993 picks over 499 dev segments. `heldout` is distance to
+the target register over `ttr`, `root_ttr`, `marker_rate` — features no cell here is fitted
+on. `marker dz` is each pick's `marker_rate` z minus its own group's mean, paired within
+the segment.
+
+| cell | ω₃ | judge | kiwi | bleu | stylo dist | heldout | marker dz |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| `w3_0.0` | 0.0 | 3.37 | 0.697 | 40.58 | 0.5581 | 0.5554 | +0.008 ± 0.016 |
+| `w3_0.5` | 0.5 | 3.59 | 0.695 | 40.57 | 0.5995 | 0.5956 | +0.055 ± 0.016 |
+| `w3_1.0` | 1.0 | 3.76 | 0.692 | 39.66 | 0.6195 | 0.6139 | +0.074 ± 0.016 |
+| `w3_2.0` | 2.0 | 3.96 | 0.684 | 37.53 | 0.6645 | 0.6577 | +0.130 ± 0.017 |
+
+Four columns move together and none of them is a coincidence of one cell: the judge score
+buys +0.59 across the grid, and `marker_rate` follows it up by +0.12 z, register distance by
++0.106, held-out distance by +0.102, BLEU down by 3.05 and Kiwi down by 0.013. The exploratory
+`judge_only` cell sits at the end of the same axis — judge 4.30, marker dz +0.250, the worst
+held-out distance of any cell read.
+
+The held-out reading is the one with an interval on it. Paired against a uniform draw from
+the same pool, 2,000 resamples, 95 % CI, negative meaning closer to the target register:
+
+| cell | held-out − random anchor | 95 % CI | p |
+|---|---:|---|---:|
+| `w3_0.0` | +0.0057 | [−0.0600, +0.0691] | 0.857 |
+| `w3_0.5` | +0.0492 | [−0.0187, +0.1104] | 0.147 |
+| `w3_1.0` | +0.1050 | [+0.0437, +0.1648] | 0.001 |
+| `w3_2.0` | +0.1583 | [+0.0963, +0.2154] | 0.000 |
+
+The metric-only cell is indistinguishable from picking at random on features it does not
+optimize, which is what a reward with no register term should look like. Both judge-weighted
+cells are significantly *worse* than random on those features while being much better on the
+judge's own rubric. **No cell in the grid beats the random anchor on the held-out features.**
+
+### Why this is the judge signal and not the summand
+
+Three checks separate the explanation from its alternatives.
+
+*Not the form of the term.* The gated cells remove the judge from the sum entirely and use it
+as a feasibility veto instead. On the groups both cells pick, `gate_j3`, `gate_j4` and
+`gate_j5` sit +0.106, +0.103 and +0.136 worse in register distance than `w3_0.0`. Making the
+judge a filter rather than a summand does not escape the pattern.
+
+*Not selection pressure as such.* `chrf_only` and `stylo_only` are the only cells whose picks
+move `marker_rate` *down* (−0.012 and −0.054) and the only two whose held-out distance beats
+the anchor at all, neither significantly (p = 0.115, 0.147). Reranking hard on a non-judge
+component does not inflate markers.
+
+*Not a degenerate-reward artifact.* Every grid cell separates 98–99 % of groups at G = 4, and
+per-component degeneracy at N = 8 is 1 % for `bleu`, `kiwi`, `chrf` and `stylo` against 4 %
+for `judge`. The cells are ranking on real spread, and the judge is the *least* discriminative
+component of the five while being the one whose weight moves every other measure.
+
+### What this does not establish
+
+The `marker_rate` shift of `w3_2.0` at G = 4 is +0.130 ± 0.017, below the 0.23 `min_delta`
+floor of the drift rule, so `over_threshold` is false for the judge arm as well as for the
+selected one. Single-step best-of-N does not clear the band the stop rule needs. Whether five
+hundred steps of GRPO accumulate past it is exactly the open question, and nothing here
+answers it: best-of-N reranks samples from a frozen policy, while training moves the
+distribution those samples are drawn from and compounds each step's shift into the next.
+
+The direction is confirmed. The magnitude at training time is not, and a run that drifts by
+less than 0.23 would leave the stop rule silent without contradicting a single prediction in
+the pre-registration.
+
+These are dev-slice figures. They select ω and are never reported as a result; val remains
+the reported split.
+
+### What changed
+
+* `docs/preregistration_rlsf.md` (new) — the arms, the predictions, the stop rule, the seal,
+  and a disclosure of what its author had already seen. Its addendum records that selection
+  ranks `w3_2.0` last, and that RLSF-Judge is run anyway.
+* `outputs/rlsf/pool_omega.json` — regenerated. It now carries `seed`, `subgroup.picks` and
+  `selection.ranked_at: 4`, none of which the 2026-08-11 file had.
+
+### Verification
+
+* `python manage.py rlsf_omega` reports `0` unmeasured samples and 3,912 feasible of 3,992 in
+  every cell; the 80 infeasible are length-band violations, identical across cells because
+  feasibility does not depend on the weights. No judge verdict in the pool failed to parse,
+  so the feasibility asymmetry the pre-registration flags for `--skip_judge` is zero on this
+  pool.
+* The judge's own distribution is not saturated: 241 / 1,105 / 926 / 848 / 872 samples at
+  1–5, mean 3.252, sd 1.241. The rubric discriminates; the rise to 3.96 is selection, not a
+  ceiling effect.
+* `outputs/rlsf/pool.jsonl` was not rewritten. Its judge block remains the 3,992 calls of
+  2026-08-11 at $0.3013, recorded in `outputs/rlsf/pool_manifest.json`.
+
+### Reproduction
+
+```
+python manage.py rlsf_omega
+```
+
+### Limitations and risks
+
+The four cells are not four independent observations. They rank the same 3,992 completions
+under different weightings, so the monotone columns above are one pool read four ways and
+their errors are not independent of each other. The paired bootstrap against the random
+anchor is the only reading here with a calibrated interval.
+
+`docs/budget.md` prices the pool at 3,992 calls / $0.29 in *What remains to be spent*, but
+its *Spend to date* table still ends at 2026-08-08 and does not carry the pool's actual
+$0.3013. The forecast was accurate; the record is incomplete, and this entry does not fix it.
+
+---
+
+## 2026-08-12 — What `87659be` invalidates in the ω artifacts, and what it does not
+
+### Summary
+
+`87659be` (2026-08-11 18:36 +0300) changed the reward floor and the ω pick and selection
+logic. Both `outputs/rlsf/smoke_steps.jsonl` (2026-08-09) and `outputs/rlsf/pool_omega.json`
+(2026-08-11 16:14) predate it, so neither was computed under the current code. Read one
+artifact at a time, that provenance implies less than it appears to. The floor change is
+numerically inert on every path that writes an artifact; the pick and ranking changes are
+not, and they fall on `pool_omega.json` alone.
+
+The floor is now `_FLOOR_MARGIN · ||ω||` (`src/rlsf/reward.py:315`) rather than a constant.
+Every production caller builds its `RewardConfig` through `reward_config`
+(`src/rlsf/config.py:97`) or `_cells` (`src/rlsf/config.py:116`), and both end in
+`unit_omega()`. At `||ω|| = 1` the scaled margin is 1.0, which is the constant it replaced.
+The fourteen weight vectors committed in `pool_omega.json` all measure to unit norm within
+1e-4, so no reward value in either artifact would move. The change bites only a
+hand-constructed config, which is why the test that pins it
+(`tests/test_rlsf_smoke.py:117`) asserts `-√3` for an unnormalized (1, 1, 1).
+
+`smoke_steps.jsonl` therefore needs no rerun on account of `87659be`. It records reward mean
+and standard deviation, per-component means and degeneracy — no picks — and every one of
+those figures is what the current code would produce. Rerunning it would spend judge calls
+to reproduce the same numbers under a different sampling draw.
+
+`pool_omega.json` does need regenerating, for the pick and ranking changes rather than the
+floor. Its `subgroup` blocks carry no `picks` key and its `selection` block carries no
+`ranked_at`: the file still selects on the reading at N = 8, whereas selection now ranks on
+the reading at the training group size G = 4. Groups with flat reward also now have their
+pick drawn at the run seed instead of taken in sampling order — 24 of 998 subgroups in
+`w3_0.0` alone. The regeneration re-ranks cached component scores held in `pool.jsonl` and
+costs no API calls.
+
+### The pool's completions are valid; only the ranking over them was ever wrong
+
+`outputs/rlsf/pool.jsonl` has not been rewritten since `51e3dd8`, whose message reads *pool
+run with bug*, and the two later *rerun rlsf pool* commits touched only the notebook and
+`pool_omega.json`. Recording this explicitly, because every ω cell ranks over that file.
+
+The bug was fixed by `29c540a`, which touched `notebooks/rlsf_pool_colab.ipynb` and
+`notebooks/rlsf_smoke_colab.ipynb` and no source file. A reporting cell read `concurrency`
+from the usage sidecar, which does not carry that key; the fix reads it from the config. The
+`KeyError` was raised after sampling and judging had finished and written their artifacts,
+and it affected the printed rate summary, not the completions or their scores.
+
+### Verification
+
+* `git log 51e3dd8..HEAD -- src/` does not list `src/rlsf/pool.py`. The sampling path is
+  byte-identical to the one that wrote the pool.
+* `sha256sum outputs/rlsf/pool.jsonl` matches `hashes.pool.jsonl` in
+  `outputs/rlsf/pool_manifest.json`, and `data/splits/rlsf_dev.jsonl` matches the input hash
+  the same manifest records. The pool's input and output are both the ones it was built from.
+* The `||ω|| = 1` claim was checked on the file rather than argued from the config: the
+  `weights` block of each cell and exploratory cell in `pool_omega.json` has L2 norm 1.000.
+
+### Limitations and risks
+
+The inertness of the floor rescaling is a property of `unit_omega()` being applied on both
+config paths, not of the floor itself. A caller that builds a `RewardConfig` directly, or a
+future path that drops the normalization, gets a different floor and a different reward
+scale, and any artifact it writes is not comparable to the ones described here.
+
+Re-ranking `pool_omega.json` under the current code may name a different winning cell, since
+it ranks at G = 4 on a reading the old file never wrote. The previous selection of `w3_0.0`
+should not be carried forward into the regenerated file's reading.
+
+---
+
+## 2026-08-09 — Drift stop: the band set from a simulated false-alarm rate
+
+### Summary
+
+The register-drift rule was priced as a single comparison: a pooled error of 0.24, a 3σ band
+of 0.72, against a val ladder whose entire `marker_rate` spread is 0.41. Read that way the
+band is wider than the effect it exists to catch. But the rule is not read once. The monitor
+returns a verdict on every rollout, so a 500-step run re-tests one baseline draw about 495
+times, and what the rule does over a run is not what its per-check threshold says. Simulated
+at the smoke's measured error, the committed rule halts **20.4 % of drift-free runs**.
+Lowering `k_sigma` to 1.5 raises that to 81.5 %. The fix is the anchor, not the band:
+`baseline_steps` 5 → 20, `window` 3 → 5, `k_sigma` 3.0 → 4.0, `min_delta` unchanged. Against
+the drift path this arm is most likely to produce — a slow climb rather than a step — the new
+rule is better than the old one on both axes at once: 90.6 % caught against 88.1 %, at 1.3 %
+false alarms against 20.4 %. Set before any GPU spend, and pinned by a test so it is not
+revisited after one.
+
+### What changed
+
+* `configs/rlsf.yaml:70` — the `stop:` block: `baseline_steps: 20`, `window: 5`,
+  `k_sigma: 4.0`. `min_delta` stays at 0.23.
+* `src/rlsf/stop.py:18` — the `DriftRule` defaults follow the config, so a caller with no
+  `stop:` block does not silently get the 20 % rule.
+* `src/rlsf/drift_oc.py` (new) and `manage.py` — `drift_oc`, the simulation every number
+  below comes from.
+* `tests/test_rlsf_config.py` — the committed operating point is pinned to these four values.
+
+### Rationale
+
+**Why the static reading is incomplete.** The threshold is `max(min_delta, k_sigma · se)`
+against `window_mean − baseline`, and at a per-step error of 0.330 that is 0.66 to 0.72. The
+val ladder runs from 0.136 (peft) to 0.547 (zeroshot), so the band does exceed the full
+condition spread. What that reading omits is repetition. The baseline is drawn once from the
+opening steps and never re-estimated, and every later rollout is compared against it: the
+band is sized for one independent comparison and then spent on several hundred correlated
+ones. A baseline that draws low biases all of them in the same direction, and at 5 steps its
+own error is 0.148 — half the band it anchors.
+
+**The simulation.** Per-prompt sd 1.319, backed out of the smoke's clustered `z_se` of 0.295
+over 20 prompts. A training step is 16 prompts, not 20, so a step's error is 0.330 and the
+smoke's own figure understates it. 500 rollouts, 1,000 runs, seed 42. *Null* is no drift at
+all; *step* is a sustained shift beginning at rollout 50; *ramp* is a linear climb from
+rollout 50 to the stated size at rollout 500. Cells are halt rate at median halt step.
+
+| rule | band | null | step +0.23 | step +0.35 | ramp +0.50 |
+|---|---:|---:|---:|---:|---:|
+| b5 w3 k3.0 (previous) | 0.723 | 20.4 % @175 | 68.5 % @105 | 90.2 % @74 | 88.1 % @283 |
+| b5 w3 k1.5 | 0.361 | 81.5 % @53 | 98.4 % @54 | 99.8 % @52 | 100.0 % @78 |
+| b20 w3 k4.0 | 0.817 | 2.3 % @238 | 53.1 % @192 | 90.1 % @115 | 90.2 % @359 |
+| **b20 w5 k4.0 (set)** | **0.660** | **1.3 % @336** | **45.4 % @194** | **88.8 % @112** | **90.6 % @371** |
+| b30 w5 k4.0 | 0.637 | 1.5 % @228 | 55.2 % @187 | 95.2 % @105 | 95.1 % @359 |
+
+**Why not lower the band.** At `k_sigma: 1.5` the rule halts four drift-free runs in five, at
+a median rollout 53 — three after the simulated drift begins and long before any of it has
+accrued. A rule that halts almost every run says nothing about the run it halted, and its
+90 %-plus detection columns are mostly the same false alarms landing on top of a real shift.
+Making `min_delta` the primary arm is the same move further: the threshold would sit at 0.23
+against a per-step error of 0.330.
+
+**What 4.0 is not.** It is not a claim of evidence at 4σ. The band is the free parameter that
+sets the false-alarm rate over the whole run, and 4.0 is where that rate is 1.3 % at the
+measured error. Quoted as a per-check significance level it would be a misreading of what
+was fitted.
+
+**What the rule gives up.** Against a +0.23 step — the `min_delta` floor, the
+peft-to-random_fewshot gap — it fires 45 % of the time, at a median 144 rollouts after the
+shift. That is accepted rather than fixed. The trained adapter is evaluated on the full val
+ladder, where `marker_rate` z carries a bootstrap half-width near 0.06, so a drift that size
+is measured in the reported table whether or not the monitor fired. The monitor exists to
+stop a run that has already left the regime, not to be the only detector.
+
+**The runner-up.** `baseline_steps: 30` at the same window and band: 1.5 % false alarms,
+55.2 % at +0.23, 95.1 % on the ramp. Better on every power column for 0.2 pp more false
+alarms. It was not taken because 30 rollouts is 6 % of the planned run absorbed into an
+anchor that is supposed to stand for the regime the policy started in, and the ramp figure
+it improves is already above 90 %.
+
+### Verification
+
+`pytest tests/` passes, 236 tests. The pinning test fails on any edit to the four values.
+Nothing about the rule's logic changed, so the 16 degenerate-case tests in
+`tests/test_rlsf_stop.py` cover it unchanged.
+
+### Reproduction
+
+```
+python manage.py drift_oc
+python manage.py drift_oc --runs 5000 --sigma_prompt 1.4
+```
+
+### Limitations and risks
+
+* The null model draws each rollout independently. A real policy's `marker_rate` wanders
+  between steps, and autocorrelation inflates false alarms, so 1.3 % is a floor rather than
+  an estimate of what the run will do.
+* The per-prompt sd is one 20-prompt draw from the smoke. If a training step's spread is
+  wider every rate in the table moves, and `--sigma_prompt` exists to re-price it against the
+  first real steps. Re-pricing after a run has seen drift is what the pinning test refuses.
+* The rule watches `marker_rate` alone. A policy that games the register reward through a
+  feature the centroid does not carry is invisible to it at any band.
+* The band still uses a normal quantile over roughly 16 clusters per step, carried over from
+  the 2026-08-08 entry. A t quantile would be wider; the simulation prices the rule as
+  implemented, not as it would be with the correction.
+
+---
+
+## 2026-08-08 — GRPO training loop: one normalization, and a config that names GRPO fields
+
+### Summary
+
+RLSF has a training loop. `src/rlsf/train.py` drives `trl.GRPOTrainer` over the frozen PEFT
+checkpoint with the reward from `src/rlsf/reward.py`, and `manage.py rlsf_train` runs it.
+Two decisions in the wiring are recorded here because neither is visible at run time. The
+reward is normalized once rather than twice: `compute_rewards` already z-scores each
+component within its group, so the trainer's own group scaling is turned off. And the
+`train:` block now carries GRPO field names, because `ppo_epochs` and `clip_range` have no
+GRPOTrainer counterpart and named an update this arm does not run. A CPU dry run on
+`Qwen2.5-0.5B-Instruct` checked the wiring before any GPU was rented.
+
+### What changed
+
+* `src/rlsf/train.py` — new. Builds the prompt dataset, loads the policy as a trainable
+  `PeftModel`, and hands `GRPOTrainer` a single reward function that calls
+  `compute_rewards`, appends a `StepLog` line, and reads the register-drift rule. A
+  `TrainerCallback` ends the run when that rule fires. `JudgeBudget` checks the declared
+  call and dollar caps before each judge block.
+* `src/rlsf/config.py:126` — `rollout_batch`, `optimizer_steps`,
+  `assert_single_normalization`, and `grpo_args`, which builds the `GRPOConfig` from the
+  `rollout:`, `train:` and `reference:` blocks.
+* `configs/rlsf.yaml` — `train.ppo_epochs` → `train.num_iterations`, `train.clip_range` →
+  `train.epsilon`, `reference.kl_coef` → `reference.beta`. Added `train.scale_rewards`,
+  `train.loss_type` and `train.per_device_train_batch_size`, plus `output.adapter_dir`.
+  `train.gradient_accumulation_steps` is gone: it is derived from the rollout size.
+* `manage.py` — `rlsf_train`.
+* `tests/test_rlsf_train.py` — new.
+
+### Rationale
+
+**Why the reward is normalized once.** `compute_rewards` z-scores each component within its
+group and then applies the ω weights, so what leaves it is already a combined z-score.
+GRPOTrainer group-normalizes whatever it is handed. Wired together with both active, the
+advantage is divided by a second standard deviation that has nothing to do with the first.
+Nothing crashes. The run trains, the logs look ordinary, and the ω grid stops measuring what
+it claims to.
+
+The size of that is worth stating, because it is not a rounding effect. Over 200 synthetic
+groups of four — component scores drawn from a fixed seed, not measured — the four grid
+cells separate by 1.68× when the combined z-score is passed through unscaled, ordered by the
+norm of their weight vector. Rescaled, they collapse:
+
+| ω cell | ‖ω‖ | advantage sd, `scale_rewards: none` | advantage sd, `scale_rewards: group` |
+|---|---:|---:|---:|
+| `w3_0.0` | 1.414 | 1.371 | 1.000 |
+| `w3_0.5` | 1.500 | 1.433 | 1.000 |
+| `w3_1.0` | 1.732 | 1.622 | 1.000 |
+| `w3_2.0` | 2.449 | 2.302 | 1.000 |
+
+The second normalization projects ω onto the unit sphere. Direction survives — the cells
+still rank samples differently — but magnitude does not, so every cell reaches the optimizer
+at the same advantage scale and the ablation cell `w3_0.0` takes the same size of step as
+`w3_2.0`. RQ3 varies ω₃ in order to ask how hard the register term can push. That question
+has no answer under a second normalization.
+
+**Why `scale_rewards: none` and not the raw ω-weighted sum.** Both are defensible and both
+normalize once. Handing GRPOTrainer the raw sum of `ω₁·kiwi + ω₂·BLEU + ω₃·Φ` and letting it
+normalize would mean the ω weights act on three quantities on unrelated scales — BLEU on
+0–100, Kiwi on roughly 0–1, Φ on 1–5 — where ω₃ = 2.0 buys less movement than ω₂ = 1.0 does.
+Per-component z-scoring first is what makes the weights commensurable, and it is the
+semantics the grid is written against. The trainer still subtracts the group mean, which is
+close to a no-op on a mean-zero reward and is not one when the length band has floored a
+sample; that is the intended behaviour, since a floored sample should sit below its group.
+`src/rlsf/config.py:assert_single_normalization` refuses any other value of
+`scale_rewards`, so re-enabling the second normalization is an error rather than a silent
+change of meaning.
+
+**Why the caps still count rollouts.** `docs/budget.md` prices a step as 16 prompts × G = 64
+judge calls. GRPO reuses each rollout μ times, so with `num_iterations: 4` the optimizer
+takes four steps per rollout and TRL's `max_steps` is 4× the number the budget priced.
+`caps.max_steps` keeps its budgeted meaning — 600 rollouts — and `optimizer_steps` does the
+conversion at the boundary. Handing `caps.max_steps` straight to `GRPOConfig` would have run
+a quarter of the authorized rollouts while appearing to run all of them.
+
+**Why the reference is a copied adapter and not the base model.** `reference.adapter_path`
+names the frozen PEFT checkpoint, and the KL term is meant to hold the policy near that, not
+near `Qwen2.5-7B-Instruct`. TRL takes two different paths here: given a `peft_config` it
+wraps a fresh adapter and computes reference log-probs with adapters disabled, which is the
+base model; given a model that is already a `PeftModel`, with `beta` non-zero and no
+`target_parameters` in the LoRA config, it copies the loaded adapter into a frozen second
+adapter named `ref` (`trl/trainer/grpo_trainer.py:465`). The frozen checkpoint's
+`adapter_config.json` sets `target_parameters: null`, so `load_policy` loads the adapter
+itself and lets the trainer take the second path.
+
+The same function loads that adapter with `is_trainable=True`. The saved config carries
+`inference_mode: true`, which freezes every LoRA parameter on load; without the override the
+run would complete, log rewards, and update nothing.
+
+**Why the judge budget is checked before each block.** The 2026-08-08 caps entry left
+enforcement to the training loop, noting the caps were declared but unenforced at run time.
+`JudgeBudget.reserve` now refuses a block that would take the run past `max_judge_calls`,
+and refuses to start another once measured spend has reached `max_judge_spend_usd`. It reads
+the provider-reported figure from `judge.usage`, not an estimate, and it raises rather than
+degrading quietly, because a cap that lets the run continue is a warning.
+
+### Verification
+
+`tests/test_rlsf_train.py` covers the normalization contract, the rollout-to-optimizer-step
+conversion, and the budget refusals. The ω-collapse table above is a test rather than a
+one-off script, but note what it does and does not pin: it computes `compute_rewards` for
+real and then reproduces TRL's advantage formula by hand
+(`trl/trainer/grpo_trainer.py:2705`), because that arithmetic is inline in
+`_generate_and_score_completions` and cannot be called without a trainer. It will catch a
+change on the reward side. It will not notice if TRL changes how it forms advantages.
+
+The dry run is `manage.py rlsf_train --dry_run`: `Qwen2.5-0.5B-Instruct` on CPU, a fresh LoRA
+of the frozen checkpoint's shape, two prompts per rollout, two rollouts, judge and Kiwi held
+flat. It exercises the same branches the GPU run takes — the copied `ref` adapter, μ > 1 and
+its buffered rollout reuse, the `StepLog` append, the drift monitor, `save_model` — at zero
+cost. It completed its eight optimizer steps in 1 h 52 m:
+
+```text
+plan: 2 rollouts x 2 prompts x G=4 = 8 completions/rollout, 8 optimizer steps at mu=4
+  rollout 0: reward -0.000 sd 1.000, 8/8 feasible, 0/2 degenerate, 0 judge calls ($0.0000)
+  rollout 1: reward +0.000 sd 1.000, 8/8 feasible, 0/2 degenerate, 0 judge calls ($0.0000)
+{'loss': '0.191', 'grad_norm': '7.946', 'kl': '0.001694', 'clip_ratio/low_mean': '0', ...}
+```
+
+Four readings in that carry information beyond "it ran".
+
+`reward_sd 1.000` is the normalization decision, visible. With Kiwi and the judge held flat
+their z-scores are zero, so the combined reward is BLEU's z-score alone and its within-group
+standard deviation is one by construction. That is the value GRPOTrainer receives, and it is
+exactly what a second group normalization would have divided by.
+
+`kl` is non-zero, so the frozen `ref` adapter exists and is being scored against. Had TRL
+fallen through to the adapters-disabled path the KL would have been measured against
+`Qwen2.5-0.5B-Instruct` itself rather than against the run's initialization.
+
+`grad_norm 7.946` is the `is_trainable=True` fix. Without it the LoRA parameters load frozen
+under the saved `inference_mode: true`, and the run reports rewards and a loss while
+updating nothing.
+
+`clip_ratio/low_mean` reached 0.01136 on step 7. The importance ratio does depart from one
+within a rollout, so `epsilon` binds rather than being inert — the consequence of μ = 4 that
+would not appear at TRL's default of 1.
+
+Two rollouts produced two `StepLog` lines, which is the intended cardinality: the reward runs
+once per rollout, not once per optimizer step, so the judge is paid four times less than the
+optimizer-step count suggests. `save_model` wrote the trained `default` adapter at the root
+of `output.adapter_dir` with the frozen `ref` beside it in a subdirectory;
+`PeftModel.from_pretrained` on that directory loads `default` alone, so
+`src/infer/local_client.py` reads the trained adapter and ignores the copy.
+
+### Reproduction
+
+```bash
+python manage.py rlsf_train --dry_run
+python manage.py rlsf_train --steps 500 --yes
+```
+
+The dry run needs no GPU, no `.venv-comet` and no API key, and makes no paid call. It is
+slow: 1 h 52 m for eight optimizer steps, about 875 s each. CPU backward passes over a
+151,936-token vocabulary dominate, which is also why the dry run drops
+`per_device_train_batch_size` to 1 — at 4 the fp32 logits push a 16 GB box into swap, and the
+first attempt spent 12 min a step thrashing.
+
+### Limitations and risks
+
+* **The dry run proves signatures, not the run.** It samples two prompts per rollout at a
+  128-token completion budget against the 16 and 1024 of the configured arm, so it says
+  nothing about memory on a 4090, about throughput, or about whether the length band behaves
+  on full-length completions. Nothing has yet run the loop on the locked 7B base.
+* **The three-component reward has been combined only on synthetic scores.** The dry run
+  holds Kiwi and the judge flat, so only BLEU drove it; the ω table is drawn from a fixed
+  seed. What has never run is `compute_rewards` inside the training loop with all three
+  components live, which is the first thing the GPU run does.
+* **`num_iterations: 4` is carried over from `ppo_epochs: 4`, not chosen.** It was the PPO
+  epoch count and is now μ. At μ > 1 the importance ratio departs from one within a rollout
+  and `epsilon` starts to bind, which is the regime the clip exists for, but no reading
+  supports 4 over 1 and 1 is TRL's default. It also multiplies optimizer steps per rollout
+  by four, which is the wall-clock cost of the choice.
+* **The frozen `ref` adapter doubles LoRA parameter memory** and adds a forward pass per
+  micro-step. Neither is measured on the rental GPU.
+* **Kiwi blocks the loop the way the judge does.** COMET runs in a separate interpreter, so
+  each rollout waits on a subprocess round trip as well as on the judge's 8.5 s. The judge
+  block is timed; the Kiwi block is not.
+* **Nothing stops a run whose groups have gone flat.** `degenerate_frac` is logged per
+  rollout and read by the smoke's verdict, but the training loop only halts on the
+  register-drift rule. A policy that converges onto the reward until every group is flat
+  would keep spending judge calls on zero-gradient steps.
+* **The saved adapter carries a 70 MB copy of itself.** `save_model` writes the frozen `ref`
+  adapter into a subdirectory beside the trained one. Loading is unaffected — checked — but
+  the artifact is twice the size it needs to be, and a reader who opens `ref/` will find a
+  second `adapter_config.json` that is not the trained one.
+* **The dry run's own margin is thin.** The register-drift rule cannot fire in two rollouts,
+  `z_se` for `marker_rate` came out 0.0 on the second because both groups scored identically,
+  and the length band passed 8/8 on 128-token completions. None of that predicts behaviour
+  over 500 rollouts of full-length output.
+
+---
+
+## 2026-08-08 — Smoke green on a rented GPU; RLSF spend caps declared from the measured rate
+
+### Summary
+
+The reward-path smoke ran end to end on an RTX 4090 and passed all four checks. It also
+produced the two numbers the arm had been blocked on: the judge costs **$7.375e-5 per
+call** and returns **7.63×** parallelism at `judge.concurrency: 8`. Both had been estimates.
+With a measured rate the RLSF caps in `configs/rlsf.yaml` are no longer guesses, so they are
+set, and `src/rlsf/config.py:assert_caps_declared` stops refusing to load. `degenerate_frac`
+now goes into `steps.jsonl` rather than to stdout.
+
+### What changed
+
+* `configs/rlsf.yaml:73` — caps declared: `max_steps: 600`, `max_grid_steps: 200`,
+  `max_judge_calls: 340000`, `max_judge_spend_usd: 25.0`.
+* `docs/budget.md` — the *Declared cap* section states the $25 figure; a new
+  *RLSF arm — caps declared (2026-08-08)* section derives it. The 2026-08-07 envelope is
+  kept and marked superseded. Both smoke passes are in the spend table.
+* `src/rlsf/reward.py:238` — `reward_degeneracy` moves here from `smoke.py`, and
+  `compute_rewards` calls it. `StepLog` gains `n_groups`, `degenerate_groups`,
+  `degenerate_frac` and `min_group_sd`; all four are written per step.
+* `src/rlsf/smoke.py` — reads those fields off the log instead of recomputing them, so the
+  verdict and the persisted record cannot disagree.
+
+### Rationale
+
+**Why the caps could be set now.** `docs/budget.md` had said the cap must be transcribed
+verbatim from `docs/proposal.pdf` because an approximation of a pre-registered figure is
+not a cap. The proposal states no numeric spend cap, so there was nothing to transcribe and
+the rule could not be satisfied as written. What it was protecting is that a cap be a
+recorded commitment rather than a number picked at the moment of spending. Deriving it from
+a measured rate and dating it meets that; carrying on with `null` caps did not.
+
+**Why $25 against a $2.65 plan.** The plan is 500 PPO steps ($2.36) plus a 3,992-call
+dev-slice best-of-N pool ($0.29), with the ω grid re-scored offline over that pool at no
+extra cost. The step caps bind first: 800 capped steps are $3.78 at group size 4 and $7.55
+at the authorized ceiling of 8. The dollar and call caps sit ~3.3× above that on purpose.
+They are not a second opinion on the step count — they catch the *rate* moving. A longer
+rubric or a completion-length regression that tripled the per-call price would satisfy
+every step cap and triple the bill, and nothing else in the loop would see it.
+
+**Why the grid stopped costing PPO steps.** The 2026-08-07 envelope priced the four ω cells
+as 50 PPO steps each. Ranking them over one fixed pool of sampled completions re-weights
+component scores that were already paid for, so the same comparison costs nothing beyond
+the pool. `max_grid_steps: 200` stays declared because training the grid online is still a
+reachable design, and a cap that has to be added later is a cap that was not declared.
+
+**Why `degenerate_frac` belongs in `steps.jsonl`.** It is the reading that says whether a
+step trained anything: a group whose combined reward is flat across its feasible samples
+has zero advantages and contributes no gradient. The smoke printed it and dropped it, which
+is tolerable for a one-step pilot and useless over 500 steps, where the question is whether
+the fraction climbs as the policy converges on the reward. Moving the function into
+`reward.py` and having `compute_rewards` call it means the smoke's verdict and the
+persisted number are the same computation rather than two that agree today.
+
+### Verification
+
+`pytest tests/` passes, 216 tests, two net new. The smoke's paid pass on 2026-08-08:
+
+```
+  [PASS] kiwi handshake: worker ready
+  [PASS] reward variance: 5% of groups have no reward spread across their feasible samples
+  [PASS] steplog written: n_samples=80
+  [PASS] length band: 75/80 feasible (94%), ratio mean 0.95, 0 unmeasured
+```
+
+80 calls, 417 prompt and 18 completion tokens each, $0.0059, 10.63 s wall clock, mean call
+1.014 s, 7.63× achieved parallelism (`outputs/rlsf/smoke_usage.json`). Component
+degeneracy was 1/20 groups for BLEU, 1/20 for Kiwi, 2/20 for the judge, and 1/20 for the
+combined reward — the judge going flat in a group twice while the combined reward went flat
+once is the case the per-component report exists to show.
+
+The cap tests were inverted with the config: `tests/test_rlsf_config.py` previously asserted
+the committed config *refuses* to load, and now asserts it loads and that nulling any one
+cap still refuses.
+
+### Reproduction
+
+```bash
+python manage.py rlsf_smoke --config configs/rlsf.yaml --segments 4 --skip_judge \
+    --out outputs/rlsf/smoke_free.jsonl
+python manage.py rlsf_smoke --config configs/rlsf.yaml --segments 20 --group_size 4 --yes
+```
+
+The paid pass is the second line and costs $0.0059. `notebooks/rlsf_smoke_colab.ipynb` is
+the runbook; both passes above are its sections 3 and 4.
+
+### Limitations and risks
+
+* **The measured rate is one pass of 80 calls on 20 dev segments.** Prompt length tracks
+  segment length, and the dev slice is four works. A training run over `rlsf_train.jsonl`
+  can draw longer segments and pay more per call. The caps have room for roughly 3× of
+  that; a larger move needs a new entry in `docs/budget.md`.
+* **7.63× is one reading under no sustained load.** A 500-step run holds the connection for
+  hours, and provider rate limiting would show up as a fall in `achieved_parallelism` and a
+  rise in GPU idle, not as a higher bill. The per-step wall clock is the thing to watch.
+* **Declaring the caps makes the config loadable, which is the point and also the risk.**
+  Nothing now stops `manage.py rlsf` at load time except the caps themselves. The PPO loop
+  is not written, so the caps are not yet enforced anywhere at run time — enforcing them
+  against `judge.usage` is work the training loop still owes.
+* The smoke notebook asserted the caps were null as its guard against being used once
+  training was authorised. That assertion is now inverted to check the pilot ceiling
+  instead, which is a weaker guard: it no longer distinguishes the pilot from a training
+  run by the config alone.
+
+---
+
+## 2026-08-08 — The judge block is timed, so concurrency stops being an assumption
+
+### Summary
+
+`judge.concurrency: 8` was chosen on the argument that judge calls are latency-bound and
+independent. Nothing measured what the fan-out returned. `outputs/rlsf/smoke_usage.json`
+carries calls, tokens and cost from the 2026-08-07 pass and no wall clock, so the claim
+that the loop does not hold the rented GPU idle rests on an untested 8×. The smoke now
+times the block. Instrumented only: no paid pass has run since, so the file still has no
+latency fields.
+
+### What changed
+
+* `src/rlsf/reward.py:77` — `JudgeTiming`, a thread-safe accumulator alongside `Usage`.
+  It holds the block's wall clock, the summed per-call time, and the call count.
+* `src/rlsf/reward.py:106` — `judge_scores` takes an optional `timing` and fills it in.
+  Default `None` leaves the scoring path as it was.
+* `src/rlsf/smoke.py:326` — `smoke_usage.json` gains `concurrency`, `wall_s`, `call_s`,
+  `mean_call_s`, `calls_per_s` and `achieved_parallelism`; the run prints the same.
+* `docs/budget.md:91` — the latency gap is stated where the rental estimate is made.
+
+### Rationale
+
+Wall time alone would not settle the question. A block that takes 40 s for 80 calls is
+fast or slow depending on what one call costs, and the ratio that answers "8× or 2×" is
+the summed call time over the wall clock. Timing each call as well as the block yields
+both from one pass, so no serial control run is needed and nothing extra is paid for.
+
+`achieved_parallelism` is the number to read against `judge.concurrency`. At 8 workers, 8
+means the fan-out is clean; 2 means six workers are blocked on something — a provider rate
+limit, a connection pool, or the client serialising. It also converts directly into the
+figure the budget needs: GPU idle per step is `wall_s`, not `call_s`.
+
+The accumulator locks its counters for the reason `Usage` does. Threads share one object,
+and a lost increment understates the latency the same way it would understate the bill.
+
+### Verification
+
+`pytest tests/` passes, 214 tests, 2 of them new. A stub judge with fixed per-call delays
+reads above 2× fanned out over 8 workers and 1× serial, which pins that the number tracks
+obtained fan-out rather than workers requested.
+
+### Limitations and risks
+
+* Nothing is measured yet. The next paid smoke produces the first reading; until then the
+  rental estimate stays an estimate and `docs/budget.md` says so.
+* The smoke runs one step. Per-step latency across a training run may differ once the
+  provider sees sustained load, so one reading is a floor on the cost, not a mean.
+* Timing wraps `client.complete`, so retries and backoff inside the client are counted as
+  call time. That is the right total for the GPU-idle question and the wrong one for
+  reading provider latency alone.
+
+---
+
+## 2026-08-08 — An unreadable judge verdict is unmeasured, not a 1
+
+### Summary
+
+`judge_scores` scored a judge response it could not parse as 1.0, the bottom of the 1–5
+rubric. A formatting failure therefore entered the group as the strongest available
+negative signal, and PPO would move weights away from the sample. Unparseable verdicts now
+score nan and `compute_rewards` marks the sample infeasible, which is the path length
+violations already take. Implemented only: no training run has used it.
+
+### What changed
+
+* `src/rlsf/reward.py:73` — `judge_scores` returns nan where `parse_score` returns `None`.
+  Its `default` parameter is gone; there is no score to fall back to.
+* `src/rlsf/reward.py:276` — `compute_rewards` intersects the length band with a
+  finite-score mask over every component, so any unmeasured term drops the sample through
+  the configured `on_violation` path rather than through its own.
+* `src/rlsf/reward.py:224` — `StepLog.n_unmeasured`, written on every step, separating
+  samples dropped for a missing score from samples dropped for length.
+* `src/rlsf/reward.py:159` — `_measured_mean`, so one unparsed verdict does not make the
+  step's logged raw judge mean nan.
+* `src/rlsf/smoke.py:119` — the length-band check reports the unmeasured count alongside
+  the feasible fraction.
+
+### Rationale
+
+The evaluation path has never done this. `src/eval/judge.py:parse_score` returns `None`
+and every consumer drops the segment: `judge_batch` records a null, `judge_agreement` and
+`judge_ci` carry NaN, `paired_bootstrap` drops the pair rather than imputing it (2026-07-31
+entry). The reward path was the one place a parse failure was converted into a number, and
+it converted it into the worst number on the scale.
+
+The rate is not negligible. On `results/judge_gpt_val.json` — Φ_B, the cross-family
+confirmation judge — coverage runs from 0.9803 to 0.9902 across the seven conditions: 129
+unparseable of 9,261 segments, 1.4%. That is on well-formed evaluation output at
+temperature 0. RLSF samples at T = 1.0 from a policy being updated, where degenerate and
+truncated generations are exactly the ones a judge answers oddly about, so 1.4% is a floor
+rather than an estimate. At 64 judge calls a step the weight grid alone is 12,800 calls;
+with a final run of comparable length the affected count is on the order of 300 samples,
+each of them a fabricated minimum.
+
+Under `on_violation: floor` the sample still receives `worst - 1.0`, which is lower than
+the 1.0 it used to get. The difference is that the value is now attributed: it comes from
+the feasibility rule the config chose, it is counted in `n_unmeasured`, and switching to
+`drop` removes the sample from the update entirely. A 1.0 written into the judge component
+was indistinguishable from a verdict the judge actually returned, and it entered the
+group's mean and standard deviation, moving the advantages of the three samples beside it.
+
+### Verification
+
+`pytest tests/` passes, 204 tests, 3 of them new in `tests/test_rlsf_reward.py`: an
+unreadable verdict scores nan rather than 1; a nan component marks the sample infeasible
+and leaves its group-mates' rewards at exactly ±1, which pins that the failure entered
+neither the mean nor the standard deviation; and under `drop` the sample's reward is nan
+while the logged raw judge mean is still the mean of what parsed. The existing
+length-violation test now also asserts `n_unmeasured == 0`, so the two drop reasons stay
+distinct.
+
+### Limitations and risks
+
+* The 1.4% figure is measured on Φ_B's evaluation run against `prompts/judge_eval.txt`,
+  not on `prompts/judge_train.txt` at T = 1.0. The training rubric's own rate is unmeasured
+  until a run logs `n_unmeasured`.
+* No retry is attempted. A verdict lost to a transient formatting slip costs a paid call
+  and yields no measurement; whether one re-ask is worth the latency inside the loop is
+  unanswered.
+* Nothing yet bounds the rate. A judge failing on a third of a step would quietly shrink
+  every group without tripping a check, since the smoke's length-band threshold is 50%.
+
+---
+
+## 2026-08-08 — Register-drift stop rule, stated against the run's own baseline
+
+### Summary
+
+The drift stop for RLSF training compared a step's `marker_rate` z against the val-set
+constant for zero-shot, 0.547. Read that way it fires at step 0 of the smoke, which
+measured 0.577 before a single PPO update. The rule is now stated against the run's own
+opening steps and requires several consecutive steps outside the band, and each step now
+logs the standard error the band is sized from. Implemented only: no training run has
+used it.
+
+### What changed
+
+* `src/rlsf/reward.py:179` — `z_step_stats` returns the per-feature mean z **and** its
+  standard error, clustered on the prompt. `z_deviations` is now a wrapper over it, so the
+  logged z is unchanged (0.577 recomputed from `outputs/rlsf/smoke_hyps.jsonl`).
+* `src/rlsf/reward.py:222` — `StepLog.z_se`, written on every step.
+* `src/rlsf/stop.py` (new) — `DriftRule`, `DriftMonitor`, `DriftVerdict`. The monitor takes
+  one StepLog per step and returns a verdict; the training loop stops on a tripped one.
+* `configs/rlsf.yaml:65` — the `stop:` block: `baseline_steps: 5`, `window: 3`,
+  `k_sigma: 3.0`, `min_delta: 0.23`.
+* `src/rlsf/config.py:90` — `drift_rule` builds the rule from that block.
+* `src/rlsf/smoke.py:282` — the smoke prints the step's z with its error and says that one
+  step is a draw of the baseline, not the baseline.
+
+### Rationale
+
+The two numbers being compared were not the same measurement. Zero-shot's 0.547 is
+1,323 val segments decoded greedily; the smoke's 0.577 is 80 samples at T = 1.0 from the
+PEFT-initialized policy. The smoke figure also sits inside zero-shot's own bootstrap
+interval, [0.476, 0.622], so the excursion it reported was not separable from the constant
+it was measured against. A threshold carried over from the conditions table measures the
+sampling regime, not the policy.
+
+The baseline is now the run's own first steps, in the same regime as everything it will be
+compared with. Step 0 alone is a legal baseline and a poor one: its clustered error on the
+smoke is 0.295, so a single step cannot distinguish a half-sigma drift from a quiet one.
+Five steps at an lr of 1e-6 is roughly 80 prompts of accumulated update, which buys a
+baseline error of 0.13 at a drift cost small enough to accept.
+
+Two conditions must hold together. Every step in the window has to sit at least `min_delta`
+above the baseline, so one spiking batch cannot carry the window mean over on its own; and
+the window mean's excess has to clear `k_sigma` pooled standard errors, so a drift the run
+cannot resolve does not halt it. The floor is there because statistical separation is not
+the same as a reason to stop: with enough steps a long run resolves excursions too small to
+care about.
+
+The floor is sized against the val ladder rather than picked. Per-condition `marker_rate` z
+runs from 0.136 (peft) to 0.547 (zeroshot), so 0.41 separates the condition closest to the
+reference register from the furthest. `min_delta: 0.23` is the peft-to-random_fewshot gap:
+the policy is PEFT-initialized, so a drift that size has given back the marker-rate margin
+that separates it from random few-shot prompting. The 0.5 it replaces was wider than the
+whole ladder and would have caught only gross marker-stuffing. One caveat on the anchor:
+the ladder is greedy decoding over 1,323 val segments and a training step is 80 samples at
+T = 1.0, so a between-condition difference transfers to a within-run drift as a scale, not
+as an exact quantity.
+
+Which arm the floor binds in depends on the error. At the smoke's clustered per-step se of
+0.295 the pooled error is 0.215 and the 3σ band is 0.65, so the statistical arm sets the
+threshold; `min_delta` would take over only below a per-step se of 0.23, which needs a
+larger batch than the smoke's 80 samples. The sustained arm uses the floor whatever the
+error — every window step must sit above `baseline + min_delta` — and that is the arm this
+value moves today.
+
+The error is clustered on the prompt because a group's four samples answer one source.
+Pooling all 80 as independent reads 0.163 where the clustered figure is 0.295 — a band
+1.8× too narrow, and the rule would fire on prompt-draw noise.
+
+### Verification
+
+`pytest tests/` passes, 201 tests, 16 of them new in `tests/test_rlsf_stop.py`. The case
+that prompted the change is pinned: a run held flat at 0.577 never trips, though every step
+of it sits above 0.547. Also pinned: a single spike does not trip, an excursion inside the
+noise does not trip, a clean excursion below `min_delta` does not trip, downward drift does
+not trip, and the baseline does not absorb the drift it is measuring.
+
+Replaying the committed `smoke_hyps.jsonl` through `compute_rewards` reproduces
+`z.marker_rate = 0.577` and records `z_se.marker_rate = 0.295`. At that error the rule's
+band is 0.65, and a synthetic +1.2 excursion held for three steps trips it.
+
+### Limitations and risks
+
+*Superseded (2026-08-09).* `baseline_steps`, `window` and `k_sigma` were set here from a
+per-check σ level. That reading treats the rule as one comparison when it is read at every
+rollout; the values and the reasoning for them are in the 2026-08-09 entry. `min_delta` and
+the two-arm structure stand as written.
+
+* No training loop calls the monitor yet; `src/rlsf/smoke.py` reports the baseline and
+  nothing consumes a verdict.
+* The band uses a normal quantile over roughly 16 clusters per step. With that many groups
+  a t quantile would be wider, so the rule fires slightly more readily than 3σ implies.
+* Steps are pooled as independent draws. If the training loop reuses one prompt set across
+  steps, the between-step variance is smaller than the within-step estimate and the band is
+  conservative.
+* The rule watches `marker_rate` alone, one-sided. Register loss and drift in the other
+  three centroid features are visible in the step log but do not stop a run.
+* `baseline_steps: 5` absorbs whatever drift occurs in the first five steps. At a higher
+  learning rate that assumption fails and the baseline should be shortened.
+
+---
+
+## 2026-08-07 — Judge client wired into the reward path; smoke stage added, not run
+
+### Summary
+
+The reward path can now build its own judge client from the config, and
+`manage.py rlsf_smoke` (new) exercises the whole path on a few dev-slice groups without a
+PPO update. Implemented and statically verified only: the smoke has not been run, no
+judge call has been made, no model loaded, and nothing under `outputs/` written. What did
+run is `--help` and the two refusal paths, both of which exit before any model load or
+API call.
+
+### What changed
+
+* `src/rlsf/config.py:make_judge_client` — builds the judge from the `judge:` block via
+  `src.infer.run.make_client`, and raises if the configured model is one of the two
+  evaluation raters. The check precedes the lazy torch import so it is unit-testable.
+* `src/rlsf/reward.py:judge_scores` — sends `src.eval.judge._JUDGE_SYSTEM` as the system
+  message instead of an empty string, so the training and evaluation judges differ in
+  rubric and nothing else. Reusing the existing constant avoids a second un-hashed prompt
+  artefact alongside the frozen template.
+* `src/rlsf/smoke.py` (new, `manage.py rlsf_smoke`) — samples G completions per segment
+  from the policy, scores them on BLEU, COMET-Kiwi and the training judge, computes
+  rewards, writes one `StepLog` line, and reports four checks.
+* `src/rlsf/smoke.py` — writes `outputs/rlsf/smoke_usage.json` with the measured per-call
+  rate, which is what replaces the token-count estimate in `docs/budget.md`.
+* `notebooks/rlsf_smoke_colab.ipynb` (new) — the runbook: setup, pre-flight assertions,
+  a free `--skip_judge` pass, the paid pass, and what each failing check means.
+* `configs/rlsf.yaml` — `rollout.max_new_tokens: 512` removed. `complete_many` takes only
+  `n`, `temperature` and `top_p`; generated length comes from the client's `max_tokens`
+  at construction, so the field was never read. Beyond being dead, 512 would have been
+  wrong to wire through: every condition config generates at `max_tokens: 1024`, and
+  halving it for RLSF alone makes the arm non-comparable on length against the conditions
+  it is measured against — which matters more here than elsewhere, because length is what
+  the feasibility band gates on. `generator.max_tokens` governs.
+* `tests/test_rlsf_smoke.py` (new) — 14 cases; `tests/test_rlsf_config.py` +1. 172 in the
+  suite.
+
+### Rationale
+
+The four checks are the failure modes that would otherwise surface only after a long
+paid run had already produced nothing useful:
+
+1. **Kiwi handshake.** The worker is a subprocess in a second interpreter with a 600 s
+   handshake timeout, so it fails slowly and at a distance from its cause.
+2. **Reward variance.** This is the one that silently wastes money. `group_normalize`
+   returns all zeros when a group's scores are identical or fewer than two samples are
+   feasible, so the samples carry no advantage and the step contributes no gradient.
+   Training would proceed, log plausible-looking rewards, and learn nothing.
+
+   Three properties make the check mean what it says. It is computed on the **combined**
+   reward, not the worst component: a single flat component is survivable when the others
+   still spread the sum, and judging the worst component would fail runs that are fine —
+   `--skip_judge`, which holds the judge flat by construction, most obviously. It is
+   computed over **feasible entries only**: under `on_violation: floor` a violator takes
+   `worst - 1.0`, which manufactures spread in a group whose feasible samples all scored
+   identically, so including it returns a false pass on precisely the case being tested
+   (`tests/test_rlsf_smoke.py`, verified through `compute_rewards` rather than against a
+   hand-built array — the real path produces rewards `[0, 0, 0, -1]` there, pooled sd
+   0.43). And it is **per group, never pooled**: two internally flat groups at different
+   levels have a healthy pooled sd and no usable signal.
+
+   The per-component report remains as printed diagnostics, for reading which term went
+   flat once the combined check has already failed. It is not a verdict.
+3. **StepLog writes.** The step log is the only record of a run's reward trajectory.
+4. **Length band.** `on_violation: floor` assigns violators the group's worst reward
+   minus a margin. If the band rejects most of the batch, the reward is dominated by the
+   floor rather than by the components, and the thresholds — not the weights — are what
+   the policy is learning.
+
+Thresholds are stated rather than inferred: a quarter of groups degenerate fails, and
+more than half the samples must clear the length band.
+
+**The pilot loads the config with `require_caps=False`.** The training caps are null and
+gate PPO; this pilot is what measures the per-call rate needed to declare them, so
+gating it on them would be circular. It is bounded instead by its own ceiling from the
+config's `pilot:` block, checked before any call, plus a `--yes` confirmation.
+
+### Verification
+
+```bash
+.venv/bin/python -m ruff check src tests manage.py    # All checks passed
+.venv/bin/python -m pytest tests/ -q                  # 172 passed
+.venv/bin/python manage.py rlsf_smoke --help
+.venv/bin/python manage.py rlsf_smoke --segments 20   # refused: 80 calls over the 50 ceiling
+.venv/bin/python manage.py rlsf_smoke --segments 12   # refused: no --yes
+```
+
+The unit tests cover the checks themselves against cases the smoke cannot be relied on to
+produce: a flat group, a group with one feasible sample, two flat groups at different
+levels, and an empty batch. Both refusal paths exit before `_load_rows` and `make_client`.
+
+### Limitations and risks
+
+* **Unrun.** Nothing is known about whether the rubric discriminates within a group, only
+  that the code that would measure it exists and its arithmetic is tested.
+* **It cannot run on this machine.** The policy is `Qwen2.5-7B-Instruct` in bf16, which
+  the 8 GB development GPU cannot hold, and `.venv-comet` does not exist locally, so the
+  Kiwi handshake is untestable here. Colab, per the standing compute constraint.
+* **`pilot.judge_calls` was raised from 50 to 80** so the declared ceiling matches the
+  smoke's brief of 20 segments at G = 4. The alternative — trimming the run to 12 segments
+  to fit 50, or overriding with `--max_judge_calls` at the command line — would have let a
+  budget number silently reshape a diagnostic. A ceiling moved on purpose is preferable to
+  one that quietly changes what is being tested. 80 calls is ~$0.01.
+* **`--skip_judge` holds the judge component flat**, which makes its group variance
+  degenerate by construction. That check is meaningless in that mode and the run's
+  variance verdict should be read as covering BLEU and Kiwi only.
+* **A passing smoke says the wiring works, not that the reward is sound.** It cannot tell
+  whether the judge is discriminating register or returning noise with a healthy spread.
+
+---
+
+## 2026-08-07 — RLSF dev slice carved from train.jsonl
+
+### Summary
+
+`manage.py rlsf_dev --target 500 --seed 42` was run. It carved 499 segments across four
+works out of `train.jsonl` as the RLSF weight-selection slice, leaving 10,361 for PPO
+updates. This is a data operation only: no model was loaded, no judge call made, no
+reward computed. The reported splits are untouched and no figure changes.
+
+### What changed
+
+Three new files under `data/splits/`:
+
+| File | Segments | sha256 |
+|---|---:|---|
+| `rlsf_dev.jsonl` | 499 | `45b45e40b03ea3c3…` |
+| `rlsf_train.jsonl` | 10,361 | `3c2dbc43d11311c1…` |
+| `rlsf_dev_manifest.json` | — | selection record |
+
+The dev works are `Lawh-i-Burhan` (117), `Lawh-i-Dunya` (183),
+`Lawh-i-Siyyid-i-Mihdiy-i-Dahaji` (77) and `Suriy-i-Vafa` (122). Selection is whole-work
+and deterministic: the subset minimising `|total − target|`, ties toward fewer works then
+lexicographic. At target 500 the best achievable is 499. The 193 unlabelled segments are
+forced to the remainder rather than being eligible for the slice.
+
+`configs/rlsf.yaml` and the README command block were amended, both of which said these
+files did not exist.
+
+### Rationale
+
+Reward weights are a selection decision, so they need a partition that is neither the one
+used for updates nor the one used for reporting. Validation is the reported split for
+every other condition and using it here would make the RLSF row's figures selection-
+contaminated relative to the rest of the table. Carving from train instead keeps
+validation clean.
+
+The slice is whole-work for the same reason the top-level split is: partitioning by row
+would leak an author's stylistic habits across the boundary, and register is the thing
+being optimized.
+
+### Verification
+
+```bash
+.venv/bin/python manage.py rlsf_dev --target 500 --seed 42 --dry_run   # plan
+.venv/bin/python manage.py rlsf_dev --target 500 --seed 42
+```
+
+Checked after the write:
+
+* `train.jsonl`, `val.jsonl` and `test.jsonl` still hash to the digests in
+  `data/splits/hashes.json`. The frozen split was read, not modified.
+* `rlsf_dev + rlsf_train` equals `train.jsonl` exactly as a multiset over
+  `(input, output)`, and record order is preserved within each part.
+* Input overlap between the two parts is 0, and no dev work appears in the remainder.
+* All three digests in `rlsf_dev_manifest.json` match the files on disk.
+
+### Limitations and risks
+
+* The slice is not unseen by the model. `models/peft_lora_r32_lr2e-4/checkpoint-1358`,
+  which RLSF initializes from, was trained on all of `train.jsonl` including these four
+  works. Dev-slice figures select reward weights; they do not measure generalization and
+  are never reported as a result.
+* `results/stylometrics_centroid.json` was built over all 10,860 train targets, these
+  works included, so the `z` field in the step log is measured against a centroid the
+  slice contributed to. It is a training diagnostic, not evidence.
+* 499 segments is small for ranking four grid cells. What separation it can resolve is
+  unquantified, and no interval has been computed on it. If the cells land close, the
+  slice cannot break the tie and saying so is the correct outcome rather than picking the
+  leader.
+* Removing these four works changes what PPO trains on relative to what PEFT trained on.
+  The two arms are no longer matched on training data, which is a difference between
+  conditions that the RQ1 comparison has to carry.
+
+---
+
+## 2026-08-07 — RLSF condition config written; reward judge selected; caps deliberately null
+
+### Summary
+
+`configs/rlsf.yaml` (new) specifies the RLSF arm: policy init, rollout sampling, reward
+weights and the RQ3 weight grid, spend caps, and the training-time judge block.
+`src/rlsf/config.py` (new) loads and validates it. **The config is not runnable as
+committed**: every spend cap is `null` and the loader raises until they are set, because
+budget rule 1 forbids starting a paid run before its volume is recorded and the declared
+cap is still untranscribed from `docs/proposal.pdf`. **Implemented and statically
+verified only: no PPO step, no judge call, no artefact written.** No reported figure
+changes. RLSF remains an empty row in the results table.
+
+### What changed
+
+* `configs/rlsf.yaml` (new) — the condition config. Policy initializes from the frozen
+  PEFT cell `models/peft_lora_r32_lr2e-4/checkpoint-1358`, which is also the KL reference.
+* `src/rlsf/config.py` (new) — `load_config` (validating; `require_caps=False` inspects
+  without spending), `assert_caps_declared`, `assert_group_size_within_ceiling`,
+  `reward_config`, `grid_reward_configs`, `worst_case_judge_calls`, `priced_worst_case`.
+* `docs/budget.md` — the RLSF arm's authorized envelope, the section's own outstanding
+  requirement since 2026-08-05.
+* `tests/test_rlsf_config.py` (new) — 18 cases (157 in the suite).
+
+Reward-block field names match `src.rlsf.reward.RewardConfig` exactly, so
+`reward_config` is a filtered splat rather than a translation layer; the `kiwi:`
+sub-block is ignored by that filter and read by the scorer.
+
+### Rationale
+
+**The reward judge is `gpt-4o-mini`, model-distinct from both evaluation raters.** Φ_A is
+`claude-haiku-4-5` and Φ_B is `gpt-5.6-terra`. Training against either spends that rater
+on the single condition that most needs two independent ones — RLSF is the only arm
+optimized against a judge, so it is the arm whose Φ most needs a rater it was not trained
+against. A third model keeps both. It is also the only candidate honouring `temperature:
+0` *and* `seed: 42`: Haiku exposes no seed and Terra treats it as best-effort. That
+matters more at training time than at evaluation time, because under group normalization
+a rater that randomly flips a 3 to a 4 inverts a sample's advantage sign — rater noise
+becomes gradient noise, not just measurement noise.
+
+A local Qwen judge was excluded outright rather than on cost: the policy is
+`Qwen2.5-7B-Instruct`, so a Qwen judge is self-preference bias by construction — the same
+objection that makes `commercial_haiku`'s Φ inadmissible as anything but a labelled
+external reference.
+
+**The caps are null on purpose.** RLSF spends one judge call per sampled completion, so
+an uncapped run has no upper bound and a step-count typo is a spend event. Writing a
+plausible number here would have substituted an estimate for a pre-registered commitment;
+the cap in `docs/proposal.pdf` is the commitment, and it still cannot be read in this
+environment. So the keys exist, hold `null`, and the loader raises with the rule-1
+reasoning in the message. The envelope is nonetheless priced in `docs/budget.md`, because
+recording the arithmetic and authorising the spend are separate acts and only the first
+can happen today.
+
+**The ceiling is priced at group size 8 while the config operates at 4.** Judge calls
+scale one-for-one with group size, so raising it after authorisation would be a widening
+under budget rule 3. Pricing the envelope at 8 makes that headroom part of the original
+authorisation instead. `assert_group_size_within_ceiling` enforces the boundary.
+
+**Rollout sampling is deliberately not the locked greedy decoding.** `temperature: 1.0`,
+`top_p: 0.95`. At temperature 0 every sample in a group is identical, the group's reward
+sd is 0, and `group_normalize` (`reward.py:115`) returns all zeros — the reward would be
+identically flat and no update informative. The locked greedy setting still governs the
+reported inference pass that scores this arm; the matched-decoding requirement is a
+property of evaluation, not of rollout.
+
+**The weight grid varies ω₃ against a fixed adequacy pair**, per the README's RLSF
+section, with a `w_judge: 0.0` ablation cell so the style term's contribution is
+identifiable rather than inferred. Grid cells are short proxy runs on the dev slice under
+the §7 selection protocol — sweep, verify, freeze — and a cell is never itself a reported
+result.
+
+### Verification
+
+No PPO step, no judge call, no network, no GPU.
+
+```bash
+.venv/bin/python -m ruff check src tests manage.py    # All checks passed
+.venv/bin/python -m pytest tests/ -q                  # 157 passed
+```
+
+The new cases assert the properties that would otherwise be prose: the committed config
+refuses to load; every undeclared cap is named, not just the first; a non-positive cap is
+rejected; a group size above the ceiling raises citing rule 3; worst-case volume defaults
+to the ceiling rather than the operative group size (44,800 against 22,400); the grid
+varies only ω₃ and inherits the base feasibility band; `template_file` is the training
+rubric and not the evaluation one; and the reward judge's model appears in neither
+`configs/judge_eval.yaml` nor `configs/judge_eval_gpt.yaml`.
+
+### Reproduction
+
+```bash
+.venv/bin/python -m pytest tests/test_rlsf_config.py -q
+python -c "from src.rlsf.config import load_config; load_config()"   # must raise
+```
+
+### Limitations and risks
+
+* **Nothing here has been run, and no trainer exists.** `src/rlsf/` holds the reward, the
+  COMET-Kiwi worker, and now the config loader. There is no PPO loop, no `rlsf` entry in
+  `manage.py`, and no `infer` support for the condition. This config specifies an arm that
+  cannot yet execute.
+* **The data files do not exist.** `data/splits/rlsf_train.jsonl` and `rlsf_dev.jsonl` are
+  produced by `manage.py rlsf_dev`, which has not been run. Its manifest records that the
+  dev slice is held out from PPO updates *only* — the PEFT checkpoint RLSF initializes
+  from was trained on all of `train.jsonl`, this slice included, so the slice is not
+  unseen by the model and dev-slice figures select weights rather than measure them.
+* **The cost figures are estimates over assumed token counts.** The $5.11–$6.45 ceiling
+  spans 600–800 prompt tokens; at the 400-token assumption it is ~$2.96. The 50-call pilot
+  measures the real rate. Either way the arm is under a dollar of spend to date, so
+  dollars are not the binding constraint — GPU hours and in-loop judge latency are.
+* **Family adjacency, logged.** `gpt-4o-mini` shares a provider family with Φ_B
+  (`gpt-5.6-terra`). This is weaker than model-identical contamination but not nothing:
+  Φ_B is family-adjacent rather than fully clean for the RLSF row specifically. Added to
+  the threats register.
+* **Group size 4 is statistically thin.** `group_normalize` returns all zeros when fewer
+  than 2 samples in a group are length-feasible (`reward.py:110`), so at G = 4 a group
+  with three length-band violations contributes no gradient signal at all. How often that
+  happens is unmeasured; the step log's `n_feasible` field is what will show it, and the
+  ceiling permits raising to 8 without re-authorisation if it does.
+* **`learning_rate: 1e-6`, `kl_coef: 0.05`, `clip_range: 0.2`, `ppo_epochs: 4` are
+  conventional defaults, not tuned values.** They have no support from this project's
+  data and should not be described as selected.
+
+---
+
+## 2026-08-07 — Training-time judge rubric written and frozen with a recorded digest
+
+### Summary
+
+`prompts/judge_train.txt` — the Φ term of the RLSF reward, referenced by
+`src/rlsf/reward.py:13` since the first RLSF stage but never written — now exists, is
+frozen, and its sha256 is recorded in a new freeze manifest `prompts/hashes.json`
+**before** any reward call reads it. `src/rlsf/reward.py:load_train_template` verifies
+the file against that record on every load and refuses a mismatch. **Implemented and
+statically verified only: no judge call has been made, no RLSF training has run, and
+nothing under `results/` or `outputs/` was written.** No reported figure changes, and
+the rubric's behaviour as a reward signal is entirely unmeasured.
+
+### What changed
+
+* `prompts/judge_train.txt` (new) — the training-time rubric. Same construct as the
+  evaluation rubric (register fidelity, 1–5, scored against the authorized reference)
+  and the same `source` / `reference` / `prediction` fields `build_prompt` fills, but
+  independently worded, with its own band anchors and its own output contract.
+  sha256 `8eaa11ff341c86ca…`, digest `8eaa11ff341c86ca`.
+* `prompts/hashes.json` (new) — freeze record for both rubrics, named and shaped after
+  `data/splits/hashes.json`. Records role, freeze date, full sha256, and the 16-character
+  `digest` that `src/eval/judge.py:74 template_digest` computes and writes into each judge
+  artefact as `template_sha256`.
+* `src/rlsf/reward.py:96 frozen_digest` (new) — reads a rubric's recorded digest; raises
+  if the manifest is absent or the rubric has no entry in it.
+* `src/rlsf/reward.py:123 load_train_template` — now takes `hashes_path`, hashes the file
+  it read, and raises `ValueError` if it differs from the freeze record. The
+  missing-file `FileNotFoundError` and its circularity message are unchanged.
+* `tests/test_rlsf_reward.py` — 6 new cases (43 in the file, 139 in the suite).
+
+The frozen eval rubric is untouched: `prompts/judge_eval.txt` still hashes to
+`ffd6dad41acb0512…`, the digest rater B's 2026-08-05 artefacts carry, so recording it
+here is a transcription of the current file, not a change to it.
+
+### Rationale
+
+**Why the digest is recorded at freeze time rather than at run time.** The 2026-08-05
+agreement pass reports `template_verified: false` because rater A's artefacts predate
+per-condition digest recording: that both raters read the same rubric rests on the
+configs, not on the artefacts, and is closable only by re-spending on Φ_A. That gap
+opened because the rubric was frozen and the digest was recorded at two different times,
+with runs in between. Recording the digest as part of the freeze, before the first
+consumer exists, removes the window in which that can recur for the RLSF reward.
+
+**Why the loader verifies rather than logs.** A recorded hash that nothing checks is the
+same class of evidence as a config assertion. Verification on load means an edited rubric
+fails loudly at the start of training instead of producing rewards that are silently
+incomparable with those already collected.
+
+**Why a separate rubric at all.** §Judge circularity mitigation in `README.md` and the
+2026-07-05 entry commit the study to two fixed templates, training-time and
+evaluation-time. Scoring the reward with the same rubric that scores the reported Φ would
+make the Φ result circular — the policy would be optimized directly against its own
+evaluation instrument. `load_train_template`'s error message has carried that reasoning
+since the first RLSF stage; this entry supplies the template it was pointing at.
+
+Three rubric decisions are load-bearing and revisable **only until the first RLSF run
+consumes them**:
+
+1. **Degenerate output is floored at 1.** Empty, truncated, self-repeating, non-English,
+   and source-script output score 1 regardless of any elevated wording, as does archaic
+   vocabulary applied ungrammatically. The evaluation rubric has no such clause because it
+   never sees policy samples mid-training; a reward that does not floor these is a reward
+   that pays for scattering `Thou` and `hath` into modern prose.
+2. **A ≤15-word justification precedes the verdict.** It costs completion tokens on every
+   sample. The alternative — a bare `Score: N` — is cheaper, but rater B compressed to a
+   0.10 range across six conditions under `reasoning_effort: none`, and a judge component
+   with no within-group variance is silently zeroed by `group_normalize` (sd < 1e-9 → all
+   zeros), which would drop the style term from the reward without any error surfacing.
+3. **Register only; adequacy is explicitly out of scope.** Adequacy enters the reward
+   through the BLEU/chrF and COMET-Kiwi terms, and the length band gates feasibility.
+   Double-counting it in the judge term would confound ω₃ with ω₁ and ω₂ and make the RQ3
+   weight sweep uninterpretable.
+
+### Verification
+
+No judge calls, no network, no GPU. Nothing was run against a model.
+
+```bash
+.venv/bin/python -m ruff check src tests manage.py    # All checks passed
+.venv/bin/python -m pytest tests/ -q                  # 139 passed
+sha256sum prompts/judge_eval.txt prompts/judge_train.txt
+```
+
+The new cases cover: the committed rubric loads and verifies against the committed
+manifest; it fills through `build_prompt` and is brace-safe against stray braces in
+inserted text; the two rubrics' digests differ (the circularity control, asserted as a
+test rather than as prose); an edited rubric raises; a rubric absent from the manifest
+raises; a missing manifest raises.
+
+`prompts/judge_eval.txt` hashing to `ffd6dad41acb0512…` was checked against the digest
+recorded in rater B's artefacts, confirming the eval rubric has not drifted since the
+2026-08-05 pass.
+
+### Reproduction
+
+```bash
+sha256sum prompts/judge_eval.txt prompts/judge_train.txt   # must match prompts/hashes.json
+.venv/bin/python -m pytest tests/test_rlsf_reward.py -q
+```
+
+### Limitations and risks
+
+* **This does not close the `template_verified: false` gap retrospectively.** That gap is
+  a property of Φ_A's existing artefacts and remains open in the threats register;
+  only re-spending on Φ_A closes it. What this entry closes is the possibility of the
+  same gap opening for the RLSF reward.
+* **The rubric is unvalidated.** No call has been made against it. Whether it
+  discriminates register at all, whether it discriminates it *within* a PPO group of
+  samples from one policy — a much narrower spread than the seven conditions the eval
+  rubric separates — and whether it is gameable by the policy are all unmeasured. A
+  `--limit N` pilot on existing outputs is the cheapest first check and has not been run.
+* **The freeze is revisable now and expensive later.** Once reward values collected under
+  this rubric exist, changing it invalidates them. Any revision to the three decisions
+  above should happen before the first run, not after.
+* **Cost is unestimated.** The rubric is ~330 tokens of prompt plus source, reference, and
+  candidate, and one call per sample. Neither the PPO step cap, batch cap, nor judge spend
+  cap is fixed in `docs/budget.md` yet, so the total is still undeclared — that
+  precondition is unchanged by this entry.
+* **The training judge model is unselected.** No `configs/rlsf.yaml` exists; which model
+  reads this rubric, and whether it is the same family as the evaluation judge, is an open
+  decision with its own circularity implications.
 
 ---
 

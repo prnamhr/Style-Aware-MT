@@ -1,13 +1,6 @@
 """
 Confirm the PEFT sweep's proxy-picked candidates on the reported metrics before freezing.
 
-The real-metric analogue of src.peft.sweep, matched to src.infer.afsp_verify: take the
-top proxy candidates (each an (r, lr, epoch) checkpoint, ranked on chrF + register_fit),
-score them on COMET (adequacy) and, when a --judge-config is given, the LLM-judge
-register score Phi, then freeze on COMET adequacy band + judge Phi -- the exact rule
-AFSP freezes on. The freeze/judge logic is reused from src.infer.afsp_verify so PEFT
-and AFSP are frozen on one identical procedure.
-
 Usage:
     python -m src.peft.verify                                        # COMET only
     python -m src.peft.verify --judge-config configs/judge_eval.yaml # COMET + judge Phi
@@ -21,6 +14,10 @@ from pathlib import Path
 
 import yaml
 
+# Heavy imports (COMET/torch) kept lazy so --help needs no GPU stack.
+from src.eval import comet as comet_mod
+from src.eval._io import load_condition
+from src.infer.afsp_verify import _freeze_pick, _run_judge
 from src.peft.sweep import _sweep_dir, generate_cell, ranked_cells
 
 
@@ -74,11 +71,6 @@ def main() -> None:
         "--overwrite", action="store_true", help="regenerate the top candidates on full val"
     )
     args = parser.parse_args()
-
-    # Heavy imports (COMET/torch) kept lazy so --help needs no GPU stack.
-    from src.eval import comet as comet_mod
-    from src.eval._io import load_condition
-    from src.infer.afsp_verify import _freeze_pick, _run_judge
 
     cfg = yaml.safe_load(Path(args.config).read_text(encoding="utf-8"))
 

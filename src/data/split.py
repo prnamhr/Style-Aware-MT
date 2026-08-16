@@ -117,7 +117,7 @@ def main():
     records = df.to_dict(orient="records")
     print(f"  {len(records)} records loaded.")
 
-    # --- 1. Group by work and bin-pack whole works into splits ---
+    # 1. Group by work and bin-pack whole works into splits
     work_sizes: dict = {}
     work_records: dict = {}
     forced_train = set()
@@ -141,7 +141,7 @@ def main():
 
     pre_counts = {k: len(v) for k, v in split_records.items()}
 
-    # --- 2. Cross-boundary de-duplication (train kept intact, priority order) ---
+    # 2. Cross-boundary de-duplication (train kept intact, priority order)
     seen_inputs, seen_outputs = set(), set()
     # Seed the seen sets with the ENTIRE train partition; train is never trimmed.
     for rec in split_records["train"]:
@@ -153,7 +153,7 @@ def main():
         split_records["test"], seen_inputs, seen_outputs
     )
 
-    # --- 3. Write splits ---
+    # 3. Write splits
     print(f"Saving splits to {output_dir}...")
     paths = {}
     for split in ("train", "val", "test"):
@@ -161,7 +161,7 @@ def main():
         write_jsonl(path, split_records[split])
         paths[split] = path
 
-    # --- 4. Leakage audit: assert zero cross-boundary key overlap remains ---
+    # 4. Leakage audit: assert zero cross-boundary key overlap remains
     def keyset(recs, is_source):
         field = "input" if is_source else "output"
         return {normalize_key(r[field]) for r in recs}
@@ -174,7 +174,7 @@ def main():
         leaks += len(keyset(split_records[split], False) & train_out)
     assert leaks == 0, f"Leakage audit FAILED: {leaks} overlapping keys with train"
 
-    # --- 5. Manifest: hashes + full split provenance for reproducibility ---
+    # 5. Manifest: hashes + full split provenance for reproducibility
     final_counts = {k: len(v) for k, v in split_records.items()}
     total_final = sum(final_counts.values())
     manifest = {

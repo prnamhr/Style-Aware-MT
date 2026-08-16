@@ -20,6 +20,7 @@ import numpy as np
 
 _SPLIT_DIR = Path("data/splits")
 _CENTROID_PATH = Path("results/stylometrics_centroid.json")
+_SPLIT_CENTROID_PATH = Path("results/stylometrics_centroid_split.json")
 
 _MARKERS = re.compile(
     r"\b(thou|thee|thy|thine|art|hast|hath|dost|doth|shalt|wilt|unto|ye)\b"
@@ -91,6 +92,12 @@ FEATURE_NAMES = [
 # Features used for the target-register centroid and the register-fit distance
 CENTROID_FEATURES = ["lex_density", "ttr", "root_ttr", "marker_rate"]
 
+
+REWARD_FEATURES = ["lex_density", "sent_len_mean", "sent_len_var"]
+HELDOUT_FEATURES = ["ttr", "root_ttr", "marker_rate"]
+
+SPLIT_FEATURES = REWARD_FEATURES + HELDOUT_FEATURES
+
 _WORD_RE = re.compile(r"[a-z']+")
 _SENT_SPLIT_RE = re.compile(r"[.!?]+\s+")
 
@@ -139,18 +146,51 @@ def feature_vector(text: str) -> list[float]:
     return [f[name] for name in FEATURE_NAMES]
 
 
-def build_centroid(targets: list[str]) -> dict:
+def build_centroid(targets: list[str], feature_names: list[str] | None = None) -> dict:
     """Per-feature mean and (sample) std over the training English targets."""
-    vectors = [[features(t)[name] for name in CENTROID_FEATURES] for t in targets if t.strip()]
+    feature_names = feature_names or CENTROID_FEATURES
+    vectors = [[features(t)[name] for name in feature_names] for t in targets if t.strip()]
     matrix = np.asarray(vectors, dtype=float)
     mean = matrix.mean(axis=0)
     std = matrix.std(axis=0, ddof=1)
     std = np.where(std < 1e-9, 1e-9, std)
     return {
         "n_segments": int(matrix.shape[0]),
-        "features": CENTROID_FEATURES,
+        "features": feature_names,
         "mean": mean.tolist(),
         "std": std.tolist(),
+    }
+
+
+def _assert_shared_features_agree(split: dict, path: Path = _CENTROID_PATH) -> None:
+    """Refuse a split centroid that moved a statistic the committed one already fixed."""
+    if not path.exists():
+        return
+    committed = json.loads(path.read_text(encoding="utf-8"))
+    shared = subcentroid(split, committed["features"])
+    for field in ("mean", "std"):
+        if not np.allclose(shared[field], committed[field], rtol=0, atol=0):
+            raise ValueError(
+                f"the split centroid's {field} differs from {path} on their shared features. "
+                f"It is meant to extend that centroid with two more, not to refit it: every "
+                f"published stylo_dist is measured against the committed numbers."
+            )
+
+
+def subcentroid(centroid: dict, names: list[str]) -> dict:
+    """The same centroid over a subset of its features, statistics untouched."""
+    missing = [name for name in names if name not in centroid["features"]]
+    if missing:
+        raise KeyError(
+            f"centroid over {centroid['features']} carries no statistics for {missing}. "
+            f"Build the split centroid first: python manage.py stylometrics --build-split-centroid"
+        )
+    idx = [centroid["features"].index(name) for name in names]
+    return {
+        "n_segments": centroid.get("n_segments", 0),
+        "features": list(names),
+        "mean": [centroid["mean"][i] for i in idx],
+        "std": [centroid["std"][i] for i in idx],
     }
 
 
@@ -304,6 +344,11 @@ def main() -> None:
         help="build the target-register centroid over train targets and save it",
     )
     parser.add_argument(
+        "--build-split-centroid",
+        action="store_true",
+        help="build the reward/held-out split centroid; writes a separate file",
+    )
+    parser.add_argument(
         "--targets-split",
         choices=["train", "val", "test"],
         help="report feature aggregates over a split's gold English targets",
@@ -313,16 +358,27 @@ def main() -> None:
     parser.add_argument("--out_dir", default="outputs", help="inference output directory")
     args = parser.parse_args()
 
-    if args.build_centroid:
+    if args.build_centroid or args.build_split_centroid:
+        split = args.build_split_centroid
+        path = _SPLIT_CENTROID_PATH if split else _CENTROID_PATH
         targets = _load_field(_SPLIT_DIR / "train.jsonl", "output")
-        centroid = build_centroid(targets)
-        _CENTROID_PATH.parent.mkdir(parents=True, exist_ok=True)
-        _CENTROID_PATH.write_text(json.dumps(centroid, indent=2) + "\n", encoding="utf-8")
-        print(f"\nTarget-register centroid  (n={centroid['n_segments']})  -> {_CENTROID_PATH}")
+        centroid = build_centroid(targets, SPLIT_FEATURES if split else None)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(centroid, indent=2) + "\n", encoding="utf-8")
+        print(f"\nTarget-register centroid  (n={centroid['n_segments']})  -> {path}")
         width = max(len(n) for n in centroid["features"])
-        print("-" * (width + 28))
+        print("-" * (width + 40))
         for name, m, s in zip(centroid["features"], centroid["mean"], centroid["std"]):
-            print(f"  {name:<{width}}  mean {m:.4f}   std {s:.4f}")
+            side = ""
+            if split:
+                side = "  reward" if name in REWARD_FEATURES else "  held out"
+            print(f"  {name:<{width}}  mean {m:9.4f}   std {s:9.4f}{side}")
+        if split:
+            _assert_shared_features_agree(centroid)
+            print(
+                f"\n  the {len(CENTROID_FEATURES)} features it shares with {_CENTROID_PATH} "
+                f"reproduce it exactly, so this is an extension and not a refit"
+            )
         print()
         return
 

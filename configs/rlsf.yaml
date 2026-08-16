@@ -1,0 +1,151 @@
+# RLSF (GRPO, group-relative updates via trl.GRPOTrainer)
+
+generator:
+  provider: local
+  model: Qwen/Qwen2.5-7B-Instruct         # locked base, unquantized, as in every condition
+  adapter_path: models/peft_lora_r32_lr2e-4/checkpoint-1358   # RLSF init = frozen PEFT cell
+  max_tokens: 192                         # covers the 2x-ref feasibility band (dev refs p95=61 tok,
+                                          #  0% in-band truncation); 1024 was ~4x the GRPO activation
+  dtype: bfloat16
+  device_map: auto
+  load_in_4bit: false                     # quantizing would redefine the frozen control
+
+# Byte-identical to the PEFT condition's prompt assembly. RLSF adapts the policy, not
+# the prompt; changing anything here confounds the arm with a prompting change.
+prompt:
+  style_instruction_file: prompts/style_instruction.txt
+
+rlsf:
+  seed: 42
+
+  # Not the locked greedy decoding: at temperature 0 a group has no variance and
+  # group_normalize returns all zeros (reward.py:203). Greedy still governs inference.
+  rollout:
+    temperature: 1.0                      # -> GRPOConfig.temperature
+    top_p: 0.95                           # -> GRPOConfig.top_p
+    prompts_per_step: 8
+    group_size: 4                         # -> GRPOConfig.num_generations; 8 x 4 = 32 calls/step
+
+
+  reference:
+    adapter_path: models/peft_lora_r32_lr2e-4/checkpoint-1358   # frozen copy of the init
+    beta: 0.01                            # -> GRPOConfig.beta, the KL coefficient
+
+
+  # GRPO field names throughout: TRL has no ppo_epochs or clip_range, and a PPO-shaped
+  # config would not describe the update this arm actually runs.
+  train:
+    learning_rate: 0.000001
+    # The budget is a fixed number of rollouts, not a token count: under the HF default
+    # (linear to zero) the last third of 300 rollouts would step at almost nothing.
+    lr_scheduler_type: constant
+    warmup_ratio: 0.0                     # constant discards a warmup; see grpo_args
+    num_iterations: 4                     # mu: optimization passes per rollout. At 1 the
+                                          #  ratio is identically 1 and epsilon is inert.
+    epsilon: 0.2                          # clip range on the importance ratio
+    loss_type: dapo                       # token-normalized over the batch; no length bias
+    scale_rewards: none
+    per_device_train_batch_size: 1
+    logging_steps: 1                      # one StepLog JSON line per rollout (reward.py:334)
+    gpu_memory_fraction: 0.85             # applied only when reward.kiwi.gpus > 0, so the
+                                          #  COMET encoder is not left to OOM on 0.4 GB
+    save_every_rollouts: 25               # 0 disables; rollouts between GRPO checkpoints
+    save_total_limit: null          
+
+
+  reward:
+    w_kiwi: 1.0                           # omega_1, adequacy: COMET-Kiwi, reference-free
+    w_bleu: 1.0                           # omega_2, overlap
+    w_judge: 1.0                          # omega_3, register: prompts/judge_train.txt
+    len_min_ratio: 0.5                    # feasible generated length, as a ratio of the
+    len_max_ratio: 2.0                    #  reference word count
+    on_violation: floor                   # floor | drop
+    overlap_metric: bleu                  # bleu | chrf
+
+    kiwi:
+      model: Unbabel/wmt22-cometkiwi-da
+      batch_size: 16
+      # COMET runs in .venv-comet; the worker is long-lived across steps (kiwi.py:37).
+      python: .venv-comet/bin/python
+      # 0 keeps the encoder off the training card: slower, but it does not compete for
+      # the 32 GB the policy already fills. At 1 it takes gpu_memory_fraction's remainder.
+      gpus: 0
+
+  weight_grid:
+    steps_per_cell: 50
+    cells:
+      - {name: w3_0.0, w_kiwi: 1.0, w_bleu: 1.0, w_judge: 0.0}   # ablation: no style term
+      - {name: w3_0.5, w_kiwi: 1.0, w_bleu: 1.0, w_judge: 0.5}
+      - {name: w3_1.0, w_kiwi: 1.0, w_bleu: 1.0, w_judge: 1.0}
+      - {name: w3_2.0, w_kiwi: 1.0, w_bleu: 1.0, w_judge: 2.0}
+      - {name: w3_6.0, w_kiwi: 1.0, w_bleu: 1.0, w_judge: 6.0}
+
+    exploratory:
+      # One component each: which term is doing the work the combined reward gets credit for.
+      - {name: lex_only,  w_kiwi: 0.0, w_bleu: 1.0, w_judge: 0.0}
+      - {name: sem_only,  w_kiwi: 1.0, w_bleu: 0.0, w_judge: 0.0}
+      - {name: judge_only, w_kiwi: 0.0, w_bleu: 0.0, w_judge: 1.0}  
+      - {name: gate_j3, w_kiwi: 1.0, w_bleu: 1.0, w_judge: 0.0, judge_gate: 3.0}
+      - {name: gate_j4, w_kiwi: 1.0, w_bleu: 1.0, w_judge: 0.0, judge_gate: 4.0}
+      - {name: gate_j5, w_kiwi: 1.0, w_bleu: 1.0, w_judge: 0.0, judge_gate: 5.0}
+      - {name: stylo_only, w_kiwi: 0.0, w_bleu: 0.0, w_judge: 0.0, w_stylo: 1.0}
+      - {name: mix_stylo,  w_kiwi: 1.0, w_bleu: 1.0, w_judge: 0.0, w_stylo: 1.0}
+      - {name: chrf_only, w_kiwi: 0.0, w_bleu: 1.0, w_judge: 0.0, overlap_metric: chrf}
+      - {name: mix_chrf,  w_kiwi: 1.0, w_bleu: 1.0, w_judge: 0.0, overlap_metric: chrf}
+      - {name: fixed_scale, w_kiwi: 1.0, w_bleu: 1.0, w_judge: 1.0, normalization: fixed}
+
+  stop:
+    feature: marker_rate                  # the direction the register reward can be gamed in
+    baseline_steps: 20                    # opening steps averaged into the baseline
+    window: 5                             # consecutive steps that must all sit above the band
+    k_sigma: 4.0                          # band width, in pooled standard errors
+    min_delta: 0.23                       # centroid std devs; val ladder's peft-to-random_fewshot gap
+
+
+  plan:
+    rollouts: 300                         # the pre-registered run length; what a run defaults to
+
+  caps:
+    max_steps: 600                        # ceiling, not the plan: see plan.rollouts
+    max_grid_steps: 200
+    max_judge_calls: 340000               # backstop against a rate regression, not the plan
+    max_judge_spend_usd: 8.0             
+    group_size_ceiling: 8                 # authorized ceiling; rollout.group_size may not exceed
+
+  pilot:
+    judge_calls: 80                       # 20 segments x G=4, the smoke's brief. Diagnostic:
+                                          #  is the rubric discriminative within one group?
+
+  pool:
+    n: 8                                  # samples per segment; at the group_size_ceiling
+    judge_calls: 3992                     # 499 dev segments x 8, priced $0.29 in docs/budget.md
+    chunk: 25                             # segments scored before the pool file is appended to
+
+
+judge:
+  provider: openai
+  model: gpt-4o-mini                      # priced in src/infer/openai_client.py:17
+  temperature: 0.0
+  seed: 42
+  max_tokens: 128
+  concurrency: 8                          # judge calls in flight; the loop is latency-bound
+                                          #  and a step's 64 calls block the GPU serially
+
+template_file: prompts/judge_train.txt    # frozen; digest verified on load
+
+
+data:
+  train_file: data/splits/rlsf_train.jsonl   # PPO updates
+  dev_file: data/splits/rlsf_dev.jsonl       # weight-grid selection; never reported
+  centroid_file: results/stylometrics_centroid.json   # z-deviation logging only
+  # Extends the above with sent_len_mean and sent_len_var, the four shared features
+  # unchanged. Carries both sides of the REWARD_FEATURES / HELDOUT_FEATURES split.
+  split_centroid_file: results/stylometrics_centroid_split.json
+  limit: null
+
+
+output:
+  dir: outputs
+  step_log: outputs/rlsf/steps.jsonl      # one StepLog line per rollout step
+  pool: outputs/rlsf/pool.jsonl           # one row per dev segment: N completions and scores
+  adapter_dir: models/rlsf_grpo           # trained adapter, written once at the end

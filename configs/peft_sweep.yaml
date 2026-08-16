@@ -1,4 +1,4 @@
-# --- Generation (locked open-source base; matches base_qwen.yaml decoding) ---
+# Generation (locked open-source base; matches base_qwen.yaml decoding) 
 generator:
   provider: local
   model: Qwen/Qwen2.5-7B-Instruct   # single source of truth for the locked base
@@ -10,11 +10,11 @@ generator:
   device_map: auto
   load_in_4bit: false
 
-# --- Prompting ---
+# Prompting 
 prompt:
   style_instruction_file: prompts/style_instruction.txt
 
-# --- PEFT / LoRA (shared hyperparameters; r + lr come from the grid) ---
+# PEFT / LoRA (shared hyperparameters; r + lr come from the grid) 
 peft:
   output_dir: models/peft_lora           # overridden per cell by the sweep driver
   load_in_4bit: false
@@ -42,17 +42,17 @@ peft:
     save_total_limit: null                 # keep ALL epoch checkpoints (epoch is a tuned axis)
     load_best_model_at_end: false          # do NOT collapse to the eval_loss-best epoch
 
-# --- Data ---
+# Data 
 data:
   train_file: data/splits/train.jsonl    # 10,860 pairs
   eval_file: data/splits/val.jsonl       # dev split; cells generate + score on this
   limit: null
 
-# --- Output  ---
+# Output  
 output:
   dir: outputs
 
-# --- Register-fit target (Phi proxy axis) ---
+# Register-fit target (Phi proxy axis) 
 
 register:
   centroid_file: results/stylometrics_centroid.json
@@ -63,7 +63,7 @@ register:
     root_ttr: -0.296
     ttr: 0.098
 
-# --- Sweep grid ---
+# Sweep grid 
 sweep:
   output_base: models                    # adapters land in <output_base>/peft_lora_r{r}_lr{lr}/
   grid:

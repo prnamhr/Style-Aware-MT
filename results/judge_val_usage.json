@@ -1,0 +1,23 @@
+{
+  "model": "claude-haiku-4-5",
+  "tag": null,
+  "conditions": [
+    "rlsf_w3_0.0",
+    "rlsf_w3_2.0",
+    "rlsf_w3_6.0"
+  ],
+  "limit": null,
+  "priced": true,
+  "session": {
+    "calls": 3969,
+    "prompt_tokens": 1881647,
+    "completion_tokens": 434600,
+    "cost_usd": 4.0546
+  },
+  "cumulative": {
+    "calls": 3969,
+    "prompt_tokens": 1881647,
+    "completion_tokens": 434600,
+    "cost_usd": 4.0546
+  }
+}

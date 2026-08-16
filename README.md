@@ -4,8 +4,8 @@ Style-aware neural machine translation of Persian and mixed Persian/Arabic Bahá
 
 Undergraduate thesis project — BIHE, Department of Computer Engineering. Supervisor: Dr. Fares Hedayati.
 
-> **Status:** in progress (last updated 2026-08-04).
-> Six of seven conditions — the five prompting rungs and PEFT — are implemented, tuned, frozen, and scored on the **validation** split; their numbers are in [Results](#results-validation-split). RLSF is not yet implemented. The test split is sealed and untouched. No testing has been run yet, so all reported differences are point estimates.
+> **Status:** in progress (last updated 2026-08-10).
+> Six of seven conditions — the five prompting rungs and PEFT — are implemented, tuned, frozen, and scored on the **validation** split; their numbers are in [Results](#results-validation-split). RLSF is implemented — GRPO loop, reward path, spend caps, register-drift stop, best-of-N pool and ω grid — and has **not been run**: the only RLSF spend to date is the reward-path smoke. The test split is sealed and untouched, so every figure below is a validation figure and none is a final result.
 
 ---
 
@@ -19,13 +19,13 @@ The three adaptation strategies:
 |---|---|---|
 | **PEFT (LoRA)** | Supervised fine-tuning of LoRA adapters on parallel data | Yes (adapters only) |
 | **AFSP** | Adaptive Few-Shot Prompting; retrieval of stylistically relevant exemplars into the prompt at inference time | No |
-| **RLSF (PPO)** | Reinforcement learning from a mixed reward combining COMET, BLEU, and an LLM-as-Judge style score | Yes (from PEFT init) |
+| **RLSF (GRPO)** | Reinforcement learning from a mixed reward combining COMET-Kiwi, BLEU, and an LLM-as-Judge style score | Yes (from PEFT init) |
 
 Plus a fourth condition — the **unadapted base model** — as reference.
 
-All four are evaluated on the same held-out test set with COMET, BLEU, objective stylometric features, and LLM-as-Judge scoring.
+All four are to be evaluated on the same held-out test set with COMET, BLEU, objective stylometric features, and LLM-as-Judge scoring. Nothing has been generated on test yet; the figures reported here are on validation.
 
-**Implementation status:** PEFT and the AFSP/prompting ladder are complete and scored on validation; RLSF is not yet implemented. The current comparison is therefore three-way (base, prompting ladder, PEFT).
+**Implementation status:** PEFT and the AFSP/prompting ladder are complete and scored on validation; RLSF is implemented but unrun. The current comparison is therefore three-way (base, prompting ladder, PEFT).
 
 ---
 
@@ -53,14 +53,15 @@ Full hypotheses (H1–H4) and support criteria live in the thesis proposal ([`do
 │   ├── data/                  ← preprocessing, alignment, split logic
 │   ├── peft/                  ← LoRA training (PEFT condition)
 │   ├── retrieval/             ← kNN retrieval index + prompt assembly (knn_fewshot baseline → AFSP)
-│   ├── rlsf/                  ← PPO loop, reward, best-of-N fallback
+│   ├── rlsf/                  ← GRPO loop, reward, best-of-N pool and ω grid
 │   ├── eval/                  ← COMET, BLEU, stylometrics, LLM-as-Judge
 │   └── infer/                 ← test-set inference for all four conditions
 ├── configs/                   ← YAML configs per condition + decoding settings
 ├── prompts/
 │   ├── style_instruction.txt
 │   ├── judge_train.txt        ← judge template used inside RLSF reward
-│   └── judge_eval.txt         ← separate judge template for final evaluation
+│   ├── judge_eval.txt         ← separate judge template for final evaluation
+│   └── hashes.json            ← freeze record: sha256 of both judge templates
 ├── models/                    ← trained LoRA adapters, one dir per sweep cell (+ epoch checkpoints)
 ├── outputs/                   ← <condition>_<split>.jsonl per run (split tag, e.g. _val)
 │   ├── sweep/                 ← AFSP k × λ sweep cells
@@ -136,22 +137,43 @@ The index is built over the **source** side (not the English targets) so that th
 
 **Sweep and freeze.** k × λ_style was swept on the full val split over **k ∈ {4, 8, 16} × λ ∈ {0, 0.1, 0.25, 0.5, 0.75, 1.0}** (18 cells, β fixed at 0.3), ranked on a chrF adequacy band then register fidelity, and the top three cells were re-confirmed on COMET and judge Φ before freezing. **Frozen: k = 8, λ_style = 0.75, β = 0.3, σ = 1.0.** Pattern: Tang et al. [AFSP, 2025]; related precedents in Wang et al. style-activation prompting and style-matching exemplar selection.
 
-### RLSF (PPO)
+### RLSF (GRPO)
+- **Algorithm:** group-relative policy optimization (`trl.GRPOTrainer`), not PPO. Each prompt is
+  sampled G times and the reward is normalized within its group, so there is no value head and
+  no clip range in the PPO sense; `configs/rlsf.yaml` carries GRPO field names for that reason
+  (DEVLOG, 2026-08-08).
 - **Init:** PEFT checkpoint.
-- **Reference policy:** frozen copy of the PEFT checkpoint, used for KL regularization.
+- **Reference policy:** frozen copy of the PEFT checkpoint, used for KL regularization (β).
 - **Reward:**
   ```
-  r(y) = ω₁ · COMET(x, y, y*) + ω₂ · BLEU(y, y*) + ω₃ · Φ(y, S_T)
+  r(y) = ω₁ · COMET-Kiwi(x, y) + ω₂ · BLEU(y, y*) + ω₃ · Φ(y, S_T)
   ```
-  with `Φ` an LLM-as-Judge style score using the **training-time** judge template. Weights are dev-tuned over a small grid that intentionally varies ω₃ relative to (ω₁, ω₂).
-- **Bounded:** PPO step cap, batch cap, and judge API spend cap to be declared in [`docs/budget.md`](docs/budget.md) before training starts — the file now exists and records spend to date, but those three caps are still unfixed.
-- **Fallback:** if PPO does not converge under budget, RLSF is reported using **best-of-N reranking** of PEFT-checkpoint samples, scored with the same reward.
+  The adequacy term is **reference-free** (`wmt22-cometkiwi-da`), deliberately not the
+  reference-based `wmt22-comet-da` that scores the final evaluation, so the arm is not trained
+  on its own evaluation metric. `Φ` is an LLM-as-Judge style score using the **training-time**
+  judge template. Each component is z-scored within its group before the ω weights apply, and
+  the weight vector is rescaled to unit L2 norm (`src/rlsf/config.py:reward_config`) so that a
+  grid cell changes the weighting and not the effective step size. Weights are tuned on the
+  RLSF dev slice over four cells including a `ω₃ = 0` ablation, in
+  [`configs/rlsf.yaml`](configs/rlsf.yaml).
+- **Arms:** three are trained, at ω₃² = 0, 2/3 and 36/38 of the reward's variance —
+  `w3_0.0` (RL-Metric, free, `--skip_judge`), `w3_2.0` and `w3_6.0`. The first two are
+  pre-registered in [`docs/preregistration_rlsf.md`](docs/preregistration_rlsf.md); the third is
+  added by that document's 2026-08-13 addendum, which also records β 0.05 → 0.01, the rollout at
+  8 prompts × G = 4, and 300 rollouts per arm. `w3_6.0` is a training arm only and is not a
+  candidate for the ω selection rule, which was pre-registered over the original four cells.
+- **Reward judge:** `gpt-4o-mini`, **model-distinct from both evaluation raters** (Φ_A `claude-haiku-4-5`, Φ_B `gpt-5.6-terra`). RLSF is the only arm optimized against a judge, so it is the arm whose Φ most needs raters it was not trained against; training on either would spend one of them. It is also the only candidate honouring both `temperature: 0` and `seed: 42`, which matters here because group normalization turns rater noise into gradient noise. A Qwen judge is excluded as self-preference bias against a Qwen policy.
+- **Bounded:** capped at **$25 of judge spend** for the arm, declared 2026-08-08 and derived in [`docs/budget.md`](docs/budget.md) from the smoke's measured $7.375e-5 per call. `JudgeBudget` opens at zero on every invocation, so what the config enforces is **$8 per run** — three paid runs, $24. The plan under it, re-priced 2026-08-13, is three arms of 300 rollouts plus the dev-slice best-of-N pool, $1.43; the step caps (600 final, 200 grid) bind first, at $2.83 for a single run at the group-size ceiling, and the call and dollar caps are a backstop against the per-call rate moving. `src/rlsf/config.py:assert_caps_declared` refuses to load the config if any cap is nulled again.
+- **Register-drift stop:** the run halts if `marker_rate` leaves the regime it opened in — the direction the register reward can be gamed. The band is set from a simulated false-alarm rate rather than a per-check σ level (DEVLOG, 2026-08-09), and the operating point is pinned by a test. At the 8-prompt rollout the band widens to 0.933 centroid σ and power against a +0.35 step falls to about half; the rule was not retuned to recover it, and the addendum records what that costs.
+- **Checkpoint selection:** `manage.py rlsf_select` scores every saved checkpoint of an arm on the dev slice and ranks on the chrF adequacy band then held-out register distance — the rule `src/peft/sweep.py` uses. No judge: the training rubric is what the paid arms optimize, and the evaluation raters are spent once, on val.
+- **Per-step telemetry:** reward mean and spread, per-component raw and normalized means, feasibility and degenerate-group fraction, signed z per centroid feature with clustered error, the drift verdict, the trainer's own `kl`/`grad_norm`/`learning_rate`, and `adapter_delta` — how far the LoRA weights have travelled from the initialization. The last exists so a flat style score can be told apart from an optimizer that never moved.
+- **Fallback:** if the GRPO run does not converge under budget, RLSF is reported using **best-of-N reranking** of PEFT-checkpoint samples, scored with the same reward.
 
 ---
 
 ## Evaluation
 
-All four conditions, same held-out test set, same decoding settings (temperature, top-p, max-new-tokens fixed and logged before inference).
+All four conditions, same split, same decoding settings (temperature, top-p, max-new-tokens fixed and logged before inference). Everything reported so far is on validation; the test split is reserved for the final pass.
 
 | Axis | Metric | Notes |
 |---|---|---|
@@ -163,7 +185,7 @@ All four conditions, same held-out test set, same decoding settings (temperature
 | Cost | Trainable params, inference latency, RLSF API calls + spend | reported per condition |
 
 ### Judge circularity mitigation
-- Two separate, fixed judge templates: training-time (for RLSF reward) vs. evaluation-time (for final scoring). Templates are frozen before their respective phases and never tuned against the test set.
+- Two separate, fixed judge templates: training-time (for RLSF reward) vs. evaluation-time (for final scoring). Templates are frozen before their respective phases and never tuned against the test set. Both are hashed in [`prompts/hashes.json`](prompts/hashes.json) **at freeze time**, and `src/rlsf/reward.py:load_train_template` verifies the training rubric against that record on every load, so which rubric a run read is checkable from the artifacts rather than asserted from a config (DEVLOG, 2026-08-07).
 - Test partition is unseen during RLSF.
 - A **cross-family** confirmation pass with a judge from a different LLM family was run on 2026-08-05 (`gpt-5.6-terra`, same frozen rubric, all seven conditions, val); judge–judge agreement and contrast replication are reported below.
 
@@ -196,7 +218,7 @@ All four conditions, same held-out test set, same decoding settings (temperature
 
 ### Statistics
 - System-level comparisons: paired bootstrap at the segment level, α = 0.05. Primary: each adaptation vs. the zero-shot base. Secondary: pairwise among the adaptation conditions, and adjacent rungs of the prompting ablation ladder.
-- Evaluation-component agreement (RQ4): pairwise Spearman correlation between COMET, stylometric distance, and LLM-as-Judge, with 95 % bootstrap CIs. Descriptive only.
+- Evaluation-component agreement (RQ4): pairwise Spearman correlation between COMET, stylometric distance, and LLM-as-Judge, with 95 % bootstrap CIs, computed at two levels and **reported at both** (`manage.py metric_agreement` → `results/metric_agreement_val.json`). Condition level is six points and is descriptive only. Segment level is the one with power, and the two do not agree: across the six study conditions ρ(Φ, `stylo_dist`) = −0.657 over six condition means, but pooled over 7,937 segments ρ(Φ, `centroid_dist`) = −0.045 [−0.068, −0.023] and ρ(Φ, `band_dist`) = +0.007 [−0.015, +0.030]. Φ tracks COMET far better than it tracks either register proxy (ρ = 0.453 [0.434, 0.472]). Quoting the condition-level figure alone would be an ecological correlation: what separates conditions on average does not order segments within a condition.
 
 ### Results *(validation split)*
 
@@ -213,7 +235,7 @@ sealed and has not been generated on.** Judge Φ is a 1–5 rubric scored by
 | AFSP-margin (k = 8, λ = 0) | 0.6824 | 39.68 | 13.69 | 2.763 | 0.4060 | 0.8387 | 0.3910 | 0 |
 | AFSP-full (k = 8, λ = 0.75) | 0.6853 | 39.99 | 14.52 | **2.791** | 0.4105 | 0.8421 | 0.3698 | 0 |
 | PEFT (LoRA, r = 32, 2 ep.) | **0.6986** | **41.58** | **16.90** | 2.744 | 0.4088 | 0.8515 | **0.2886** | 80.7 M (1.06 %) |
-| RLSF (PPO) | — | — | — | — | — | — | — | — |
+| RLSF (GRPO) | — | — | — | — | — | — | — | — |
 
 Lower `Stylo. dist.` is better (standardized distance to the target-register centroid).
 Latency is not instrumented; `outputs/*_usage.json` records token counts only.
@@ -261,9 +283,22 @@ Read against these intervals, three earlier readings of the table do not hold:
   and it is the weakest of the four metrics. Treat it as a lead to power up, not a
   result.
 
-The `Stylo. dist.` monotonicity across the ladder (0.652 → 0.370) is descriptive and
-was not bootstrapped; it is a distance between mean feature vectors, not a per-segment
-score, so the CLI cannot resample it as it stands.
+**The `Stylo. dist.` ladder is monotone but not separable.** The column falls
+0.652 → 0.370 across the ladder, and `manage.py stylometrics_ci` resamples it by
+recomputing the condition's mean feature vector inside each bootstrap replicate
+(`results/stylometrics_ci_val.json`, 2,000 paired resamples, seed 42). Under those
+intervals the two AFSP steps do not separate:
+
+| Adjacent step | Δ `stylo_dist` | 95 % CI | p |
+|---|---:|---|---:|
+| AFSP-full − AFSP-margin | −0.021 | [−0.057, +0.012] | .232 |
+| AFSP-margin − kNN few-shot | −0.009 | [−0.038, +0.021] | .577 |
+| kNN few-shot − random few-shot | −0.073 | [−0.131, −0.017] | .004 |
+| PEFT − AFSP-full | −0.080 | [−0.130, −0.030] | .002 |
+
+So the retrieval floor separates and PEFT separates, while the adaptive layer does not —
+the same pattern the COMET/Φ/chrF/BLEU bootstraps show. Read the monotone ordering as
+descriptive; only the two marked steps are resolved.
 
 **Detection floor for the RLSF arm.** The Φ CI half-width against PEFT at n = 1,323 is
 ≈0.058, and the COMET half-width ≈0.005. RLSF must clear those margins over its own
@@ -276,8 +311,8 @@ zero-shot to AFSP-full moves Φ by 0.245.
 `prompts/style_instruction.txt` as the `zeroshot` rung, temperature 0, on the same 1,323
 validation segments ([`configs/commercial_haiku_zeroshot.yaml`](configs/commercial_haiku_zeroshot.yaml)).
 It is a **labelled external reference baseline**, not an arm of the comparison: it holds
-neither the frozen base model nor a matched adaptation budget.
-general-purpose commercial model does on this corpus without adaptation.
+neither the frozen base model nor a matched adaptation budget. It answers one question
+only — what a general-purpose commercial model does on this corpus without adaptation.
 
 | Condition | COMET | chrF | BLEU | Judge Φ | Lex. density | TTR | Stylo. dist. | Cost |
 |---|---|---|---|---|---|---|---|---|
@@ -332,9 +367,12 @@ selection and freeze records are in `results/{afsp,peft}_{sweep,verify}_val.json
 
 | Type | Threat | Status |
 |---|---|---|
+| Internal | **Hyperparameters were selected on the split the results are reported on.** The PEFT grid (`configs/peft_sweep.yaml:48`) and the AFSP k × λ sweep (`configs/afsp_sweep.yaml:42`) both rank candidates on `val.jsonl`, and the results table is val | **Open, unquantified.** The val figures for the two tuned conditions (PEFT, AFSP-full) are selection-optimistic by an unmeasured amount; the untuned rungs are not. This is what the sealed test split is held back for, so the final numbers must come from test with no further selection. Until then no val gap between a tuned and an untuned condition should be read as an unbiased effect size |
+| Construct | **The register metric used to select is the register metric reported.** `results/stylometrics_centroid.json` drives the AFSP λ rerank, both sweeps' `register_fit` ranking, and the reported `Stylo. dist.` column | **Open by construction.** AFSP's λ = 0.75 and the PEFT checkpoint were chosen to minimise a function of that centroid, so `Stylo. dist.` is not an independent measure for them. `register_fit` (directional) and `stylo_dist` (undirected) are different functionals, which weakens but does not remove the circularity. Φ and COMET are unaffected — neither enters selection |
 | Construct | Single-judge dependence for the primary metric Φ | **Measured, 2026-08-05.** Cross-family pass run (`gpt-5.6-terra`, same frozen rubric, 9,132 paired segments): κ = 0.384 [0.370, 0.398], severity offset −0.950 [−0.968, −0.932]. Four of five primary Φ contrasts do not replicate; the AFSP-vs-baseline null does. Bounds rater dependence — does not establish that either rater measures register correctly |
+| Construct | Reward judge family-adjacent to Φ_B, for the RLSF row only | **Accepted, not yet incurred** (no RLSF run exists). The reward judge `gpt-4o-mini` is model-distinct from both raters but shares a provider family with Φ_B `gpt-5.6-terra`, so Φ_B is family-adjacent rather than fully clean for the one condition trained against a judge. Weaker than model-identical contamination; Φ_A stays clean. Any RLSF Φ claim states which rater it rests on |
 | Internal | Judge non-determinism | **Unresolved for both raters.** `claude-haiku-4-5` exposes no seed; `gpt-5.6-terra` accepts `seed: 42` as best-effort only. Φ differences of order 0.05 are within measurement noise |
-| Construct | Rubric identity across raters asserted, not verified | Rater A's results predate `template_sha256` recording, so `template_verified: false` in the agreement report. Closable only by re-spending on Φ_A |
+| Construct | Rubric identity across raters asserted, not verified | **Open for Φ.** Rater A's results predate `template_sha256` recording, so `template_verified: false` in the agreement report. Closable only by re-spending on Φ_A. Prevented from recurring on the RLSF side: both rubrics were hashed into `prompts/hashes.json` at freeze time on 2026-08-07 and the training rubric is verified on load |
 | Measurement | 1.4 % of Φ_B ratings missing (129 of 9,261) | Non-random: a rating is missing because the response did not parse. No imputation; every contrast computed on the paired intersection, n stated |
 | Conclusion | Multiplicity across 56 uncorrected tests | Acknowledged; Holm–Bonferroni applied per claim, and correction status stated. The one AFSP separation (BLEU +0.58, p = .010) does not survive it |
 | Conclusion | Sample size below the detection floor for small effects | Quantified: Φ half-width ≈0.058, COMET ≈0.005 at n = 1,323. Effects below it are reported as unresolvable, not absent |
@@ -347,9 +385,9 @@ selection and freeze records are in `results/{afsp,peft}_{sweep,verify}_val.json
 
 ## Reproducibility
 
-- Fixed random seeds at every stochastic stage (split, PEFT training, AFSP tie-breaking, PPO rollouts, judge sampling).
-- Pinned library versions (`transformers`, `peft`, `trl`, `unbabel-comet`, `sacrebleu`, `sentence-transformers`, `faiss`).
-- Logged per run: base model + revision, all prompts (system, user, judge × 2), decoding params, LoRA config, PPO config, reward weight grid and selected point, file hashes for splits and test outputs.
+- Fixed random seeds at every stochastic stage (split, PEFT training, AFSP tie-breaking, GRPO rollouts, judge sampling where the provider honours one).
+- Pinned library versions in `requirements.txt` (`transformers`, `peft`, `trl`, `sacrebleu`, `sentence-transformers`) and `requirements-comet.txt` (`unbabel-comet`). Retrieval is exact cosine over a stored embedding matrix (`data/knn_index/embeddings.npy`), so there is no ANN library and no index-approximation parameter to pin.
+- Logged per run: base model + revision, all prompts (system, user, judge × 2), decoding params, LoRA config, GRPO config, reward weight grid and selected point, file hashes for splits and test outputs.
 - Generation is greedy and deterministic, so a condition reproduces byte-for-byte given the same adapter and prompt. **The judge does not:** `claude-haiku-4-5` exposes no seed, so Φ is re-sampled on every run.
 - Known gaps: LoRA cells are trained once (no seed replication), and the AFSP register direction is hard-coded in six configs with no derivation script (see [`docs/DEVLOG.md`](docs/DEVLOG.md), 2026-07-18).
 - Greedy decoding reproduces byte-for-byte *within* a session but did not across sessions: two resumed runs (`zeroshot`, `afsp_full`) differ from their swept cells in 2 and 5 of 1,323 segments (see [`docs/DEVLOG.md`](docs/DEVLOG.md), 2026-07-31).
@@ -359,7 +397,7 @@ selection and freeze records are in `results/{afsp,peft}_{sweep,verify}_val.json
 ## Constraints
 
 - **Compute:** Colab for every GPU stage (sweeps, training, full-split inference) — the 8 GB development GPU cannot hold `Qwen2.5-7B-Instruct` in bf16, and quantizing it would change the frozen-base definition. LoRA default; QLoRA fallback.
-- **API budget:** judge calls and the commercial reference baseline are the only paid components so far — **$6.75 recorded to date**, of which $6.12 is the 2026-08-05 cross-family judge pass (9,261 calls, Batch API at 50 % discount). RLSF judge calls will dominate once implemented. Spend, rules, and the fallback are in [`docs/budget.md`](docs/budget.md); the declared cap itself still has to be transcribed there from the proposal. If approached, switch to best-of-N reranking.
+- **API budget:** judge calls and the commercial reference baseline are the only paid components so far — **$6.76 recorded to date**, of which $6.12 is the 2026-08-05 cross-family judge pass (9,261 calls, Batch API at 50 % discount). RLSF judge calls will dominate once implemented, and are capped at $25 (declared 2026-08-08). Spend, the derivation of that cap, the per-run rules and the fallback are in [`docs/budget.md`](docs/budget.md). If the cap is approached, switch to best-of-N reranking.
 - **Scope:** the project does not claim to fully capture literary or sacred style. It documents trade-offs across three adaptation families on one specific corpus and language combination not previously addressed in published LLM-MT work.
 
 ---
@@ -378,7 +416,7 @@ pip install -r requirements.txt
 
 python -m venv .venv-comet
 source .venv-comet/bin/activate
-pip install torch==2.13.0 --index-url https://download.pytorch.org/whl/cpu  # local/off-GPU; skip on Colab
+pip install torch --index-url https://download.pytorch.org/whl/cpu  # local/off-GPU; skip on Colab
 pip install -r requirements-comet.txt
 deactivate
 
@@ -411,9 +449,32 @@ python manage.py peft_verify --config configs/peft_sweep.yaml --top 3 \
 python manage.py infer --condition peft --config configs/peft_qwen.yaml
 # (`manage.py peft --config configs/peft_qwen.yaml` trains a single adapter without the sweep)
 
-# RLSF — not yet implemented; neither the `rlsf` command nor configs/rlsf.yaml exists yet
-# python manage.py rlsf  --config configs/rlsf.yaml
-# python manage.py infer --condition rlsf --config configs/rlsf.yaml
+python manage.py rlsf_dev --target 500 --seed 42             # dev slice: 499 / 10,361 (done)
+
+# Reward-path smoke: Kiwi handshake, within-group reward spread, StepLog write, length band.
+# Bounded by rlsf.pilot.judge_calls (80), separately from the training caps.
+python manage.py rlsf_smoke --segments 4 --skip_judge             # free: judge held flat
+python manage.py rlsf_smoke --segments 20 --group_size 4 --yes    # paid: 80 judge calls, $0.0059
+python manage.py rlsf_smoke --hyps_file outputs/rlsf/smoke_hyps.jsonl --yes  # re-score, no sampling
+
+# RLSF training and the ω grid. Implemented, not yet run.
+# python manage.py rlsf_train --dry_run                     # CPU wiring check, 0.5B, no spend
+# python manage.py drift_oc --steps 300                     # operating characteristic of the stop rule
+# The 50-rollout smoke is where the geometry is checked before a paid arm starts. Read three
+# things off it: `adapters ['default', 'ref']` (the KL anchors at the init, not the base), no
+# offload assertion (the policy is wholly on the card), and the `peak VRAM` line against the
+# rented card. It also writes 2 checkpoints, which is what the arm's disk cost scales from.
+# python manage.py rlsf_train --cell w3_0.0 --steps 50 --skip_judge \
+#   --out outputs/rlsf/smoke50_steps.jsonl --adapter_out models/rlsf_smoke50 --overwrite
+# python manage.py rlsf_train --cell w3_0.0 --steps 300 --skip_judge   # RL-Metric, free
+# python manage.py rlsf_train --cell w3_2.0 --steps 300 --yes          # 9,600 calls, $0.71
+# python manage.py rlsf_train --cell w3_6.0 --steps 300 --yes          # 9,600 calls, $0.71
+# python manage.py rlsf_pool  --yes                         # dev-slice best-of-N pool
+# python manage.py rlsf_omega                               # re-argmax the pool per ω cell, free
+# python manage.py rlsf_select --cell w3_2.0                # checkpoint selection on all 499 dev segments, free
+# There is no `rlsf` inference condition: a trained adapter is scored through `peft`.
+# python manage.py infer --condition peft --config configs/rlsf_eval_w3_2.0.yaml \
+#   --out-name rlsf_w3_2.0
 ```
 
 The GPU stages (sweeps, training, full-split inference) do not fit an 8 GB development
@@ -438,6 +499,13 @@ python manage.py judge         --conditions $CONDS --split val --config configs/
 
 # Stylometrics vs. the target-register centroid (per-condition feature table)
 python manage.py stylometrics  --conditions $CONDS --split val
+
+# Bootstrap CIs, paired adjacent differences and rank distributions for stylo_dist and the
+# signed z-vector -> results/stylometrics_ci_val.json
+python manage.py stylometrics_ci --conditions $CONDS --split val
+
+# RQ4 metric agreement, condition level and segment level -> results/metric_agreement_val.json
+python manage.py metric_agreement --conditions $CONDS --split val
 
 # Paired-bootstrap 95% CIs for pairwise differences (α = 0.05), any metric
 python manage.py bootstrap --metric chrf  --conditions $CONDS --split val --adjacent
@@ -471,7 +539,7 @@ python manage.py bootstrap --metric $M --conditions $CONDS --split val --adjacen
 - Full thesis proposal: [`docs/proposal.pdf`](docs/proposal.pdf) — H1–H4 and support criteria
 - Engineering and decision log: [`docs/DEVLOG.md`](docs/DEVLOG.md) — what was built, why, and how to reproduce it
 - AFSP mechanism specification: [`docs/afsp_strategies.md`](docs/afsp_strategies.md)
-- Compute and API budget: [`docs/budget.md`](docs/budget.md) — spend to date, per-run rules, fallback. The declared cap is still only in the proposal and has to be transcribed
+- Compute and API budget: [`docs/budget.md`](docs/budget.md) — spend to date, the declared $25 RLSF cap and its derivation, per-run rules, fallback
 - Not yet written: `docs/methodology.md` (long-form methodology)
 
 ---

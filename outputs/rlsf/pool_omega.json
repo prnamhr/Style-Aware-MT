@@ -1,0 +1,1301 @@
+{
+  "pool": "outputs/rlsf/pool.jsonl",
+  "segments": 499,
+  "n": 8,
+  "subgroup": 4,
+  "seed": 42,
+  "feature": "marker_rate",
+  "feature_split": {
+    "centroid": "results/stylometrics_centroid_split.json",
+    "reward": [
+      "lex_density",
+      "sent_len_mean",
+      "sent_len_var"
+    ],
+    "heldout": [
+      "ttr",
+      "root_ttr",
+      "marker_rate"
+    ]
+  },
+  "heldout_bootstrap": {
+    "n_resamples": 2000,
+    "alpha": 0.05,
+    "seed": 42,
+    "anchor": "random"
+  },
+  "gates": {
+    "max_degenerate": 0.25,
+    "max_shift": 0.23
+  },
+  "per_component_degeneracy": {
+    "bleu": {
+      "groups": 499,
+      "degenerate": 4,
+      "degenerate_frac": 0.008016032064128256
+    },
+    "kiwi": {
+      "groups": 499,
+      "degenerate": 4,
+      "degenerate_frac": 0.008016032064128256
+    },
+    "judge": {
+      "groups": 499,
+      "degenerate": 19,
+      "degenerate_frac": 0.03807615230460922
+    },
+    "chrf": {
+      "groups": 499,
+      "degenerate": 4,
+      "degenerate_frac": 0.008016032064128256
+    },
+    "stylo": {
+      "groups": 499,
+      "degenerate": 7,
+      "degenerate_frac": 0.014028056112224449
+    }
+  },
+  "cells": [
+    {
+      "cell": "w3_0.0",
+      "evidence_class": "pre-registered",
+      "weights": {
+        "bleu": 0.7071,
+        "kiwi": 0.7071,
+        "judge": 0.0
+      },
+      "normalization": "group_z",
+      "judge_gate": null,
+      "n": 8,
+      "feasible": 3912,
+      "unmeasured": 0,
+      "degenerate_frac": 0.01,
+      "degenerate_groups": 5,
+      "groups": 499,
+      "picks": {
+        "picked": 497,
+        "unpicked_groups": 2,
+        "components": {
+          "bleu": 46.60914063058588,
+          "kiwi": 0.700854334433074,
+          "judge": 3.414486921529175,
+          "chrf": 62.91528597805839,
+          "stylo": -1.0675279312752697
+        },
+        "stylo_dist": 0.5725985421929712,
+        "reward_dist": 0.17478103936510664,
+        "heldout_dist": 0.5697798680789893,
+        "reward_per_sample": 1.0675279312752697,
+        "heldout_per_sample": 1.674162046918974,
+        "length_mean": 22.788732394366196,
+        "length_ratio_mean": 0.9783492594237663,
+        "marker_rate_shift": {
+          "segments": 497,
+          "delta": 0.02745090923347988,
+          "se": 0.024074330500025838
+        }
+      },
+      "subgroup": {
+        "group_size": 4,
+        "groups": 998,
+        "degenerate_groups": 24,
+        "degenerate_frac": 0.024,
+        "picks": {
+          "picked": 993,
+          "unpicked_groups": 5,
+          "components": {
+            "bleu": 40.578262206032484,
+            "kiwi": 0.6965045752782236,
+            "judge": 3.366565961732125,
+            "chrf": 58.73434787409578,
+            "stylo": -1.0949748716617562
+          },
+          "stylo_dist": 0.5580575578694781,
+          "reward_dist": 0.1673112199602652,
+          "heldout_dist": 0.5554464543220056,
+          "reward_per_sample": 1.0949748716617562,
+          "heldout_per_sample": 1.6746907944561342,
+          "length_mean": 22.860020140986908,
+          "length_ratio_mean": 0.9789773050721728,
+          "marker_rate_shift": {
+            "segments": 993,
+            "delta": 0.007777987995425589,
+            "se": 0.016472582721340737
+          }
+        }
+      },
+      "heldout_vs_random": {
+        "diff": 0.005663997456355592,
+        "ci_low": -0.05995934880522258,
+        "ci_high": 0.06913912662687129,
+        "p_value": 0.857,
+        "significant": false
+      }
+    },
+    {
+      "cell": "w3_0.5",
+      "evidence_class": "pre-registered",
+      "weights": {
+        "bleu": 0.6667,
+        "kiwi": 0.6667,
+        "judge": 0.3333
+      },
+      "normalization": "group_z",
+      "judge_gate": null,
+      "n": 8,
+      "feasible": 3912,
+      "unmeasured": 0,
+      "degenerate_frac": 0.008,
+      "degenerate_groups": 4,
+      "groups": 499,
+      "picks": {
+        "picked": 497,
+        "unpicked_groups": 2,
+        "components": {
+          "bleu": 46.773213336960026,
+          "kiwi": 0.6970435885236537,
+          "judge": 3.7122736418511066,
+          "chrf": 63.22131077652795,
+          "stylo": -1.0767521616650497
+        },
+        "stylo_dist": 0.6164874916543212,
+        "reward_dist": 0.16524889597107947,
+        "heldout_dist": 0.6134770460896706,
+        "reward_per_sample": 1.0767521616650497,
+        "heldout_per_sample": 1.6929000167613593,
+        "length_mean": 23.11066398390342,
+        "length_ratio_mean": 0.9918601882496122,
+        "marker_rate_shift": {
+          "segments": 497,
+          "delta": 0.0824196022452319,
+          "se": 0.025914021400592027
+        }
+      },
+      "subgroup": {
+        "group_size": 4,
+        "groups": 998,
+        "degenerate_groups": 14,
+        "degenerate_frac": 0.014,
+        "picks": {
+          "picked": 993,
+          "unpicked_groups": 5,
+          "components": {
+            "bleu": 40.56926555554561,
+            "kiwi": 0.694624410355079,
+            "judge": 3.585095669687815,
+            "chrf": 58.894065491337635,
+            "stylo": -1.0971619547535276
+          },
+          "stylo_dist": 0.5995138171643805,
+          "reward_dist": 0.1602573409600225,
+          "heldout_dist": 0.5955617894575415,
+          "reward_per_sample": 1.0971619547535276,
+          "heldout_per_sample": 1.68778328612158,
+          "length_mean": 23.10171198388721,
+          "length_ratio_mean": 0.9902957429130932,
+          "marker_rate_shift": {
+            "segments": 993,
+            "delta": 0.055484653154002875,
+            "se": 0.01633850216393269
+          }
+        }
+      },
+      "heldout_vs_random": {
+        "diff": 0.04924595630555069,
+        "ci_low": -0.018735682678394226,
+        "ci_high": 0.11044961903528797,
+        "p_value": 0.147,
+        "significant": false
+      }
+    },
+    {
+      "cell": "w3_1.0",
+      "evidence_class": "pre-registered",
+      "weights": {
+        "bleu": 0.5774,
+        "kiwi": 0.5774,
+        "judge": 0.5774
+      },
+      "normalization": "group_z",
+      "judge_gate": null,
+      "n": 8,
+      "feasible": 3912,
+      "unmeasured": 0,
+      "degenerate_frac": 0.008,
+      "degenerate_groups": 4,
+      "groups": 499,
+      "picks": {
+        "picked": 497,
+        "unpicked_groups": 2,
+        "components": {
+          "bleu": 44.86178850074814,
+          "kiwi": 0.6959731506269943,
+          "judge": 3.9517102615694166,
+          "chrf": 62.15373115387584,
+          "stylo": -1.0770944360937234
+        },
+        "stylo_dist": 0.6731220014837401,
+        "reward_dist": 0.16290319958803398,
+        "heldout_dist": 0.669409536494003,
+        "reward_per_sample": 1.0770944360937234,
+        "heldout_per_sample": 1.7122218700096865,
+        "length_mean": 23.201207243460765,
+        "length_ratio_mean": 0.9946735499504695,
+        "marker_rate_shift": {
+          "segments": 497,
+          "delta": 0.13446431932846845,
+          "se": 0.025938896189858018
+        }
+      },
+      "subgroup": {
+        "group_size": 4,
+        "groups": 998,
+        "degenerate_groups": 14,
+        "degenerate_frac": 0.014,
+        "picks": {
+          "picked": 993,
+          "unpicked_groups": 5,
+          "components": {
+            "bleu": 39.65759610473582,
+            "kiwi": 0.6915403068185693,
+            "judge": 3.756294058408862,
+            "chrf": 58.409027729038606,
+            "stylo": -1.1010378918075132
+          },
+          "stylo_dist": 0.6194893221981242,
+          "reward_dist": 0.1595703041146731,
+          "heldout_dist": 0.6139252883255838,
+          "reward_per_sample": 1.1010378918075132,
+          "heldout_per_sample": 1.6918706489772377,
+          "length_mean": 23.24269889224572,
+          "length_ratio_mean": 0.9960659666707425,
+          "marker_rate_shift": {
+            "segments": 993,
+            "delta": 0.0738303089423725,
+            "se": 0.016332423646927635
+          }
+        }
+      },
+      "heldout_vs_random": {
+        "diff": 0.10496682105253902,
+        "ci_low": 0.043680744582450026,
+        "ci_high": 0.16481663426313758,
+        "p_value": 0.001,
+        "significant": true
+      }
+    },
+    {
+      "cell": "w3_2.0",
+      "evidence_class": "pre-registered",
+      "weights": {
+        "bleu": 0.4082,
+        "kiwi": 0.4082,
+        "judge": 0.8165
+      },
+      "normalization": "group_z",
+      "judge_gate": null,
+      "n": 8,
+      "feasible": 3912,
+      "unmeasured": 0,
+      "degenerate_frac": 0.008,
+      "degenerate_groups": 4,
+      "groups": 499,
+      "picks": {
+        "picked": 497,
+        "unpicked_groups": 2,
+        "components": {
+          "bleu": 41.63197335987859,
+          "kiwi": 0.6875237697806637,
+          "judge": 4.197183098591549,
+          "chrf": 59.75521519525419,
+          "stylo": -1.0857113378399312
+        },
+        "stylo_dist": 0.7274814389836032,
+        "reward_dist": 0.15656628125196895,
+        "heldout_dist": 0.7220468333923848,
+        "reward_per_sample": 1.0857113378399312,
+        "heldout_per_sample": 1.7294498098816715,
+        "length_mean": 23.52917505030181,
+        "length_ratio_mean": 1.0091912429114054,
+        "marker_rate_shift": {
+          "segments": 497,
+          "delta": 0.19505854853856136,
+          "se": 0.025885218898928843
+        }
+      },
+      "subgroup": {
+        "group_size": 4,
+        "groups": 998,
+        "degenerate_groups": 14,
+        "degenerate_frac": 0.014,
+        "picks": {
+          "picked": 993,
+          "unpicked_groups": 5,
+          "components": {
+            "bleu": 37.53050063162819,
+            "kiwi": 0.6838010091555923,
+            "judge": 3.9647532729103725,
+            "chrf": 56.86293932072656,
+            "stylo": -1.1050335172977022
+          },
+          "stylo_dist": 0.6645065262955102,
+          "reward_dist": 0.15528602137695166,
+          "heldout_dist": 0.6577326405424397,
+          "reward_per_sample": 1.1050335172977022,
+          "heldout_per_sample": 1.7012019567992887,
+          "length_mean": 23.537764350453173,
+          "length_ratio_mean": 1.0099959148908644,
+          "marker_rate_shift": {
+            "segments": 993,
+            "delta": 0.13001939467026846,
+            "se": 0.016617468750346497
+          }
+        }
+      },
+      "heldout_vs_random": {
+        "diff": 0.15826426097373839,
+        "ci_low": 0.09631723386811526,
+        "ci_high": 0.2153743015728825,
+        "p_value": 0.0,
+        "significant": true
+      }
+    }
+  ],
+  "exploratory_cells": [
+    {
+      "cell": "lex_only",
+      "evidence_class": "exploratory",
+      "weights": {
+        "bleu": 1.0,
+        "kiwi": 0.0,
+        "judge": 0.0
+      },
+      "normalization": "group_z",
+      "judge_gate": null,
+      "n": 8,
+      "feasible": 3912,
+      "unmeasured": 0,
+      "degenerate_frac": 0.008,
+      "degenerate_groups": 4,
+      "groups": 499,
+      "picks": {
+        "picked": 497,
+        "unpicked_groups": 2,
+        "components": {
+          "bleu": 50.264143672038436,
+          "kiwi": 0.6787646700079053,
+          "judge": 3.476861167002012,
+          "chrf": 65.74385160320595,
+          "stylo": -1.0705756469178125
+        },
+        "stylo_dist": 0.564783156241871,
+        "reward_dist": 0.15788630111170035,
+        "heldout_dist": 0.562055045469127,
+        "reward_per_sample": 1.0705756469178125,
+        "heldout_per_sample": 1.6885195218800235,
+        "length_mean": 23.080482897384307,
+        "length_ratio_mean": 0.9862826706655851,
+        "marker_rate_shift": {
+          "segments": 497,
+          "delta": 0.03861412629101853,
+          "se": 0.023235853834043585
+        }
+      },
+      "subgroup": {
+        "group_size": 4,
+        "groups": 998,
+        "degenerate_groups": 13,
+        "degenerate_frac": 0.013,
+        "picks": {
+          "picked": 993,
+          "unpicked_groups": 5,
+          "components": {
+            "bleu": 43.96724583458757,
+            "kiwi": 0.6769660446879127,
+            "judge": 3.419939577039275,
+            "chrf": 61.48316926034461,
+            "stylo": -1.0778568537043072
+          },
+          "stylo_dist": 0.5434618573250447,
+          "reward_dist": 0.1559324343197842,
+          "heldout_dist": 0.5406123425337985,
+          "reward_per_sample": 1.0778568537043072,
+          "heldout_per_sample": 1.6737833876993793,
+          "length_mean": 23.157099697885197,
+          "length_ratio_mean": 0.9929419911682669,
+          "marker_rate_shift": {
+            "segments": 993,
+            "delta": 0.008509480025976755,
+            "se": 0.01580257370501508
+          }
+        }
+      },
+      "heldout_vs_random": {
+        "diff": -0.0019409110467371326,
+        "ci_low": -0.0714819281553767,
+        "ci_high": 0.06506922270065614,
+        "p_value": 0.977,
+        "significant": false
+      }
+    },
+    {
+      "cell": "sem_only",
+      "evidence_class": "exploratory",
+      "weights": {
+        "bleu": 0.0,
+        "kiwi": 1.0,
+        "judge": 0.0
+      },
+      "normalization": "group_z",
+      "judge_gate": null,
+      "n": 8,
+      "feasible": 3912,
+      "unmeasured": 0,
+      "degenerate_frac": 0.008,
+      "degenerate_groups": 4,
+      "groups": 499,
+      "picks": {
+        "picked": 497,
+        "unpicked_groups": 2,
+        "components": {
+          "bleu": 31.02438456314565,
+          "kiwi": 0.7214228070717702,
+          "judge": 3.271629778672032,
+          "chrf": 51.21815201786992,
+          "stylo": -1.1006295979230276
+        },
+        "stylo_dist": 0.6112333913158425,
+        "reward_dist": 0.19559765525804382,
+        "heldout_dist": 0.610043497770434,
+        "reward_per_sample": 1.1006295979230276,
+        "heldout_per_sample": 1.6993232777481082,
+        "length_mean": 22.37625754527163,
+        "length_ratio_mean": 0.9624131812750379,
+        "marker_rate_shift": {
+          "segments": 497,
+          "delta": 0.04785106556823745,
+          "se": 0.025126840431553363
+        }
+      },
+      "subgroup": {
+        "group_size": 4,
+        "groups": 998,
+        "degenerate_groups": 13,
+        "degenerate_frac": 0.013,
+        "picks": {
+          "picked": 993,
+          "unpicked_groups": 5,
+          "components": {
+            "bleu": 31.24115574452807,
+            "kiwi": 0.7090624848161219,
+            "judge": 3.2799597180261832,
+            "chrf": 51.51893041010242,
+            "stylo": -1.1071038585704098
+          },
+          "stylo_dist": 0.586027999993451,
+          "reward_dist": 0.1783198505917632,
+          "heldout_dist": 0.5835748572676765,
+          "reward_per_sample": 1.1071038585704098,
+          "heldout_per_sample": 1.6991801086867748,
+          "length_mean": 22.62134944612286,
+          "length_ratio_mean": 0.970321731072677,
+          "marker_rate_shift": {
+            "segments": 993,
+            "delta": 0.02576826790162774,
+            "se": 0.016403870417964095
+          }
+        }
+      },
+      "heldout_vs_random": {
+        "diff": 0.04577451147897164,
+        "ci_low": -0.014263889960194493,
+        "ci_high": 0.10464048953402764,
+        "p_value": 0.137,
+        "significant": false
+      }
+    },
+    {
+      "cell": "judge_only",
+      "evidence_class": "exploratory",
+      "weights": {
+        "bleu": 0.0,
+        "kiwi": 0.0,
+        "judge": 1.0
+      },
+      "normalization": "group_z",
+      "judge_gate": null,
+      "n": 8,
+      "feasible": 3912,
+      "unmeasured": 0,
+      "degenerate_frac": 0.038,
+      "degenerate_groups": 19,
+      "groups": 499,
+      "picks": {
+        "picked": 497,
+        "unpicked_groups": 2,
+        "components": {
+          "bleu": 32.302159700787264,
+          "kiwi": 0.6677263061885143,
+          "judge": 4.301810865191147,
+          "chrf": 53.24859201818308,
+          "stylo": -1.1150335855710045
+        },
+        "stylo_dist": 0.7769225462681411,
+        "reward_dist": 0.13904320663678466,
+        "heldout_dist": 0.7697303268389706,
+        "reward_per_sample": 1.1150335855710045,
+        "heldout_per_sample": 1.7551786331752015,
+        "length_mean": 24.17102615694165,
+        "length_ratio_mean": 1.0409456013040155,
+        "marker_rate_shift": {
+          "segments": 497,
+          "delta": 0.2504409778291746,
+          "se": 0.028532336028511643
+        }
+      },
+      "subgroup": {
+        "group_size": 4,
+        "groups": 998,
+        "degenerate_groups": 139,
+        "degenerate_frac": 0.139,
+        "picks": {
+          "picked": 993,
+          "unpicked_groups": 5,
+          "components": {
+            "bleu": 32.393567906131835,
+            "kiwi": 0.6691230416057813,
+            "judge": 4.046324269889225,
+            "chrf": 53.16055006248093,
+            "stylo": -1.1034859787758744
+          },
+          "stylo_dist": 0.7047715775672475,
+          "reward_dist": 0.15847834530642704,
+          "heldout_dist": 0.693696135221979,
+          "reward_per_sample": 1.1034859787758744,
+          "heldout_per_sample": 1.7204789168250707,
+          "length_mean": 23.997985901309164,
+          "length_ratio_mean": 1.0335017753993712,
+          "marker_rate_shift": {
+            "segments": 993,
+            "delta": 0.1787679065479818,
+            "se": 0.017068589826417263
+          }
+        }
+      },
+      "heldout_vs_random": {
+        "diff": 0.20644066875501557,
+        "ci_low": 0.14325484514826203,
+        "ci_high": 0.2706699263052417,
+        "p_value": 0.0,
+        "significant": true
+      }
+    },
+    {
+      "cell": "gate_j3",
+      "evidence_class": "exploratory",
+      "weights": {
+        "bleu": 0.7071,
+        "kiwi": 0.7071
+      },
+      "normalization": "group_z",
+      "judge_gate": 3.0,
+      "n": 8,
+      "feasible": 2614,
+      "unmeasured": 0,
+      "degenerate_frac": 0.162,
+      "degenerate_groups": 81,
+      "groups": 499,
+      "picks": {
+        "picked": 475,
+        "unpicked_groups": 24,
+        "components": {
+          "bleu": 43.485534008810475,
+          "kiwi": 0.694295744895935,
+          "judge": 3.9473684210526314,
+          "chrf": 61.002379434420114,
+          "stylo": -1.0790366439153714
+        },
+        "stylo_dist": 0.71155003455375,
+        "reward_dist": 0.1618782458328918,
+        "heldout_dist": 0.7076168642000579,
+        "reward_per_sample": 1.0790366439153714,
+        "heldout_per_sample": 1.7133253819294105,
+        "length_mean": 23.282105263157895,
+        "length_ratio_mean": 1.0001358342190254,
+        "marker_rate_shift": {
+          "segments": 475,
+          "delta": 0.1475469318558692,
+          "se": 0.026822027777002162
+        }
+      },
+      "subgroup": {
+        "group_size": 4,
+        "groups": 998,
+        "degenerate_groups": 340,
+        "degenerate_frac": 0.341,
+        "picks": {
+          "picked": 899,
+          "unpicked_groups": 99,
+          "components": {
+            "bleu": 39.61349669481879,
+            "kiwi": 0.6847623284321871,
+            "judge": 3.9443826473859844,
+            "chrf": 58.243163401731245,
+            "stylo": -1.090256699703227
+          },
+          "stylo_dist": 0.7107267040080767,
+          "reward_dist": 0.1558789691530546,
+          "heldout_dist": 0.7031640359367293,
+          "reward_per_sample": 1.090256699703227,
+          "heldout_per_sample": 1.7179060081490647,
+          "length_mean": 23.753058954393772,
+          "length_ratio_mean": 1.0091256670692927,
+          "marker_rate_shift": {
+            "segments": 899,
+            "delta": 0.10062368382907268,
+            "se": 0.016928740588346203
+          }
+        }
+      },
+      "paired": {
+        "baseline": "w3_0.0",
+        "groups": 475,
+        "baseline_stylo": 0.6050998040492722,
+        "cell_stylo": 0.71155003455375
+      }
+    },
+    {
+      "cell": "gate_j4",
+      "evidence_class": "exploratory",
+      "weights": {
+        "bleu": 0.7071,
+        "kiwi": 0.7071
+      },
+      "normalization": "group_z",
+      "judge_gate": 4.0,
+      "n": 8,
+      "feasible": 1707,
+      "unmeasured": 0,
+      "degenerate_frac": 0.395,
+      "degenerate_groups": 197,
+      "groups": 499,
+      "picks": {
+        "picked": 392,
+        "unpicked_groups": 107,
+        "components": {
+          "bleu": 45.46773934094653,
+          "kiwi": 0.6922864758086448,
+          "judge": 4.459183673469388,
+          "chrf": 62.95801206174555,
+          "stylo": -1.074594481499494
+        },
+        "stylo_dist": 0.8649478748697378,
+        "reward_dist": 0.12880808692288134,
+        "heldout_dist": 0.8627313393251643,
+        "reward_per_sample": 1.074594481499494,
+        "heldout_per_sample": 1.7432700146860765,
+        "length_mean": 24.025510204081634,
+        "length_ratio_mean": 1.0084046800445947,
+        "marker_rate_shift": {
+          "segments": 392,
+          "delta": 0.1522072397549207,
+          "se": 0.027931680032176522
+        }
+      },
+      "subgroup": {
+        "group_size": 4,
+        "groups": 998,
+        "degenerate_groups": 595,
+        "degenerate_frac": 0.596,
+        "picks": {
+          "picked": 692,
+          "unpicked_groups": 306,
+          "components": {
+            "bleu": 42.80352236200925,
+            "kiwi": 0.6859241583616058,
+            "judge": 4.469653179190751,
+            "chrf": 61.18653454644519,
+            "stylo": -1.1028983444750446
+          },
+          "stylo_dist": 0.9142808509805425,
+          "reward_dist": 0.12339553741345956,
+          "heldout_dist": 0.9106961370421153,
+          "reward_per_sample": 1.1028983444750446,
+          "heldout_per_sample": 1.7851541313177903,
+          "length_mean": 24.15606936416185,
+          "length_ratio_mean": 1.012454818967176,
+          "marker_rate_shift": {
+            "segments": 692,
+            "delta": 0.10975294403044765,
+            "se": 0.01925352036598003
+          }
+        }
+      },
+      "paired": {
+        "baseline": "w3_0.0",
+        "groups": 392,
+        "baseline_stylo": 0.7618083517916187,
+        "cell_stylo": 0.8649478748697378
+      }
+    },
+    {
+      "cell": "gate_j5",
+      "evidence_class": "exploratory",
+      "weights": {
+        "bleu": 0.7071,
+        "kiwi": 0.7071
+      },
+      "normalization": "group_z",
+      "judge_gate": 5.0,
+      "n": 8,
+      "feasible": 859,
+      "unmeasured": 0,
+      "degenerate_frac": 0.685,
+      "degenerate_groups": 342,
+      "groups": 499,
+      "picks": {
+        "picked": 278,
+        "unpicked_groups": 221,
+        "components": {
+          "bleu": 44.93448806414703,
+          "kiwi": 0.6848186542876333,
+          "judge": 5.0,
+          "chrf": 62.59342204341534,
+          "stylo": -1.1009482473913548
+        },
+        "stylo_dist": 1.1172886169623508,
+        "reward_dist": 0.15182262071810107,
+        "heldout_dist": 1.116011216786453,
+        "reward_per_sample": 1.1009482473913548,
+        "heldout_per_sample": 1.8754903115340609,
+        "length_mean": 23.111510791366907,
+        "length_ratio_mean": 1.0315851227340382,
+        "marker_rate_shift": {
+          "segments": 278,
+          "delta": 0.23055237745914745,
+          "se": 0.03616839594954368
+        }
+      },
+      "subgroup": {
+        "group_size": 4,
+        "groups": 998,
+        "degenerate_groups": 832,
+        "degenerate_frac": 0.834,
+        "picks": {
+          "picked": 447,
+          "unpicked_groups": 551,
+          "components": {
+            "bleu": 43.8384278676606,
+            "kiwi": 0.6836739953865675,
+            "judge": 5.0,
+            "chrf": 61.835110887145504,
+            "stylo": -1.1104626286408914
+          },
+          "stylo_dist": 1.2681624384340122,
+          "reward_dist": 0.1806286086723986,
+          "heldout_dist": 1.2669983813366268,
+          "reward_per_sample": 1.1104626286408914,
+          "heldout_per_sample": 1.9888408815608751,
+          "length_mean": 22.60850111856823,
+          "length_ratio_mean": 1.0374960882821496,
+          "marker_rate_shift": {
+            "segments": 447,
+            "delta": 0.19787506651316936,
+            "se": 0.02602937324184751
+          }
+        }
+      },
+      "paired": {
+        "baseline": "w3_0.0",
+        "groups": 278,
+        "baseline_stylo": 0.9809702197882608,
+        "cell_stylo": 1.1172886169623508
+      }
+    },
+    {
+      "cell": "stylo_only",
+      "evidence_class": "exploratory",
+      "weights": {
+        "bleu": 0.0,
+        "kiwi": 0.0,
+        "judge": 0.0,
+        "stylo": 1.0
+      },
+      "normalization": "group_z",
+      "judge_gate": null,
+      "n": 8,
+      "feasible": 3912,
+      "unmeasured": 0,
+      "degenerate_frac": 0.014,
+      "degenerate_groups": 7,
+      "groups": 499,
+      "picks": {
+        "picked": 497,
+        "unpicked_groups": 2,
+        "components": {
+          "bleu": 27.656432401654747,
+          "kiwi": 0.6562827005232844,
+          "judge": 3.2877263581488934,
+          "chrf": 49.230991566392476,
+          "stylo": -0.66510443470449
+        },
+        "stylo_dist": 0.509534671060521,
+        "reward_dist": 0.19129144558102867,
+        "heldout_dist": 0.5072382893951467,
+        "reward_per_sample": 0.66510443470449,
+        "heldout_per_sample": 1.5502636544084587,
+        "length_mean": 23.078470824949697,
+        "length_ratio_mean": 1.0550422406373614,
+        "marker_rate_shift": {
+          "segments": 497,
+          "delta": -0.05404216175278865,
+          "se": 0.029647175299652766
+        }
+      },
+      "subgroup": {
+        "group_size": 4,
+        "groups": 998,
+        "degenerate_groups": 33,
+        "degenerate_frac": 0.033,
+        "picks": {
+          "picked": 993,
+          "unpicked_groups": 5,
+          "components": {
+            "bleu": 29.348701527255958,
+            "kiwi": 0.6618272171760013,
+            "judge": 3.288016112789527,
+            "chrf": 50.3881573944616,
+            "stylo": -0.773135005440604
+          },
+          "stylo_dist": 0.5312143672262503,
+          "reward_dist": 0.1882469880073942,
+          "heldout_dist": 0.527968835339534,
+          "reward_per_sample": 0.773135005440604,
+          "heldout_per_sample": 1.5988946979048688,
+          "length_mean": 22.904330312185298,
+          "length_ratio_mean": 1.0276256698804815,
+          "marker_rate_shift": {
+            "segments": 993,
+            "delta": -0.033886521911763376,
+            "se": 0.018428083934747676
+          }
+        }
+      },
+      "heldout_vs_random": {
+        "diff": -0.05705120076569695,
+        "ci_low": -0.13814497327098113,
+        "ci_high": 0.021362723242281566,
+        "p_value": 0.147,
+        "significant": false
+      }
+    },
+    {
+      "cell": "mix_stylo",
+      "evidence_class": "exploratory",
+      "weights": {
+        "bleu": 0.5774,
+        "kiwi": 0.5774,
+        "judge": 0.0,
+        "stylo": 0.5774
+      },
+      "normalization": "group_z",
+      "judge_gate": null,
+      "n": 8,
+      "feasible": 3912,
+      "unmeasured": 0,
+      "degenerate_frac": 0.008,
+      "degenerate_groups": 4,
+      "groups": 499,
+      "picks": {
+        "picked": 497,
+        "unpicked_groups": 2,
+        "components": {
+          "bleu": 44.61399013501187,
+          "kiwi": 0.6978215447493962,
+          "judge": 3.41046277665996,
+          "chrf": 61.786359832254604,
+          "stylo": -0.9143720495245292
+        },
+        "stylo_dist": 0.5539028488418534,
+        "reward_dist": 0.18482935762451289,
+        "heldout_dist": 0.5530685224806373,
+        "reward_per_sample": 0.9143720495245292,
+        "heldout_per_sample": 1.6477807205063189,
+        "length_mean": 22.6317907444668,
+        "length_ratio_mean": 0.9882206699193239,
+        "marker_rate_shift": {
+          "segments": 497,
+          "delta": 0.009309515534666093,
+          "se": 0.024198094706564848
+        }
+      },
+      "subgroup": {
+        "group_size": 4,
+        "groups": 998,
+        "degenerate_groups": 18,
+        "degenerate_frac": 0.018,
+        "picks": {
+          "picked": 993,
+          "unpicked_groups": 5,
+          "components": {
+            "bleu": 39.45474448764267,
+            "kiwi": 0.6916319952390465,
+            "judge": 3.364551863041289,
+            "chrf": 58.18329618613145,
+            "stylo": -0.9625414889107051
+          },
+          "stylo_dist": 0.5440974269023419,
+          "reward_dist": 0.17440930840500066,
+          "heldout_dist": 0.5416464616629484,
+          "reward_per_sample": 0.9625414889107051,
+          "heldout_per_sample": 1.647664745744012,
+          "length_mean": 22.808660624370596,
+          "length_ratio_mean": 0.9913845742625604,
+          "marker_rate_shift": {
+            "segments": 993,
+            "delta": -0.0020020030836476023,
+            "se": 0.016000949019155494
+          }
+        }
+      },
+      "heldout_vs_random": {
+        "diff": -0.011152982652033473,
+        "ci_low": -0.07562234051467519,
+        "ci_high": 0.053769838570923156,
+        "p_value": 0.721,
+        "significant": false
+      }
+    },
+    {
+      "cell": "chrf_only",
+      "evidence_class": "exploratory",
+      "weights": {
+        "chrf": 1.0,
+        "kiwi": 0.0,
+        "judge": 0.0
+      },
+      "normalization": "group_z",
+      "judge_gate": null,
+      "n": 8,
+      "feasible": 3912,
+      "unmeasured": 0,
+      "degenerate_frac": 0.008,
+      "degenerate_groups": 4,
+      "groups": 499,
+      "picks": {
+        "picked": 497,
+        "unpicked_groups": 2,
+        "components": {
+          "bleu": 48.81658609030837,
+          "kiwi": 0.6785591215914644,
+          "judge": 3.482897384305835,
+          "chrf": 66.89787249175943,
+          "stylo": -1.0762991541142124
+        },
+        "stylo_dist": 0.5124521184818374,
+        "reward_dist": 0.1225697357754001,
+        "heldout_dist": 0.5098868778062451,
+        "reward_per_sample": 1.0762991541142124,
+        "heldout_per_sample": 1.6734338838040725,
+        "length_mean": 23.71629778672032,
+        "length_ratio_mean": 1.0196775534768692,
+        "marker_rate_shift": {
+          "segments": 497,
+          "delta": -0.01203737458311864,
+          "se": 0.02209606120952954
+        }
+      },
+      "subgroup": {
+        "group_size": 4,
+        "groups": 998,
+        "degenerate_groups": 13,
+        "degenerate_frac": 0.013,
+        "picks": {
+          "picked": 993,
+          "unpicked_groups": 5,
+          "components": {
+            "bleu": 42.95235061854535,
+            "kiwi": 0.6749034272159815,
+            "judge": 3.4410876132930515,
+            "chrf": 62.43225090464981,
+            "stylo": -1.0854738248101206
+          },
+          "stylo_dist": 0.5081324460188232,
+          "reward_dist": 0.12612378871245064,
+          "heldout_dist": 0.5053912663581487,
+          "reward_per_sample": 1.0854738248101206,
+          "heldout_per_sample": 1.6555661296887885,
+          "length_mean": 23.76233635448137,
+          "length_ratio_mean": 1.0226301050852573,
+          "marker_rate_shift": {
+            "segments": 993,
+            "delta": -0.020637388637845182,
+            "se": 0.015181934463134315
+          }
+        }
+      },
+      "heldout_vs_random": {
+        "diff": -0.05373995457182177,
+        "ci_low": -0.1224359042476944,
+        "ci_high": 0.013786720770547468,
+        "p_value": 0.115,
+        "significant": false
+      }
+    },
+    {
+      "cell": "mix_chrf",
+      "evidence_class": "exploratory",
+      "weights": {
+        "chrf": 0.7071,
+        "kiwi": 0.7071,
+        "judge": 0.0
+      },
+      "normalization": "group_z",
+      "judge_gate": null,
+      "n": 8,
+      "feasible": 3912,
+      "unmeasured": 0,
+      "degenerate_frac": 0.01,
+      "degenerate_groups": 5,
+      "groups": 499,
+      "picks": {
+        "picked": 497,
+        "unpicked_groups": 2,
+        "components": {
+          "bleu": 44.65001584292808,
+          "kiwi": 0.7023561617258329,
+          "judge": 3.4064386317907447,
+          "chrf": 63.34140232773465,
+          "stylo": -1.0774134772795234
+        },
+        "stylo_dist": 0.5474012054528691,
+        "reward_dist": 0.14691944202891377,
+        "heldout_dist": 0.5455179750498913,
+        "reward_per_sample": 1.0774134772795234,
+        "heldout_per_sample": 1.6621695796382834,
+        "length_mean": 23.197183098591548,
+        "length_ratio_mean": 0.9992043037542568,
+        "marker_rate_shift": {
+          "segments": 497,
+          "delta": 0.008682164922942144,
+          "se": 0.023077528600718628
+        }
+      },
+      "subgroup": {
+        "group_size": 4,
+        "groups": 998,
+        "degenerate_groups": 26,
+        "degenerate_frac": 0.026,
+        "picks": {
+          "picked": 993,
+          "unpicked_groups": 5,
+          "components": {
+            "bleu": 39.792419003083765,
+            "kiwi": 0.6956486950167956,
+            "judge": 3.389728096676737,
+            "chrf": 59.43078446347779,
+            "stylo": -1.0945071209721908
+          },
+          "stylo_dist": 0.5569043774932183,
+          "reward_dist": 0.14979140932043977,
+          "heldout_dist": 0.5538796959750972,
+          "reward_per_sample": 1.0945071209721908,
+          "heldout_per_sample": 1.678052515602875,
+          "length_mean": 23.210473313192345,
+          "length_ratio_mean": 0.9952604733432217,
+          "marker_rate_shift": {
+            "segments": 993,
+            "delta": 0.010668696312544823,
+            "se": 0.016127788745936976
+          }
+        }
+      },
+      "heldout_vs_random": {
+        "diff": -0.018877410117717895,
+        "ci_low": -0.0857782768882358,
+        "ci_high": 0.04474056401625178,
+        "p_value": 0.581,
+        "significant": false
+      }
+    },
+    {
+      "cell": "fixed_scale",
+      "evidence_class": "exploratory",
+      "weights": {
+        "bleu": 0.5774,
+        "kiwi": 0.5774,
+        "judge": 0.5774
+      },
+      "normalization": "fixed",
+      "judge_gate": null,
+      "n": 8,
+      "feasible": 3912,
+      "unmeasured": 0,
+      "degenerate_frac": 0.008,
+      "degenerate_groups": 4,
+      "groups": 499,
+      "picks": {
+        "picked": 497,
+        "unpicked_groups": 2,
+        "components": {
+          "bleu": 46.02853181986957,
+          "kiwi": 0.6847099705001478,
+          "judge": 4.120724346076459,
+          "chrf": 62.84870024918253,
+          "stylo": -1.068863690037983
+        },
+        "stylo_dist": 0.6851286115703231,
+        "reward_dist": 0.15267609161861803,
+        "heldout_dist": 0.6799027035593006,
+        "reward_per_sample": 1.068863690037983,
+        "heldout_per_sample": 1.6951138841623623,
+        "length_mean": 23.599597585513077,
+        "length_ratio_mean": 1.0143752443775782,
+        "marker_rate_shift": {
+          "segments": 497,
+          "delta": 0.16051589516741568,
+          "se": 0.02405271940845001
+        }
+      },
+      "subgroup": {
+        "group_size": 4,
+        "groups": 998,
+        "degenerate_groups": 13,
+        "degenerate_frac": 0.013,
+        "picks": {
+          "picked": 993,
+          "unpicked_groups": 5,
+          "components": {
+            "bleu": 40.77135622447499,
+            "kiwi": 0.6804917928015237,
+            "judge": 3.9295065458207454,
+            "chrf": 59.093403495814954,
+            "stylo": -1.0972235796797747
+          },
+          "stylo_dist": 0.6523470218229811,
+          "reward_dist": 0.1563146733257664,
+          "heldout_dist": 0.6452278922232367,
+          "reward_per_sample": 1.0972235796797747,
+          "heldout_per_sample": 1.6930057409266244,
+          "length_mean": 23.52870090634441,
+          "length_ratio_mean": 1.0092594849019825,
+          "marker_rate_shift": {
+            "segments": 993,
+            "delta": 0.12218477995024507,
+            "se": 0.016016770318985043
+          }
+        }
+      },
+      "heldout_vs_random": {
+        "diff": 0.11615418240358423,
+        "ci_low": 0.04807384340047461,
+        "ci_high": 0.1782826004858968,
+        "p_value": 0.001,
+        "significant": true
+      }
+    }
+  ],
+  "anchors": {
+    "random": {
+      "picked": 497,
+      "unpicked_groups": 2,
+      "components": {
+        "bleu": 30.06676116195051,
+        "kiwi": 0.6617831209415881,
+        "judge": 3.2354124748490944,
+        "chrf": 50.60058010896208,
+        "stylo": -1.102983401133674
+      },
+      "stylo_dist": 0.5655929867739924,
+      "reward_dist": 0.15350394101321294,
+      "heldout_dist": 0.5638333554161188,
+      "reward_per_sample": 1.102983401133674,
+      "heldout_per_sample": 1.700647461428881,
+      "length_mean": 23.092555331991953,
+      "length_ratio_mean": 0.9954347520048205,
+      "marker_rate_shift": {
+        "segments": 497,
+        "delta": 0.016365077721270088,
+        "se": 0.026079301995203235
+      }
+    },
+    "pool": {
+      "picked": 3992,
+      "unpicked_groups": 0,
+      "components": {
+        "bleu": 29.11634151272771,
+        "kiwi": 0.6645665185186332,
+        "judge": 3.251753507014028,
+        "chrf": 49.97691847772448,
+        "stylo": -1.1049834290894855
+      },
+      "stylo_dist": 0.5525479906375942,
+      "reward_dist": 0.1470456496163905,
+      "heldout_dist": 0.5494266508471909,
+      "reward_per_sample": 1.1049834290894855,
+      "heldout_per_sample": 1.7000305405396277,
+      "length_mean": 23.379008016032063,
+      "length_ratio_mean": 1.01622530572482,
+      "marker_rate_shift": {
+        "segments": 499,
+        "delta": 0.0,
+        "se": 0.0
+      }
+    }
+  },
+  "selection": {
+    "cell": "w3_0.0",
+    "ranked_at": 4,
+    "weights": {
+      "name": "w3_0.0",
+      "w_kiwi": 1.0,
+      "w_bleu": 1.0,
+      "w_judge": 0.0
+    },
+    "reason": "lowest register distance (0.558) at G=4 of the 4 cells that give most groups a gradient",
+    "goodhart": {
+      "feature": "marker_rate",
+      "delta": 0.007777987995425589,
+      "se": 0.016472582721340737,
+      "threshold": 0.23,
+      "over_threshold": false
+    },
+    "rejected": {}
+  },
+  "adequacy_floor": {
+    "component": "kiwi",
+    "floor": 0.6617831209415881,
+    "source": "random anchor over the same pool",
+    "clears": [
+      "w3_0.0",
+      "w3_0.5",
+      "w3_1.0",
+      "w3_2.0",
+      "lex_only",
+      "sem_only",
+      "judge_only",
+      "gate_j3",
+      "gate_j4",
+      "gate_j5",
+      "mix_stylo",
+      "chrf_only",
+      "mix_chrf",
+      "fixed_scale"
+    ],
+    "below": {
+      "stylo_only": 0.6562827005232844
+    },
+    "unread": []
+  },
+  "caveats": [
+    "Dev-slice figures select the reward weights and are never reported as a result; val remains the reported split.",
+    "`exploratory_cells` were added after the pool was built and after the pre-registered grid was read. They are leads for Phase 2's design, not results, and `selection` cannot draw from them.",
+    "A gated cell's picks are read over only the groups its gate leaves non-empty, so its component means are not paired with the other cells'.",
+    "`adequacy_floor` constrains which arms Phase 2 may consider. It is not part of `selection`, which stays the pre-registered register-distance rule; a cell below the floor is still reported, not deleted.",
+    "A cell ranked at `normalization: fixed` is not comparable with a group_z cell's reward values, only with its picks.",
+    "Degeneracy at N=8 and at G=4 are not comparable; larger groups degenerate less by construction.",
+    "`cells` and `anchors` read at N=8. `selection` ranks on the `subgroup.picks` reading at G=4, the size the run trains at.",
+    "A group whose reward is flat has its pick drawn uniformly at seed 42 rather than taken in sampling order, so those groups are noise in every cell instead of the same sample in all of them.",
+    "Best-of-N reranking of a frozen policy is not GRPO. It bounds what the reward can select for, not what training will do with it."
+  ]
+}

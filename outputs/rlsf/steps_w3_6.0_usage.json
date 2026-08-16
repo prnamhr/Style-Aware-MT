@@ -1,0 +1,12 @@
+{
+  "calls": 9600,
+  "prompt_tokens": 4254788,
+  "completion_tokens": 174795,
+  "cost_usd": 0.7431,
+  "model": "gpt-4o-mini",
+  "wall_s": 1178.724,
+  "call_s": 7903.932,
+  "mean_call_s": 0.823,
+  "calls_per_s": 8.144,
+  "achieved_parallelism": 6.71
+}

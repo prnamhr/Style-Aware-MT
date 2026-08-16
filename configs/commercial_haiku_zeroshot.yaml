@@ -1,6 +1,6 @@
 # COMMERCIAL REFERENCE BASELINE -- claude-haiku-4-5, zero-shot.
 
-# --- Generation (Anthropic messages API) ---
+# Generation (Anthropic messages API) 
 generator:
   provider: anthropic
   model: claude-haiku-4-5
@@ -8,16 +8,16 @@ generator:
   thinking: false
   temperature: 0.0
 
-# --- Prompting (identical to configs/base_qwen.yaml) ---
+# Prompting (identical to configs/base_qwen.yaml) 
 prompt:
   style_instruction_file: prompts/style_instruction.txt
 
-# --- Data (VAL ONLY; test stays sealed) ---
+# Data (VAL ONLY; test stays sealed) 
 data:
   eval_file: data/splits/val.jsonl
   limit: null
 
-# --- Output ---
+# Output 
 output:
   dir: outputs
   name: commercial_haiku    # -> outputs/commercial_haiku_val.jsonl

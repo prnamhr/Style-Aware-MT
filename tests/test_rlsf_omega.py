@@ -1,0 +1,267 @@
+"""Degenerate-case tests for the offline omega grid over a cached pool."""
+
+from __future__ import annotations
+
+import numpy as np
+import pytest
+
+from src.rlsf.omega import (
+    adequacy_floor,
+    argmax_picks,
+    component_degeneracy,
+    derive_components,
+    flatten,
+    heldout_draws,
+    marker_shift,
+    paired_stylo,
+    random_picks,
+    select,
+)
+from src.rlsf.pool import pack_rows
+
+CELLS = {
+    "w3_0.0": {"name": "w3_0.0", "w_kiwi": 1.0, "w_bleu": 1.0, "w_judge": 0.0},
+    "w3_1.0": {"name": "w3_1.0", "w_kiwi": 1.0, "w_bleu": 1.0, "w_judge": 1.0},
+}
+
+_CENTROID = {
+    "features": ["lex_density", "ttr", "root_ttr", "marker_rate"],
+    "mean": [0.4344, 0.8540, 4.0437, 0.0327],
+    "std": [0.1101, 0.1085, 1.0426, 0.0567],
+}
+
+
+def _reading(cell, *, deg=0.0, stylo=1.0, shift=0.0, se=0.05, kiwi=0.7, sub_stylo=None):
+    picks = {
+        "stylo_dist": stylo,
+        "components": {"kiwi": kiwi},
+        "marker_rate_shift": {"delta": shift, "se": se},
+    }
+    subgroup = {"group_size": 4, "degenerate_frac": deg}
+    if sub_stylo is not None:
+        subgroup["picks"] = {**picks, "stylo_dist": sub_stylo}
+    return {
+        "cell": cell,
+        "n": 8,
+        "degenerate_frac": 0.0,
+        "subgroup": subgroup,
+        "picks": picks,
+    }
+
+
+def _anchor(kiwi):
+    return {"components": {"kiwi": kiwi}}
+
+
+def test_a_ragged_pool_cannot_be_grouped():
+    rows = pack_rows(["s0"], ["r0"], ["a", "b"], {"bleu": [1.0, 2.0]}, 2)
+    rows.append({"idx": 1, "source": "s1", "reference": "r1", "hyps": ["c"], "scores": {}})
+    with pytest.raises(ValueError, match="a ragged pool"):
+        flatten(rows)
+
+
+def test_flatten_repeats_each_segment_across_its_own_samples():
+    rows = pack_rows(["s0", "s1"], ["r0", "r1"], list("abcd"), {"bleu": [1.0, 2.0, 3.0, 4.0]}, 2)
+    n, sources, refs, hyps, raw = flatten(rows)
+    assert n == 2
+    assert sources == ["s0", "s0", "s1", "s1"] and refs == ["r0", "r0", "r1", "r1"]
+    assert hyps == list("abcd") and raw["bleu"] == [1.0, 2.0, 3.0, 4.0]
+
+
+def test_the_pick_is_the_best_feasible_sample_not_the_best_sample():
+    # The floored infeasible sample sits below the group, but an argmax over the raw array
+    # would still have to be told to ignore it.
+    rewards = np.array([0.5, 9.0, -1.0, 0.1])
+    feasible = np.array([True, False, True, True])
+    assert argmax_picks(rewards, feasible, 4) == [0]
+
+
+def test_a_group_with_nothing_feasible_makes_no_pick():
+    rewards = np.array([np.nan, np.nan])
+    assert argmax_picks(rewards, np.array([False, False]), 2) == [None]
+
+
+def test_a_flat_group_draws_its_pick_rather_than_taking_the_first_sample():
+    # A reward that cannot separate a group scores every candidate identically. Taking the
+    # first index there would return sampling order, and return it for every cell alike.
+    rewards, feasible = np.zeros(4), np.ones(4, dtype=bool)
+    drawn = {argmax_picks(rewards, feasible, 4, seed=s)[0] for s in range(20)}
+    assert drawn <= {0, 1, 2, 3} and len(drawn) > 1
+
+
+def test_the_tie_break_is_reproducible_under_one_seed():
+    rewards, feasible = np.zeros(8), np.ones(8, dtype=bool)
+    assert argmax_picks(rewards, feasible, 4, seed=7) == argmax_picks(rewards, feasible, 4, seed=7)
+
+
+def test_a_group_the_reward_does_separate_is_not_left_to_the_draw():
+    rewards = np.array([0.1, 0.9, 0.2, 0.3])
+    picks = {argmax_picks(rewards, np.ones(4, dtype=bool), 4, seed=s)[0] for s in range(10)}
+    assert picks == {1}
+
+
+def test_the_random_anchor_only_draws_feasible_samples():
+    feasible = np.array([False, False, True, False])
+    assert random_picks(feasible, 4, seed=0) == [2]
+
+
+def test_the_marker_shift_is_paired_within_the_group():
+    # Group mean 1.0; picking the 3.0 is +2.0 whatever the next segment's level is.
+    z = np.array([[1.0], [1.0], [1.0], [3.0], [10.0], [10.0], [10.0], [12.0]])
+    shift = marker_shift(z, [3, 7], 4, 0)
+    assert shift["segments"] == 2
+    assert shift["delta"] == pytest.approx(1.5)
+    assert shift["se"] == pytest.approx(0.0)
+
+
+def test_a_component_that_scores_a_group_flat_is_degenerate():
+    raw = {"judge": [3.0, 3.0, 3.0, 3.0, 1.0, 2.0, 3.0, 4.0]}
+    report = component_degeneracy(raw, np.ones(8, dtype=bool), 4)["judge"]
+    assert report == {"groups": 2, "degenerate": 1, "degenerate_frac": 0.5}
+
+
+def test_a_cell_with_no_gradient_is_rejected_however_well_it_picks():
+    readings = [_reading("w3_0.0", deg=0.0, stylo=2.0), _reading("w3_1.0", deg=0.9, stylo=0.1)]
+    verdict = select(readings, CELLS, max_degenerate=0.25, warn_shift=0.23, feature="marker_rate")
+    assert verdict["cell"] == "w3_0.0"
+    assert "no reward spread at G=4" in verdict["rejected"]["w3_1.0"]
+
+
+def test_every_cell_degenerate_is_a_reading_not_a_crash():
+    readings = [_reading("w3_0.0", deg=1.0), _reading("w3_1.0", deg=1.0)]
+    verdict = select(readings, CELLS, max_degenerate=0.25, warn_shift=0.23, feature="marker_rate")
+    assert verdict["cell"] is None
+    assert "finding about the reward" in verdict["reason"]
+
+
+def test_the_marker_shift_flags_the_winner_rather_than_vetoing_it():
+    readings = [_reading("w3_1.0", stylo=0.1, shift=0.9), _reading("w3_0.0", stylo=2.0)]
+    verdict = select(readings, CELLS, max_degenerate=0.25, warn_shift=0.23, feature="marker_rate")
+    assert verdict["cell"] == "w3_1.0"
+    assert verdict["goodhart"]["over_threshold"] is True
+
+
+def test_selection_ranks_at_the_training_group_size_not_at_the_pool_size():
+    # w3_1.0 wins the best-of-8 reading and loses the best-of-4 one. The run trains at 4,
+    # and the degeneracy gate above already reads there.
+    readings = [
+        _reading("w3_0.0", stylo=2.0, sub_stylo=0.1),
+        _reading("w3_1.0", stylo=0.1, sub_stylo=2.0),
+    ]
+    verdict = select(readings, CELLS, max_degenerate=0.25, warn_shift=0.23, feature="marker_rate")
+    assert verdict["cell"] == "w3_0.0" and verdict["ranked_at"] == 4
+
+
+def test_a_cell_that_picks_nothing_at_the_training_size_is_rejected_not_a_crash():
+    reading = _reading("w3_0.0", stylo=1.0, sub_stylo=0.1)
+    reading["subgroup"]["picks"] = None
+    verdict = select([reading], CELLS, max_degenerate=0.25, warn_shift=0.23, feature="marker_rate")
+    assert verdict["cell"] is None
+    assert "ranks on nothing" in verdict["rejected"]["w3_0.0"]
+
+
+def test_cells_that_tie_on_register_fit_take_the_weaker_style_pressure():
+    readings = [_reading("w3_1.0", stylo=1.0), _reading("w3_0.0", stylo=1.0)]
+    verdict = select(readings, CELLS, max_degenerate=0.25, warn_shift=0.23, feature="marker_rate")
+    assert verdict["cell"] == "w3_0.0"
+
+
+# the adequacy floor on Phase 2's arms
+
+
+def test_a_cell_less_adequate_than_a_random_draw_is_below_the_floor():
+    readings = [_reading("w3_0.0", kiwi=0.7009), _reading("stylo_only", kiwi=0.6566)]
+    floor = adequacy_floor(readings, _anchor(0.6618))
+    assert floor["clears"] == ["w3_0.0"]
+    assert floor["below"] == {"stylo_only": 0.6566}
+
+
+def test_the_floor_is_the_anchor_rather_than_a_number_of_its_own():
+    readings = [_reading("cell", kiwi=0.66)]
+    assert adequacy_floor(readings, _anchor(0.70))["below"] == {"cell": 0.66}
+    assert adequacy_floor(readings, _anchor(0.60))["clears"] == ["cell"]
+
+
+def test_matching_the_anchor_exactly_clears_the_floor():
+    floor = adequacy_floor([_reading("cell", kiwi=0.6618)], _anchor(0.6618))
+    assert floor["clears"] == ["cell"] and not floor["below"]
+
+
+def test_a_cell_that_picked_nothing_is_unread_rather_than_below_the_floor():
+    reading = _reading("gate_j5")
+    reading["picks"] = None
+    floor = adequacy_floor([reading], _anchor(0.6618))
+    assert floor["unread"] == ["gate_j5"] and not floor["below"] and not floor["clears"]
+
+
+def test_the_floor_does_not_reach_into_the_pre_registered_selection():
+    # Two separate rules: `select` ranks on register distance and cannot see adequacy, which
+    # is why the floor has to be applied in the reasoning that reads both.
+    readings = [_reading("w3_0.0", stylo=2.0, kiwi=0.80), _reading("w3_1.0", stylo=0.1, kiwi=0.50)]
+    verdict = select(readings, CELLS, max_degenerate=0.25, warn_shift=0.23, feature="marker_rate")
+    assert verdict["cell"] == "w3_1.0"
+    assert adequacy_floor(readings, _anchor(0.6618))["below"] == {"w3_1.0": 0.50}
+
+
+# exploratory cells
+
+
+def test_an_exploratory_cell_cannot_be_selected_however_well_it_reads():
+    # The whole point of the class: a cell added after the pool was built and after the
+    # pre-registered grid was read cannot become the reward the run trains on.
+    readings = [_reading("w3_0.0", stylo=2.0), _reading("judge_only", stylo=0.1)]
+    readings[1]["evidence_class"] = "exploratory"
+    with pytest.raises(ValueError, match="judge_only are exploratory"):
+        select(readings, CELLS, max_degenerate=0.25, warn_shift=0.23, feature="marker_rate")
+
+
+def test_the_paired_reading_only_compares_groups_both_rules_picked():
+    # The gate empties group 1. Reading its distance against a baseline that kept group 1
+    # would score the gate on a subset it never had to translate.
+    hyps = ["aa", "bb", "cc", "dd"]
+    baseline, gated = [0, 2], [0, None]
+    paired = paired_stylo(baseline, gated, hyps, _CENTROID)
+    assert paired["groups"] == 1
+    assert paired["baseline_stylo"] == pytest.approx(paired["cell_stylo"])
+
+
+def test_a_gate_that_empties_every_group_pairs_to_nothing_rather_than_raising():
+    paired = paired_stylo([0, 1], [None, None], ["aa", "bb"], _CENTROID)
+    assert paired["groups"] == 0
+    assert np.isnan(paired["cell_stylo"])
+
+
+# components the pool did not cache
+
+
+def test_chrf_and_stylo_are_derived_locally_rather_than_demanded_of_the_pool():
+    raw = {"bleu": [1.0, 2.0], "kiwi": [0.5, 0.6], "judge": [3.0, 4.0]}
+    added = derive_components(
+        raw, ["the cat sat", "a dog ran"], ["the cat sat", "a dog ran"],
+        {"bleu", "kiwi", "judge", "chrf", "stylo"}, _CENTROID,
+    )
+    assert added == ["chrf", "stylo"]
+    assert len(raw["chrf"]) == len(raw["stylo"]) == 2
+    # Negated distance, so every stylo score is at or below zero.
+    assert all(s <= 0 for s in raw["stylo"])
+
+
+def test_a_component_that_cannot_be_derived_is_an_error_not_a_silent_zero():
+    with pytest.raises(ValueError, match="rebuild the pool|Rebuild the pool"):
+        derive_components({"bleu": [1.0]}, ["a b"], ["a b"], {"comet"}, _CENTROID)
+
+
+def test_a_cached_component_is_never_recomputed_over_the_top_of_the_pool():
+    raw = {"bleu": [7.0], "chrf": [42.0]}
+    assert derive_components(raw, ["a b"], ["a b"], {"bleu", "chrf"}, _CENTROID) == []
+    assert raw["chrf"] == [42.0]
+
+
+def test_the_heldout_bootstrap_pairs_two_pick_sets_on_the_same_resamples():
+    hyps = ["the cat sat", "a dog ran", "birds fly", "fish swim"]
+    a = heldout_draws([0, 1], hyps, _CENTROID, n_resamples=64, seed=7)
+    again = heldout_draws([0, 1], hyps, _CENTROID, n_resamples=64, seed=7)
+    b = heldout_draws([2, 3], hyps, _CENTROID, n_resamples=64, seed=7)
+    assert a.shape == b.shape == (64,)
+    assert np.array_equal(a, again)
+    assert not np.array_equal(a, b)

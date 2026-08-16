@@ -1,4 +1,4 @@
-# --- Generation ---
+# Generation 
 generator:
   provider: local
   model: Qwen/Qwen2.5-7B-Instruct   # single source of truth for the locked base
@@ -11,11 +11,11 @@ generator:
   device_map: auto
   load_in_4bit: false
 
-# --- Prompting ---
+# Prompting 
 prompt:
   style_instruction_file: prompts/style_instruction.txt
 
-# --- PEFT / LoRA ---
+# PEFT / LoRA 
 peft:
   output_dir: outputs/peft/adapter      # adapter + tokenizer saved here (git-ignored)
   load_in_4bit: false                   # QLoRA memory-pressure fallback (<=8GB VRAM)
@@ -42,12 +42,12 @@ peft:
     save_strategy: epoch
     save_total_limit: 1
 
-# --- Data ---
+# Data 
 data:
   train_file: data/splits/train.jsonl   # parameter updates only
   eval_file: data/splits/val.jsonl      # dev: eval_loss for model selection
   limit: null                           # full splits
 
-# --- Output ---
+# Output 
 output:
   dir: outputs                  

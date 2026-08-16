@@ -31,7 +31,7 @@ from src.eval.judge_agreement import (  # noqa: E402
 BOOT = {"n_resamples": 200, "seed": 42, "alpha": 0.05}
 
 
-# --- artefact routing: the second judge must not land on the first judge's files ---
+# artefact routing: the second judge must not land on the first judge's files 
 
 
 def test_tag_routes_artefacts_away_from_the_primary_judge() -> None:
@@ -72,7 +72,7 @@ def test_template_digest_is_stable_and_sensitive() -> None:
     assert template_digest("rubric text") != template_digest("rubric text ")
 
 
-# --- the agreement statistic itself ---
+# the agreement statistic itself 
 
 
 def test_qwk_endpoints_and_degenerate_cases() -> None:
@@ -149,7 +149,7 @@ def test_kappa_ci_on_no_segments_returns_empty_rather_than_raising() -> None:
     assert np.isnan(res["ci_low"]) and np.isnan(res["ci_high"])
 
 
-# --- loading, alignment, and the condition-level views ---
+# loading, alignment, and the condition-level views 
 
 
 def _write_condition(root: Path, cond: str, scores_a: list, scores_b: list, split: str = "val"):

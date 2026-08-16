@@ -103,7 +103,7 @@ class AFSPRetriever:
         # Lazily filled per-candidate target-register distances (NaN = not computed).
         self._style_cache = np.full(n, np.nan, dtype=np.float64)
 
-    # -- Margin-based scoring (mechanism 1) --------------------------------
+    # -- Margin-based scoring (mechanism 1)
 
     def _candidate_hubness(self, batch: int = 512) -> np.ndarray:
         """Mean cosine similarity of each index row to its ``knn_hubness`` nearest
@@ -144,7 +144,7 @@ class AFSPRetriever:
             np.save(cache_path, hub)
         return hub
 
-    # -- Target-distribution-priority selection (mechanism 2) --------------
+    # -- Target-distribution-priority selection (mechanism 2)
 
     def _register_fit(self, feats: dict[str, float]) -> float:
         if self.style_objective == "proximity":
@@ -163,7 +163,7 @@ class AFSPRetriever:
                 self._style_cache[i] = self._register_fit(features(target))
         return self._style_cache[indices]
 
-    # -- Selection ---------------------------------------------------------
+    # -- Selection
 
     def select(self, queries: list[str], k: int) -> list[list[dict]]:
         e = self.index.embeddings

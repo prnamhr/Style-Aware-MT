@@ -1,0 +1,12 @@
+{
+  "calls": 0,
+  "prompt_tokens": 0,
+  "completion_tokens": 0,
+  "cost_usd": 0.0,
+  "per_call_usd": 0.0,
+  "wall_s": 0.0,
+  "call_s": 0.0,
+  "mean_call_s": 0.0,
+  "calls_per_s": 0.0,
+  "achieved_parallelism": 0.0
+}
