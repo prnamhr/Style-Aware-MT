@@ -773,11 +773,16 @@ def trajectory_figure(report: dict, path: Path = _TRAJ_FIGURE_PATH) -> None:
             arm = report["arms"][cell]
             rows = arm["rows"]
             xs = [r["step"] for r in rows]
-            ys = [r["dist_heldout"] if key == "dist_heldout" else r["z"]["marker_rate"]
-                  for r in rows]
+            ys = [
+                r["dist_heldout"] if key == "dist_heldout" else r["z"]["marker_rate"] for r in rows
+            ]
             slope = arm["growth"][key]["slope_per_doubling"]
             (line,) = ax.plot(
-                xs, ys, marker="o", ms=4, lw=1.7,
+                xs,
+                ys,
+                marker="o",
+                ms=4,
+                lw=1.7,
                 label=rf"$\omega_3$={arm['omega_3']:g}  ({slope:+.3f}/doubling)",
             )
             delta = [r[f"{key}_delta"] for r in rows]
@@ -792,8 +797,9 @@ def trajectory_figure(report: dict, path: Path = _TRAJ_FIGURE_PATH) -> None:
             pick = report.get("selected", {}).get(cell, "")
             if pick.startswith("step") and int(pick.removeprefix("step")) in xs:
                 i = xs.index(int(pick.removeprefix("step")))
-                ax.scatter(xs[i], ys[i], s=110, facecolors="none", edgecolors=line.get_color(),
-                           lw=1.8)
+                ax.scatter(
+                    xs[i], ys[i], s=110, facecolors="none", edgecolors=line.get_color(), lw=1.8
+                )
         ax.axhline(ref_value, lw=0.9, ls="--", color="0.4", label=report["reference"])
         ax.set_xscale("log", base=2)
         ax.set_xticks([r["step"] for r in report["arms"][report["cells"][0]]["rows"]])
