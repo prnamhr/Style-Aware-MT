@@ -43,6 +43,7 @@ COMMANDS = {
     "metric_agreement": "src.eval.metric_agreement",
     "peft_register": "src.eval.peft_register",
     "sweep_curves": "src.eval.sweep_curves",
+    "heldout_decomp": "src.eval.heldout_decomp",
 }
 
 
