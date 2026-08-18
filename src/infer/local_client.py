@@ -39,10 +39,13 @@ class LocalChatClient:
     device_map: str | None = None
     load_in_4bit: bool = False
     adapter_path: str | None = None
+    attn_implementation: str | None = None
     usage: Usage = field(default=None)
     _tokenizer: object = field(default=None, repr=False)
     _model: object = field(default=None, repr=False)
     _device: object = field(default=None, repr=False)
+    _adapter_name: str | None = field(default=None, repr=False)
+    _swaps: int = field(default=0, repr=False)
 
     def __post_init__(self) -> None:
         set_seed(self.seed)
@@ -61,6 +64,8 @@ class LocalChatClient:
             )
         if self.device_map is not None:
             load_kwargs["device_map"] = self.device_map
+        if self.attn_implementation is not None:
+            load_kwargs["attn_implementation"] = self.attn_implementation
 
         self._model = AutoModelForCausalLM.from_pretrained(self.model, **load_kwargs)
 
@@ -69,6 +74,7 @@ class LocalChatClient:
             from peft import PeftModel
 
             self._model = PeftModel.from_pretrained(self._model, self.adapter_path)
+            self._adapter_name = "default"
         self._model.eval()
 
         if self.device_map is None and not self.load_in_4bit:
@@ -77,9 +83,24 @@ class LocalChatClient:
         else:
             self._device = self._model.device
 
+    def swap_adapter(self, adapter_path: str) -> None:
+        """Activate another LoRA adapter on the loaded base, dropping the current one."""
+        if self._adapter_name is None:
+            raise ValueError(
+                "swap_adapter needs a client built with adapter_path; a bare base model "
+                "has no PEFT wrapper to load into"
+            )
+        self._swaps += 1
+        name = f"swap{self._swaps}"
+        previous = self._adapter_name
+        self._model.load_adapter(str(adapter_path), adapter_name=name)
+        self._model.set_adapter(name)
+        self._model.delete_adapter(previous)
+        self._adapter_name = name
+        self.adapter_path = str(adapter_path)
+        self._model.eval()
+
     def complete(self, system: str, user: str) -> str:
-        """Single completion. Greedy unless ``temperature > 0``; the inference path
-        every reported condition uses, so its behaviour is deliberately unchanged."""
         return self.complete_many(system, user, n=1)[0]
 
     def complete_many(

@@ -98,6 +98,7 @@ def make_client(gen: dict):
             device_map=gen.get("device_map"),
             load_in_4bit=gen.get("load_in_4bit", False),
             adapter_path=gen.get("adapter_path"),  # LoRA adapter for the peft condition
+            attn_implementation=gen.get("attn_implementation"),
         )
     raise ValueError(f"unknown provider '{provider}' (expected openai|anthropic|gemini|local)")
 
