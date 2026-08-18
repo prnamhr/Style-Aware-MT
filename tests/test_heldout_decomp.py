@@ -9,9 +9,12 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.eval.heldout_decomp import (  # noqa: E402
+    _slope_draws,
     checkpoint_ladder,
     decompose,
+    omega_of,
     paired_delta,
+    traj_condition,
     z_draws,
 )
 from src.eval.stylometrics import HELDOUT_FEATURES, SPLIT_FEATURES  # noqa: E402
@@ -100,6 +103,42 @@ def test_checkpoint_ladder_reports_the_selection_mismatch() -> None:
     for step in ladder["steps"]:
         dists = [step["dist_heldout"][cell] for cell in ladder["cells"]]
         assert step["monotone_in_omega"] == (dists == sorted(dists))
+
+
+def test_omega_is_read_off_a_trajectory_tag() -> None:
+    """A step-indexed condition carries its judge weight in its name, not in the OMEGA table."""
+    assert omega_of(traj_condition("w3_6.0", 800)) == 6.0
+    assert omega_of("rlsf_w3_2.0") == omega_of(traj_condition("w3_2.0", 100)) == 2.0
+    assert omega_of("peft") == 0.0
+
+
+def test_an_unnamed_condition_has_no_judge_weight() -> None:
+    for name in ("knn_fewshot", "rlsf_w3_2.0_step", "rlsf_step800"):
+        try:
+            omega_of(name)
+        except KeyError:
+            continue
+        raise AssertionError(f"'{name}' should carry no judge weight")
+
+
+def test_chunking_leaves_the_draws_unchanged() -> None:
+    idx = np.random.default_rng(42).integers(0, 60, size=(200, 60))
+    whole = z_draws(_matrix(1), CENTROID, idx, chunk=len(idx))
+    assert np.array_equal(z_draws(_matrix(1), CENTROID, idx, chunk=7), whole)
+
+
+def test_slope_recovers_a_planted_growth_rate() -> None:
+    """The design is log2 of the step ratio, so the slope reads per doubling of training."""
+    steps = np.asarray([100, 200, 400, 800], dtype=float)
+    x = np.log2(steps / steps[0])
+    y = 0.17 + 0.05 * x
+    assert np.allclose(_slope_draws(y[None, :], x), 0.05)
+    assert np.allclose(_slope_draws(np.tile(y, (3, 1)) + np.arange(3)[:, None], x), 0.05)
+
+
+def test_a_flat_arm_has_no_slope() -> None:
+    x = np.log2(np.asarray([100.0, 200.0, 400.0]) / 100.0)
+    assert np.allclose(_slope_draws(np.full((4, 3), 0.2), x), 0.0)
 
 
 if __name__ == "__main__":
