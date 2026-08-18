@@ -1,0 +1,138 @@
+{
+  "repo": "prnamhr/style-aware-mt-models",
+  "base": "Qwen/Qwen2.5-7B-Instruct",
+  "generator": {
+    "provider": "local",
+    "model": "Qwen/Qwen2.5-7B-Instruct",
+    "max_tokens": 1024,
+    "temperature": 0.0,
+    "top_p": 1.0,
+    "seed": 42,
+    "dtype": "bfloat16",
+    "device_map": "auto",
+    "load_in_4bit": false,
+    "attn_implementation": "sdpa"
+  },
+  "checkpoints": {
+    "w3_0.0_step100": {
+      "adapter": "models/rlsf_grpo_w3_0.0/checkpoint-100",
+      "sha256": "9e5c7b903ca30deedcf90b7d8f0550da8d1e035e8e5659e4cae6643376a707d7",
+      "arm": "RL-Metric",
+      "output": "outputs/rlsf_traj/rlsf_w3_0.0_step100_val.jsonl",
+      "seconds": 1892.3,
+      "finished": "2026-08-18T12:18:57+00:00"
+    },
+    "w3_2.0_step100": {
+      "adapter": "models/rlsf_grpo_w3_2.0/checkpoint-100",
+      "sha256": "6cb6728fe1f2bd80789388870ce7128a846f0388e8f9d01ee17cc5819d737532",
+      "arm": "RLSF-Judge",
+      "output": "outputs/rlsf_traj/rlsf_w3_2.0_step100_val.jsonl",
+      "seconds": 1864.7,
+      "finished": "2026-08-18T12:50:06+00:00"
+    },
+    "w3_6.0_step100": {
+      "adapter": "models/rlsf_grpo_w3_6.0/checkpoint-100",
+      "sha256": "afbd5a74ca412bc3812439c87381c4bb58a63c11555f9aa9732553b7c57e8129",
+      "arm": "RLSF-Judge-High",
+      "output": "outputs/rlsf_traj/rlsf_w3_6.0_step100_val.jsonl",
+      "seconds": 1868.0,
+      "finished": "2026-08-18T13:21:17+00:00"
+    },
+    "w3_0.0_step200": {
+      "adapter": "models/rlsf_grpo_w3_0.0/checkpoint-200",
+      "sha256": "ef232d93a6646d8973017df8c9b3deefc6a3a1348f83bd0df0d4015b3aba431f",
+      "arm": "RL-Metric",
+      "output": "outputs/rlsf_traj/rlsf_w3_0.0_step200_val.jsonl",
+      "seconds": 1842.8,
+      "finished": "2026-08-18T13:52:03+00:00"
+    },
+    "w3_2.0_step200": {
+      "adapter": "models/rlsf_grpo_w3_2.0/checkpoint-200",
+      "sha256": "c322802ef93038b4561e2fbbf5ae3908609c8058bba47f5596a35b55309e69f3",
+      "arm": "RLSF-Judge",
+      "output": "outputs/rlsf_traj/rlsf_w3_2.0_step200_val.jsonl",
+      "seconds": 1872.0,
+      "finished": "2026-08-18T14:23:19+00:00"
+    },
+    "w3_6.0_step200": {
+      "adapter": "models/rlsf_grpo_w3_6.0/checkpoint-200",
+      "sha256": "68826417714b38aeb30ef72ad5514d0e1c9f574bd9bb5f92474489c2b83b1945",
+      "arm": "RLSF-Judge-High",
+      "output": "outputs/rlsf_traj/rlsf_w3_6.0_step200_val.jsonl",
+      "seconds": 1891.3,
+      "finished": "2026-08-18T14:54:54+00:00"
+    },
+    "w3_0.0_step400": {
+      "adapter": "models/rlsf_grpo_w3_0.0/checkpoint-400",
+      "sha256": "ecdd907e833026a8340746b26942a7d2bf7b17e5f4018640b9ff3a0c702cbd82",
+      "arm": "RL-Metric",
+      "output": "outputs/rlsf_traj/rlsf_w3_0.0_step400_val.jsonl",
+      "seconds": 1808.6,
+      "finished": "2026-08-18T15:25:05+00:00"
+    },
+    "w3_2.0_step400": {
+      "adapter": "models/rlsf_grpo_w3_2.0/checkpoint-400",
+      "sha256": "f204f144984f339dc0191f4c1dd228080880c3b9f104a5dd198890ad56c76e43",
+      "arm": "RLSF-Judge",
+      "output": "outputs/rlsf_traj/rlsf_w3_2.0_step400_val.jsonl",
+      "seconds": 1851.4,
+      "finished": "2026-08-18T15:56:00+00:00"
+    },
+    "w3_6.0_step400": {
+      "adapter": "models/rlsf_grpo_w3_6.0/checkpoint-400",
+      "sha256": "e4565f35339427075c3445fe898ccbdb023e5c6058606185bd481fd10a0a505f",
+      "arm": "RLSF-Judge-High",
+      "output": "outputs/rlsf_traj/rlsf_w3_6.0_step400_val.jsonl",
+      "seconds": 1850.6,
+      "finished": "2026-08-18T16:26:53+00:00"
+    },
+    "w3_0.0_step800": {
+      "adapter": "models/rlsf_grpo_w3_0.0/checkpoint-800",
+      "sha256": "a8701a1663aa57b658d552762dc620880f0a4301a36bbb90ef7d95836f01e189",
+      "arm": "RL-Metric",
+      "output": "outputs/rlsf_traj/rlsf_w3_0.0_step800_val.jsonl",
+      "seconds": 1759.2,
+      "finished": "2026-08-18T16:56:16+00:00"
+    },
+    "w3_2.0_step800": {
+      "adapter": "models/rlsf_grpo_w3_2.0/checkpoint-800",
+      "sha256": "a91095df9cf41852eca87dba40953cceca7ea55cd88c0794c78fe249f4530dd4",
+      "arm": "RLSF-Judge",
+      "output": "outputs/rlsf_traj/rlsf_w3_2.0_step800_val.jsonl",
+      "seconds": 1821.7,
+      "finished": "2026-08-18T17:26:40+00:00"
+    },
+    "w3_6.0_step800": {
+      "adapter": "models/rlsf_grpo_w3_6.0/checkpoint-800",
+      "sha256": "36aba1189519d62582caaa595f2ca3aad4607bf28ec0f96da97df369abee843e",
+      "arm": "RLSF-Judge-High",
+      "output": "outputs/rlsf_traj/rlsf_w3_6.0_step800_val.jsonl",
+      "seconds": 1858.2,
+      "finished": "2026-08-18T17:57:41+00:00"
+    },
+    "w3_0.0_step1200": {
+      "adapter": "models/rlsf_grpo_w3_0.0/checkpoint-1200",
+      "sha256": "19b8a6de7292a1087211ac7235054baa68fee6daed92319f102fd70417dd07de",
+      "arm": "RL-Metric",
+      "output": "outputs/rlsf_traj/rlsf_w3_0.0_step1200_val.jsonl",
+      "seconds": 1767.7,
+      "finished": "2026-08-18T18:27:12+00:00"
+    },
+    "w3_2.0_step1200": {
+      "adapter": "models/rlsf_grpo_w3_2.0/checkpoint-1200",
+      "sha256": "fa74977f4868747de99634d3da72f3b7f9df925f03073fa59dac913c3d8c26f5",
+      "arm": "RLSF-Judge",
+      "output": "outputs/rlsf_traj/rlsf_w3_2.0_step1200_val.jsonl",
+      "seconds": 1846.2,
+      "finished": "2026-08-18T18:58:02+00:00"
+    },
+    "w3_6.0_step1200": {
+      "adapter": "models/rlsf_grpo_w3_6.0/checkpoint-1200",
+      "sha256": "bbcde44f0930686f88119ab4648785db762b32bc7f4f3a94c69874ec0d9ea40e",
+      "arm": "RLSF-Judge-High",
+      "output": "outputs/rlsf_traj/rlsf_w3_6.0_step1200_val.jsonl",
+      "seconds": 1906.8,
+      "finished": "2026-08-18T19:29:52+00:00"
+    }
+  }
+}
