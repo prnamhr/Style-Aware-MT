@@ -108,6 +108,216 @@ their history.
 
 ---
 
+## 2026-08-19 — The checkpoint ladder, and both axes finally in one table
+
+Covers 2026-08-18 and 2026-08-19: generation of the ladder on a rented GPU box, and its scoring
+locally. Neither day had an entry before this one.
+
+### Summary
+
+The 2026-08-15 entry closed on a gap it could not fill: Goodhart needs an independent target
+moving the wrong way, and the step logs hold only the reward's own view. Held-out register
+distance is that independent target, and it is a val measurement. This ladder is the measurement —
+five saved checkpoints per arm, regenerated on the full val split under the arms' own decoding, so
+distance and marker inflation can be read against optimizer step rather than against the reward
+that produced them.
+
+Both drift. Held-out distance grows +0.0399 and +0.0584 per doubling of training in the two paid
+arms and does not move in the control, and `marker_rate` z tracks it almost exactly. Adequacy does
+not pay for it: COMET, chrF and BLEU are flat or rising everywhere, with a single exception that
+is itself indistinguishable from zero. That pairing is what the run was generated to test, and
+until today it rested on COMET alone, in a notebook print.
+
+### What changed
+
+**The ladder was generated** (2026-08-18, `notebooks/rlsf_trajectory_gpu.ipynb` at `dc6f778`).
+Fifteen adapters — three arms × steps 100, 200, 400, 800, 1200 — decoded the whole of
+`data/splits/val.jsonl`, 15 × 1,323 = 19,845 generations. Greedy throughout and identical to the
+arms' own decoding: `temperature 0.0`, `top_p 1.0`, `seed 42`, `max_tokens 1024`, `bfloat16`,
+`sdpa`, unquantized. Output at `outputs/rlsf_traj/`, archived at `rlsf_traj_val.tar.gz`. First
+checkpoint finished `2026-08-18T12:18:57+00:00`, last `2026-08-18T19:29:52+00:00`: 7 h 11 m wall
+against a 16 h booked budget, 1759.2–1906.8 s per checkpoint.
+
+**Adapter hashes.** `outputs/rlsf_traj/manifest.json` carries one entry per checkpoint keyed
+`{cell}_step{N}`, each with `adapter`, `sha256`, `arm`, `output`, `seconds` and `finished`. The
+digest is sha256 of `adapter_model.safetensors`, taken by the generation notebook's cell 14, which
+also asserts `r == 32 and lora_alpha == 64`, checks `base_model_name_or_path` against the frozen
+base, and refuses two checkpoints whose weights hash the same. The scoring notebook re-verifies
+the other end (`notebooks/rlsf_trajectory_scoring.ipynb` cell 4): every generated row's `adapter`
+field must equal its manifest entry, and all fifteen digests must be distinct —
+`15 files x 1323 aligned segments, 15 distinct adapters`. The adapters are not in the repo;
+`models/` is gitignored and they live in the private HF repo `prnamhr/style-aware-mt-models` under
+`models/rlsf_grpo_{cell}/checkpoint-{step}`.
+
+**chrF and BLEU became trajectory quantities** (2026-08-19, `src/eval/heldout_decomp.py`).
+`surface_segments()` scores every ladder point and the reference per segment with
+`segment_scores()` (`src/eval/quick.py:26`), the same sentence-level entry point
+`src/eval/bootstrap.py` already uses, and `trajectory()` resamples them on the identical paired
+index the register quantities and COMET use. `quantities` in `results/heldout_traj_val.json` now
+reads `dist_heldout, z_marker_rate, comet, chrf, bleu`, and each acquires a per-checkpoint
+interval, a delta against `peft`, a per-doubling slope, an endpoint delta and an ω-adjacent
+comparison from machinery that was already a loop over that tuple.
+
+**Corpus chrF and BLEU are carried alongside**, as `chrf_corpus` and `bleu_corpus`, from
+`quick.score()`. These are the numbers `manage.py rlsf_select` ranks checkpoints on and the ones
+every other table in this project prints. They are not the bootstrapped quantity and are not what
+the slopes are computed from; see the limitations.
+
+**Two figures**, `docs/figures/traj_dist_heldout.png` and `docs/figures/traj_marker_rate_z.png`,
+one arm per line. `trajectory_figure()`'s per-axis body moved into `_traj_panel()` so the standalone
+and combined figures draw the same panel rather than two drifting copies of it. The combined
+`heldout_traj_by_step.png` is unchanged at three panels; it was not grown to five.
+
+### The two axes
+
+Per doubling of optimizer step, 95% paired interval, `*` where the interval clears zero:
+
+| | dist_heldout | z marker_rate | COMET | chrF | BLEU |
+|---|---:|---:|---:|---:|---:|
+| `w3_0.0` | +0.0044 | −0.0001 | +0.0016* | +0.29* | +0.25* |
+| `w3_2.0` | +0.0399* | +0.0442* | +0.0009* | +0.34* | +0.19* |
+| `w3_6.0` | +0.0584* | +0.0656* | −0.0002 | +0.15* | −0.02 |
+
+Read the first two columns together. They are close to the same number in each arm, they are zero
+in the control and separated from zero in both paid arms, and the three rates rank in ω₃ order on
+both. The reward saw neither. That is the independent target the 2026-08-15 entry said the step
+logs could not supply, and it moves the way the pre-registration's prediction 4 said it would.
+
+Read the last three against them. Nothing falls. Every significant adequacy slope is positive; the
+two that are not significant, COMET and BLEU in `w3_6.0`, are −0.0002 and −0.02 with intervals
+straddling zero. The register drift in `w3_2.0` and `w3_6.0` was not bought out of measured
+adequacy, and it is now three metrics of two different kinds saying so rather than one.
+
+The ω ordering does hold on adequacy as a *gain*, which is the same shape the 2026-08-15 entry
+found across the arms. `w3_6.0` grows more slowly than `w3_2.0` on chrF by 0.19 per doubling
+[−0.28, −0.10] and on BLEU by 0.21 [−0.31, −0.11], both separated from zero; the `w3_2.0` against
+`w3_0.0` comparison is not, on either. So the high arm's cost appears as improvement forgone,
+which is what the training logs said at 300 rollouts, and not as loss.
+
+`ordered_in_omega` is `true` for both register quantities and `false` for all three adequacy ones.
+That asymmetry is the finding stated in one line.
+
+### Where the ladder does not support a reading
+
+Matched-step held-out distance ranks in ω₃ order at 3 of 5 steps, and the two that fail are 100
+and 200, where the arms have barely separated. The scoring notebook's noise floor cell measures
+what a single ladder point can carry: comparing each arm's dev-selected checkpoint against the
+same arm's reported adapter, the generations agree on only 68.9–70.8% of segments and held-out
+distance differs by up to 0.0136. That is a bound on any step-to-step move, not on the slope over
+the whole ladder, and it is why the entry above quotes slopes.
+
+### Verification
+
+`python -m pytest tests/` — 364 passed. Five new tests in `tests/test_heldout_decomp.py`, mirroring
+the COMET block beside them: the two-directory read, refusal on sources that disagree, refusal on
+references that disagree, pairing of the surface draws on the shared index, and one that pins the
+segment mean and the corpus score as *different* numbers rather than asserting they agree.
+
+Regenerating the report left `dist_heldout`, `z_marker_rate` and `comet` bit-identical to the
+committed file, additions only. The shared bootstrap index is drawn before any surface metric is
+computed, so adding two quantities could not perturb the RNG stream; the check is that it did not.
+
+`chrf_corpus` reproduces the scoring notebook's committed chrF table exactly — `w3_0.0` 41.68,
+41.98, 42.24, 42.69, 42.90; `w3_2.0` 42.04, 42.15, 42.43, 43.10, 43.24; `w3_6.0` 42.13, 42.25,
+42.61, 42.74, 42.77; `peft` 41.58 — which is what establishes that the corpus path was not
+silently replaced by the segment mean.
+
+**0 paid calls and $0.00 across both days.** The ladder is local generation on a rented card;
+COMET runs locally under `.venv-comet`; chrF and BLEU are local sacrebleu 2.6.0. The scoring
+notebook's seal cell asserts no `_usage.json` exists under `outputs/rlsf_traj/` and no test-split
+file was touched. The whole trajectory pass, both surface metrics included, is 17 s of CPU over
+the sixteen conditions.
+
+### The GPU, and what the manifest does not record
+
+Generation ran on an **RTX 4090**, 24564 MiB, driver 595.71.05, `sm_89`, `torch 2.12.0+cu130`
+against CUDA 13.0, with `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True`. The notebook asserts
+CUDA ≥ 12.8 and bf16 support before loading anything.
+
+**The arms were trained on a different card.** `outputs/rlsf/steps_w3_*_manifest.json` records
+`versions.device` as an RTX 5090 for all three. Nothing here suggests that matters for greedy
+decoding, and nothing here rules it out either, because no run has ever decoded the same adapter
+on both. What is recorded is that the ladder and the reported arms were decoded on the *same* card
+as each other, which is the comparison the scoring rests on.
+
+`manifest.json` carries the `generator` block but not the device. The training manifests carry
+`versions` including the device; the generation manifest does not, so the card for this run exists
+only in a notebook's stored output. That is a gap, and it is listed as one rather than backfilled.
+
+### The orphan dependency cascade
+
+On the 4090 box, during `pip install -r requirements.txt`. `torch==2.12.0` broke the pinned-torch
+ABI that `torchvision`, `torchaudio` and `torchcodec` ship against; the three were uninstalled by
+hand and generation proceeded. The pipeline is text-only and imports none of them.
+
+This is the third time the same failure has been recorded — `notebooks/peft_full_run_colab.ipynb:215`
+and `notebooks/afsp_run_colab.ipynb:274` both carry the uninstall for the PEFT and AFSP Colab runs,
+with the same one-line reason. What is new is `torchcodec`, which appears nowhere in this
+repository and was pulled in by the box's base image.
+
+**`requirements.txt` pins none of the three**, so the fix is not reproducible from the file: a
+fresh install on any image that ships them hits the same cascade and the operator has to know to
+remove them. Either pin all three to the matching torch build or make the uninstall an explicit
+documented step in `requirements.txt`. Until one of those happens this is a known hazard, not a
+solved problem, and it is recorded here as a hazard.
+
+*[accurate information needed]* — the exact removed versions and the pip transcript were not
+committed and the box is gone. The versions are deliberately left blank rather than reconstructed.
+
+### T1–T4
+
+`docs/preregistration_rlsf.md` gains a dated addendum declaring four trajectory hypotheses as
+**post-hoc exploratory**. The ladder was never pre-registered; that document commits to four
+predictions about the arms at their final adapters and to four val figures, and says nothing about
+optimizer step. T1 and T2 are the register columns above, T3 is the adequacy columns, and T4 is the
+two together. The addendum states that every quantity they concern had already been read when they
+were written, which is the disclosure that makes them descriptions rather than predictions. They
+carry none of the weight of the four predictions they sit beneath.
+
+### Reproduction
+
+```
+python manage.py eval --conditions rlsf_w3_0.0_step100 ... --split val --out_dir outputs/rlsf_traj
+.venv-comet/bin/python manage.py comet --conditions ... --split val --out_dir outputs/rlsf_traj \
+    --results_path results/comet_traj_val.json --batch_size 16
+python manage.py heldout_decomp --trajectory --split val --n_resamples 10000 --seed 42
+python -m pytest tests/
+```
+
+Generation itself is `notebooks/rlsf_trajectory_gpu.ipynb` and needs the fifteen adapters from the
+private HF repo and a card with ≥ 24 GiB. Scoring is CPU and reproduces exactly from the committed
+`outputs/rlsf_traj/` files; the full pass is `notebooks/rlsf_trajectory_scoring.ipynb` top to
+bottom, whose cells 4, 5, 8 and 26 are assertion cells.
+
+### Limitations and risks
+
+* **Segment-mean chrF is not corpus chrF, and the slopes are on the first.** The bootstrapped
+  quantity is the mean of sentence scores; the corpus score is a different estimator over the same
+  text and sits 1.3 to 1.8 points higher at every ladder point (`w3_2.0` at step 1200: 41.64
+  against 43.24).
+  Both are in the file, on purpose. Reading a `chrf` field as the number `rlsf_select` ranked on is
+  the error this shape invites, and one test exists solely to stop a future reader "fixing" the
+  disagreement.
+* **Sentence BLEU under `effective_order` is a different and noisier estimator than corpus BLEU**,
+  especially on short segments. It is here because it is the one that can be paired, not because it
+  is the better BLEU.
+* **"Adequacy does not fall" is an absence.** It is a failure to detect coupling at n = 1,323 over
+  five checkpoints, not a demonstration that none exists. Three metrics agreeing on a null is
+  stronger than one and is still a null.
+* **Five checkpoints, saved rather than chosen.** `save_every_rollouts: 25` set the ladder, the
+  slope is a least-squares fit through five points in log-2 of the step, and consecutive
+  checkpoints on one training run are not independent. The per-doubling figures are descriptions
+  of a trajectory, not tests.
+* **T1–T4 are post-hoc, and every number they concern had been read first.**
+* **Trained on a 5090, decoded on a 4090, and the generation manifest records neither.**
+* **The dependency cascade is not reproducible from `requirements.txt`**, and its exact versions
+  are unrecorded.
+* **`condition` reads `"peft"` on every row of every ladder file.** It is inherited from the eval
+  config; provenance is carried by `arm`, `step` and `adapter`, and those are what both notebooks
+  assert against the manifest. It looks like a bug and is not one.
+
+---
+
 ## 2026-08-15 — Three arms run to 300 rollouts, and a judge that does not repeat itself
 
 ### Summary

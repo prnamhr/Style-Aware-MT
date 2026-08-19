@@ -15,7 +15,9 @@ from pathlib import Path
 
 import numpy as np
 
-from src.eval._io import condition_path
+from src.eval._io import condition_path, load_condition
+from src.eval.quick import score as corpus_score
+from src.eval.quick import segment_scores
 from src.eval.stylometrics import (
     HELDOUT_FEATURES,
     REWARD_FEATURES,
@@ -30,6 +32,11 @@ _COMET_PATH = "results/comet_{split}.json"
 _COMET_TRAJ_PATH = "results/comet_traj_{split}.json"
 _FIGURE_PATH = Path("docs/figures/heldout_decomp_by_omega.png")
 _TRAJ_FIGURE_PATH = Path("docs/figures/heldout_traj_by_step.png")
+_TRAJ_PANEL_DIR = Path("docs/figures")
+_TRAJ_PANEL_FILE = {
+    "dist_heldout": "traj_dist_heldout.png",
+    "z_marker_rate": "traj_marker_rate_z.png",
+}
 
 # The frozen-PEFT initialization every RLSF arm starts from: the arms are read as
 # movement away from it, not against each other.
@@ -50,6 +57,10 @@ TRAJ_DIR = Path("outputs/rlsf_traj")
 REF_DIR = Path("outputs")
 
 _TRAJ_RE = re.compile(r"^rlsf_w3_(?P<omega>\d+(?:\.\d+)?)(?:_step(?P<step>\d+))?$")
+
+# The bootstrapped surface quantity is a segment mean; these are the corpus scores the
+# selection rule ranks on, carried alongside so the two readings cannot be confused.
+_CORPUS_KEY = {"chrf": "chrF", "bleu": "BLEU"}
 
 
 def omega_of(condition: str) -> float:
@@ -131,6 +142,39 @@ def comet_segments(
     if len(models) != 1:
         raise ValueError(f"the ladder was scored by more than one COMET model: {models}")
     return scores, {"model": models[0], "paths": paths}
+
+
+def surface_segments(
+    conditions: list[str], dirs: dict[str, Path], split: str, n: int | None = None
+) -> tuple[dict[str, dict[str, np.ndarray]], dict]:
+    """Per-segment chrF and BLEU for every condition, scored here rather than loaded."""
+    loaded = {c: load_condition(dirs[c], c, split) for c in conditions}
+
+    reference = conditions[0]
+    ref_sources, _, ref_refs = loaded[reference]
+    for cond in conditions[1:]:
+        sources, _, refs = loaded[cond]
+        if sources != ref_sources:
+            raise ValueError(f"sources for '{cond}' disagree with '{reference}': not paired")
+        # Unlike COMET these are scored on the spot, so nothing upstream has checked the targets.
+        if refs != ref_refs:
+            raise ValueError(f"references for '{cond}' disagree with '{reference}': not comparable")
+
+    scores: dict[str, dict[str, np.ndarray]] = {"chrf": {}, "bleu": {}}
+    for cond in conditions:
+        _, preds, refs = loaded[cond]
+        if n is not None and len(preds) != n:
+            raise ValueError(f"'{cond}' has {len(preds)} segments, expected {n}")
+        for metric in scores:
+            scores[metric][cond] = np.asarray(segment_scores(preds, refs, metric), dtype=float)
+
+    meta = {
+        "chrf": "sacrebleu CHRF sentence_score",
+        "bleu": "sacrebleu BLEU sentence_score, effective_order",
+        "aggregation": "segment mean",
+        "corpus_reported_separately": True,
+    }
+    return scores, meta
 
 
 def decompose(z: dict[str, float], features: list[str]) -> dict:
@@ -388,7 +432,13 @@ def trajectory(
     ladder = [c for c in texts if c != reference]
     comet, comet_meta = comet_segments([reference, *ladder], split, n)
     comet_boot = {c: mean_draws(v, idx) for c, v in comet.items()}
-    quantities = ("dist_heldout", "z_marker_rate") + (("comet",) if comet else ())
+
+    dirs = {reference: Path(ref_dir), **{c: Path(traj_dir) for c in ladder}}
+    surface, surface_meta = surface_segments([reference, *ladder], dirs, split, n)
+    surface_boot = {m: {c: mean_draws(v, idx) for c, v in s.items()} for m, s in surface.items()}
+    corpus = {c: corpus_score(c, dirs[c], split) for c in (reference, *ladder)}
+
+    quantities = ("dist_heldout", "z_marker_rate") + (("comet",) if comet else ()) + tuple(surface)
     slope_boot: dict[str, dict[str, np.ndarray]] = {q: {} for q in quantities}
     arms: dict[str, dict] = {}
 
@@ -417,6 +467,10 @@ def trajectory(
             draws["comet"] = np.column_stack([comet_boot[c] for c in conds])
             point["comet"] = np.asarray([comet[c].mean() for c in conds])
             ref_draw["comet"] = comet_boot[reference]
+        for metric, boot in surface_boot.items():
+            draws[metric] = np.column_stack([boot[c] for c in conds])
+            point[metric] = np.asarray([surface[metric][c].mean() for c in conds])
+            ref_draw[metric] = boot[reference]
 
         rows = []
         for i, (step, cond) in enumerate(zip(present, conds)):
@@ -438,6 +492,11 @@ def trajectory(
                 row["comet"] = float(point["comet"][i])
                 row["comet_ci"] = _interval(draws["comet"][:, i], alpha)
                 row["comet_delta"] = paired_delta(draws["comet"][:, i], ref_draw["comet"], alpha)
+            for metric in surface_boot:
+                row[metric] = float(point[metric][i])
+                row[f"{metric}_ci"] = _interval(draws[metric][:, i], alpha)
+                row[f"{metric}_delta"] = paired_delta(draws[metric][:, i], ref_draw[metric], alpha)
+                row[f"{metric}_corpus"] = corpus[cond][_CORPUS_KEY[metric]]
             rows.append(row)
 
         growth = {}
@@ -494,6 +553,11 @@ def trajectory(
         }
         if comet:
             entry["comet"] = {c: float(comet[t].mean()) for c, t in zip(ranked, conds)}
+        for metric, scores in surface.items():
+            entry[metric] = {c: float(scores[t].mean()) for c, t in zip(ranked, conds)}
+            entry[f"{metric}_corpus"] = {
+                c: corpus[t][_CORPUS_KEY[metric]] for c, t in zip(ranked, conds)
+            }
         by_step.append(entry)
 
     reference_cell = {
@@ -505,6 +569,10 @@ def trajectory(
     if comet:
         reference_cell["comet"] = float(comet[reference].mean())
         reference_cell["comet_ci"] = _interval(comet_boot[reference], alpha)
+    for metric, boot in surface_boot.items():
+        reference_cell[metric] = float(surface[metric][reference].mean())
+        reference_cell[f"{metric}_ci"] = _interval(boot[reference], alpha)
+        reference_cell[f"{metric}_corpus"] = corpus[reference][_CORPUS_KEY[metric]]
 
     return {
         "split": split,
@@ -523,6 +591,7 @@ def trajectory(
         "reference_cell": reference_cell,
         "quantities": list(quantities),
         "comet": comet_meta,
+        "surface": surface_meta,
         "cells": ranked,
         "arms": arms,
         "by_step": by_step,
@@ -765,8 +834,23 @@ def print_trajectory(report: dict) -> None:
                 row["comet"] = f"{r['comet']:.4f}"
                 row[f"comet ci{pct}"] = _ci(r["comet_ci"], 4)
                 row[f"dc vs {ref}"] = f"{c['delta']:+.4f}" + ("*" if c["significant"] else " ")
+            for metric in _CORPUS_KEY:
+                if metric not in r:
+                    continue
+                name = _CORPUS_KEY[metric]
+                s = r[f"{metric}_delta"]
+                row[name] = f"{r[metric]:.2f}"
+                row[f"{name} ci{pct}"] = _ci(r[f"{metric}_ci"], 2)
+                row[f"d{name} vs {ref}"] = f"{s['delta']:+.2f}" + ("*" if s["significant"] else " ")
+                row[f"{name} corpus"] = f"{r[f'{metric}_corpus']:.2f}"
             rows.append(row)
     _table(rows, list(rows[0].keys()))
+    if "chrF corpus" in rows[0]:
+        print(
+            "chrF/BLEU columns are segment means with a paired interval; the corpus column is "
+            "the aggregate the selection rule ranks on. They are different estimators and do "
+            "not agree."
+        )
 
     first = report["arms"][report["cells"][0]]["steps"][0]
     print(f"\nGrowth per doubling of training, anchored at step {first}")
@@ -788,6 +872,31 @@ def print_trajectory(report: dict) -> None:
                 }
             )
     _table(rows, list(rows[0].keys()))
+
+    # Both axes on one row per arm: the decoupling claim is a statement about the two together,
+    # and reading it off two tables invites pairing a register slope with the wrong adequacy one.
+    register = [q for q in ("dist_heldout", "z_marker_rate") if q in report["quantities"]]
+    adequacy = [q for q in ("comet", "chrf", "bleu") if q in report["quantities"]]
+    if register and adequacy:
+        print(f"\nRegister against adequacy, per doubling ({pct}% CI, * = interval clears zero)")
+        rows = []
+        for cell in report["cells"]:
+            row = {"cell": cell, "w3": f"{report['arms'][cell]['omega_3']:g}"}
+            for q in register + adequacy:
+                g = report["arms"][cell]["growth"][q]
+                places = 2 if q in _CORPUS_KEY else 4
+                label = _CORPUS_KEY.get(q, q)
+                row[label] = (
+                    f"{g['slope_per_doubling']:+.{places}f}"
+                    + ("*" if g["significant"] else " ")
+                    + f" {_ci([g['ci_low'], g['ci_high']], places)}"
+                )
+            rows.append(row)
+        _table(rows, list(rows[0].keys()))
+        print(
+            "T4 reads off this table: register drift is decoupled from adequacy where a starred "
+            "register column sits beside adequacy columns that are unstarred or positive."
+        )
 
     print(f"\nGrowth rates between arms adjacent in omega_3, paired bootstrap ({pct}% CI)")
     rows = []
@@ -831,15 +940,33 @@ def print_trajectory(report: dict) -> None:
         ]
         _table(rows, list(rows[0].keys()))
         print(f"reference {ref} sits at COMET {ref_cell['comet']:.4f}.")
+
+    for metric, name in _CORPUS_KEY.items():
+        if not all(metric in step for step in report["by_step"]):
+            continue
+        print(f"\nSurface adequacy at matched training length, {name} (corpus in brackets)")
+        rows = [
+            {
+                "step": str(step["step"]),
+                **{
+                    cell: f"{step[metric][cell]:.2f} [{step[f'{metric}_corpus'][cell]:.2f}]"
+                    for cell in report["cells"]
+                },
+            }
+            for step in report["by_step"]
+        ]
+        _table(rows, list(rows[0].keys()))
+        print(
+            f"reference {ref} sits at {name} {ref_cell[metric]:.2f} "
+            f"[{ref_cell[f'{metric}_corpus']:.2f}]."
+        )
     if report.get("selected"):
         picks = ", ".join(f"{cell} -> {tag}" for cell, tag in report["selected"].items())
         print(f"dev-slice selection picked {picks}; those points are circled in the figure.")
 
 
-def trajectory_figure(report: dict, path: Path = _TRAJ_FIGURE_PATH) -> None:
-    """Held-out distance and marker inflation against optimizer step, one line per arm."""
-    import matplotlib.pyplot as plt
-
+def _traj_panels(report: dict) -> list[tuple[str, str, float, str]]:
+    """The (key, ylabel, reference level, title) tuples the trajectory figures draw."""
     ref_cell = report["reference_cell"]
     panels = [
         (
@@ -865,46 +992,58 @@ def trajectory_figure(report: dict, path: Path = _TRAJ_FIGURE_PATH) -> None:
                 "semantic adequacy against the gold reference",
             )
         )
+    return panels
 
+
+def _traj_panel(ax, report: dict, key: str, ylabel: str, ref_value: float, title: str) -> None:
+    """One arm-per-line panel of a trajectory quantity against optimizer step."""
+    import matplotlib.pyplot as plt
+
+    for cell in report["cells"]:
+        arm = report["arms"][cell]
+        rows = arm["rows"]
+        xs = [r["step"] for r in rows]
+        ys = [r["z"]["marker_rate"] if key == "z_marker_rate" else r[key] for r in rows]
+        slope = arm["growth"][key]["slope_per_doubling"]
+        (line,) = ax.plot(
+            xs,
+            ys,
+            marker="o",
+            ms=4,
+            lw=1.7,
+            label=rf"$\omega_3$={arm['omega_3']:g}  ({slope:+.3f}/doubling)",
+        )
+        delta = [r[f"{key}_delta"] for r in rows]
+        ax.fill_between(
+            xs,
+            [ref_value + d["ci_low"] for d in delta],
+            [ref_value + d["ci_high"] for d in delta],
+            color=line.get_color(),
+            alpha=0.16,
+            lw=0,
+        )
+        pick = report.get("selected", {}).get(cell, "")
+        if pick.startswith("step") and int(pick.removeprefix("step")) in xs:
+            i = xs.index(int(pick.removeprefix("step")))
+            ax.scatter(xs[i], ys[i], s=110, facecolors="none", edgecolors=line.get_color(), lw=1.8)
+    ax.axhline(ref_value, lw=0.9, ls="--", color="0.4", label=report["reference"])
+    ax.set_xscale("log", base=2)
+    ax.set_xticks([r["step"] for r in report["arms"][report["cells"][0]]["rows"]])
+    ax.get_xaxis().set_major_formatter(plt.matplotlib.ticker.ScalarFormatter())
+    ax.set_xlabel("optimizer step")
+    ax.set_ylabel(ylabel)
+    ax.set_title(title)
+    ax.legend(fontsize=8)
+
+
+def trajectory_figure(report: dict, path: Path = _TRAJ_FIGURE_PATH) -> None:
+    """Held-out distance and marker inflation against optimizer step, one line per arm."""
+    import matplotlib.pyplot as plt
+
+    panels = _traj_panels(report)
     fig, axes = plt.subplots(1, len(panels), figsize=(5.5 * len(panels), 4.4), sharex=True)
-    for ax, (key, ylabel, ref_value, title) in zip(axes, panels):
-        for cell in report["cells"]:
-            arm = report["arms"][cell]
-            rows = arm["rows"]
-            xs = [r["step"] for r in rows]
-            ys = [r["z"]["marker_rate"] if key == "z_marker_rate" else r[key] for r in rows]
-            slope = arm["growth"][key]["slope_per_doubling"]
-            (line,) = ax.plot(
-                xs,
-                ys,
-                marker="o",
-                ms=4,
-                lw=1.7,
-                label=rf"$\omega_3$={arm['omega_3']:g}  ({slope:+.3f}/doubling)",
-            )
-            delta = [r[f"{key}_delta"] for r in rows]
-            ax.fill_between(
-                xs,
-                [ref_value + d["ci_low"] for d in delta],
-                [ref_value + d["ci_high"] for d in delta],
-                color=line.get_color(),
-                alpha=0.16,
-                lw=0,
-            )
-            pick = report.get("selected", {}).get(cell, "")
-            if pick.startswith("step") and int(pick.removeprefix("step")) in xs:
-                i = xs.index(int(pick.removeprefix("step")))
-                ax.scatter(
-                    xs[i], ys[i], s=110, facecolors="none", edgecolors=line.get_color(), lw=1.8
-                )
-        ax.axhline(ref_value, lw=0.9, ls="--", color="0.4", label=report["reference"])
-        ax.set_xscale("log", base=2)
-        ax.set_xticks([r["step"] for r in report["arms"][report["cells"][0]]["rows"]])
-        ax.get_xaxis().set_major_formatter(plt.matplotlib.ticker.ScalarFormatter())
-        ax.set_xlabel("optimizer step")
-        ax.set_ylabel(ylabel)
-        ax.set_title(title)
-        ax.legend(fontsize=8)
+    for ax, panel in zip(axes, panels):
+        _traj_panel(ax, report, *panel)
 
     fig.suptitle(
         f"bands: 95% paired interval on the gap to {report['reference']}, drawn about its level",
@@ -917,6 +1056,30 @@ def trajectory_figure(report: dict, path: Path = _TRAJ_FIGURE_PATH) -> None:
     fig.savefig(path, dpi=200)
     plt.close(fig)
     print(f"wrote {path}")
+
+
+def trajectory_panels(report: dict, fig_dir: Path = _TRAJ_PANEL_DIR) -> None:
+    """The two register panels again as standalone figures, for use outside the combined one."""
+    import matplotlib.pyplot as plt
+
+    for key, ylabel, ref_value, title in _traj_panels(report):
+        if key not in _TRAJ_PANEL_FILE:
+            continue
+        fig, ax = plt.subplots(figsize=(6.0, 4.4))
+        _traj_panel(ax, report, key, ylabel, ref_value, title)
+        fig.suptitle(
+            f"bands: 95% paired interval on the gap to {report['reference']}, "
+            "drawn about its level",
+            y=0.03,
+            fontsize=8,
+            color="0.35",
+        )
+        fig.tight_layout(rect=(0, 0.08, 1, 1))
+        path = fig_dir / _TRAJ_PANEL_FILE[key]
+        path.parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(path, dpi=200)
+        plt.close(fig)
+        print(f"wrote {path}")
 
 
 def main() -> None:
@@ -979,6 +1142,8 @@ def main() -> None:
         default = _TRAJ_FIGURE_PATH if args.trajectory else _FIGURE_PATH
         draw = trajectory_figure if args.trajectory else figure
         draw(report, Path(args.figure_path or default))
+        if args.trajectory:
+            trajectory_panels(report)
 
 
 if __name__ == "__main__":

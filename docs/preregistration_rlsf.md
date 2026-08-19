@@ -297,3 +297,45 @@ saved checkpoint on `data/splits/rlsf_dev.jsonl` and ranks on the chrF adequacy 
 held-out register distance, the rule `src/peft/sweep.py` already uses. It carries no judge —
 ranking on the rubric the paid arms optimize would be circular, and the evaluation raters are
 spent once, on val. Selection reads no val and no test figure, so the seal is untouched.
+
+## Addendum, 2026-08-19: the checkpoint ladder, declared post-hoc
+
+The checkpoint ladder is not in this document. Everything above is about the three arms at their
+final adapters, and the four val figures the predictions are scored against are named in *What
+will be reported*. Regenerating five checkpoints per arm on val and reading them against optimizer
+step is a different measurement, decided after those figures existed. **T1–T4 below are
+exploratory and post-hoc**, and are labelled so wherever they are reported. Nothing here amends a
+commitment above, and no prediction above is scored against them.
+
+The disclosure that matters is the ordering, and it is unflattering. Every quantity T1–T4 concern
+had already been read when they were written: held-out distance, `marker_rate` z and COMET were in
+`results/heldout_traj_val.json` from `81ce2b4`, and corpus chrF and BLEU per checkpoint were in the
+scoring notebook's stored output from the same commit. These are therefore descriptions of numbers
+in hand, written down so that they are stated once and reported as stated, rather than predictions.
+They carry none of the evidential weight of the four predictions above.
+
+**T1** Within an arm, held-out register distance grows with optimizer step, and the three growth
+rates rank in ω₃ order.
+
+**T2** Signed z on `marker_rate` rises over the same steps, on the same ordering.
+
+**T3** Reference-based adequacy does not fall along the ladder: the per-doubling slope of COMET,
+chrF and BLEU is positive or indistinguishable from zero in every arm.
+
+**T4** T1 and T3 hold in the same arm over the same steps. Register drift is not paid for out of
+measured adequacy, so along this ladder the two axes are decoupled.
+
+T4 is the only one of the four that is a claim rather than a description, and it is the weakest of
+them, because "does not fall" is an absence and an absence is not evidence of decoupling — it is
+the failure to detect coupling at this sample size. Three metrics of two different kinds agreeing
+on that null is worth more than one, and is still a null. What would contradict T4: a significant
+fall on any of the three metrics in an arm whose register distance climbs.
+
+T1 and T2 are also weaker than they look. Five checkpoints is five points on a line fitted in
+log-2 of the step, the ladder was saved at `save_every_rollouts: 25` rather than chosen, and the
+matched-checkpoint noise floor measured in the scoring notebook — 0.0136 in held-out distance —
+bounds what any single step of the ladder can be said to show. The slope over the whole ladder is
+the readable quantity; a step-to-step move is not.
+
+The seal is untouched. The ladder is generated and scored on `val.jsonl` only, and the checkpoint
+selection the arms are reported at was made on the dev slice before any of this was read.

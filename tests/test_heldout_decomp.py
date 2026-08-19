@@ -20,9 +20,11 @@ from src.eval.heldout_decomp import (  # noqa: E402
     mean_draws,
     omega_of,
     paired_delta,
+    surface_segments,
     traj_condition,
     z_draws,
 )
+from src.eval.quick import score as corpus_score  # noqa: E402
 from src.eval.stylometrics import HELDOUT_FEATURES, SPLIT_FEATURES  # noqa: E402
 
 CENTROID = {
@@ -227,6 +229,87 @@ def test_comet_refuses_a_ladder_scored_by_two_models() -> None:
         except ValueError:
             return
     raise AssertionError("two COMET models on one ladder should not pass")
+
+
+def _jsonl(path: Path, preds: list[str], refs: list[str], sources: list[str] | None = None) -> None:
+    src = sources if sources is not None else [f"s{i}" for i in range(len(preds))]
+    rows = [
+        {"input": s, "output": r, "prediction": p} for s, r, p in zip(src, refs, preds, strict=True)
+    ]
+    path.write_text("\n".join(json.dumps(row) for row in rows) + "\n", encoding="utf-8")
+
+
+REFS = ["the light of the world", "a garden of divine mysteries", "he hath spoken unto thee"]
+
+
+@contextlib.contextmanager
+def _surface_files(
+    ladder_preds: list[str],
+    ladder_refs: list[str] | None = None,
+    ladder_sources: list[str] | None = None,
+):
+    """A reference dir and a ladder dir, the two-directory layout trajectory() passes in."""
+    with tempfile.TemporaryDirectory() as tmp:
+        ref_dir, traj_dir = Path(tmp) / "outputs", Path(tmp) / "traj"
+        ref_dir.mkdir()
+        traj_dir.mkdir()
+        cond = traj_condition("w3_2.0", 100)
+        _jsonl(ref_dir / "peft_val.jsonl", REFS, REFS)
+        _jsonl(
+            traj_dir / f"{cond}_val.jsonl",
+            ladder_preds,
+            ladder_refs if ladder_refs is not None else REFS,
+            ladder_sources,
+        )
+        yield ["peft", cond], {"peft": ref_dir, cond: traj_dir}
+
+
+def test_surface_scores_the_reference_and_the_ladder_from_their_own_directories() -> None:
+    with _surface_files(REFS) as (conds, dirs):
+        scores, meta = surface_segments(conds, dirs, "val", n=3)
+    assert set(scores) == {"chrf", "bleu"}
+    assert set(scores["chrf"]) == set(conds)
+    assert all(len(v) == 3 for v in scores["chrf"].values())
+    # An exact copy of the reference scores 100 on both metrics, which pins the argument order.
+    assert np.allclose(scores["chrf"]["peft"], 100.0)
+    assert np.allclose(scores["bleu"]["peft"], 100.0)
+    assert meta["aggregation"] == "segment mean"
+
+
+def test_surface_refuses_segments_that_are_not_paired() -> None:
+    with _surface_files(REFS, ladder_sources=["s1", "s0", "s2"]) as (conds, dirs):
+        try:
+            surface_segments(conds, dirs, "val")
+        except ValueError:
+            return
+    raise AssertionError("a reordered source list should not pass as paired")
+
+
+def test_surface_refuses_a_ladder_scored_against_other_references() -> None:
+    """chrF is computed here, so a mismatched target set would silently give a lower score."""
+    with _surface_files(REFS, ladder_refs=[r.upper() for r in REFS]) as (conds, dirs):
+        try:
+            surface_segments(conds, dirs, "val")
+        except ValueError:
+            return
+    raise AssertionError("references that disagree should not pass as comparable")
+
+
+def test_the_segment_mean_is_not_the_corpus_score() -> None:
+    """Both are in the report on purpose; asserting they agree is the likely future mistake."""
+    preds = ["the light of the world", "a garden", "he hath spoken unto thee and unto them"]
+    with _surface_files(preds) as (conds, dirs):
+        scores, _ = surface_segments(conds, dirs, "val")
+        corpus = corpus_score(conds[1], dirs[conds[1]], "val")
+    assert not math.isclose(scores["chrf"][conds[1]].mean(), corpus["chrF"], abs_tol=0.01)
+
+
+def test_surface_draws_are_paired_on_shared_indices() -> None:
+    with _surface_files(REFS) as (conds, dirs):
+        scores, _ = surface_segments(conds, dirs, "val")
+    idx = np.random.default_rng(42).integers(0, 3, size=(200, 3))
+    a, b = (mean_draws(scores["chrf"][c], idx) for c in conds)
+    assert np.allclose(a - b, 0.0)
 
 
 if __name__ == "__main__":
