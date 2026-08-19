@@ -120,8 +120,14 @@ def test_omega_is_read_off_a_trajectory_tag() -> None:
     assert omega_of("peft") == 0.0
 
 
+def test_the_unrewarded_rungs_carry_a_weight_of_zero() -> None:
+    """The prompting and adapter-stacked rungs optimize no reward; they still must be readable."""
+    for name in ("zeroshot", "knn_fewshot", "afsp_full", "peft_knn", "peft_afsp"):
+        assert omega_of(name) == 0.0
+
+
 def test_an_unnamed_condition_has_no_judge_weight() -> None:
-    for name in ("knn_fewshot", "rlsf_w3_2.0_step", "rlsf_step800"):
+    for name in ("commercial_haiku", "rlsf_w3_2.0_step", "rlsf_step800"):
         try:
             omega_of(name)
         except KeyError:
@@ -310,6 +316,48 @@ def test_surface_draws_are_paired_on_shared_indices() -> None:
     idx = np.random.default_rng(42).integers(0, 3, size=(200, 3))
     a, b = (mean_draws(scores["chrf"][c], idx) for c in conds)
     assert np.allclose(a - b, 0.0)
+
+
+SENTENCES = [
+    "the light of the world hath shone forth",
+    "a garden of divine mysteries is revealed",
+    "he hath spoken unto thee and unto them",
+    "verily the ocean of utterance surgeth",
+    "blessed is the soul that hath turned",
+    "the veils of glory have been rent asunder",
+]
+
+
+@contextlib.contextmanager
+def _decomp_dir(conditions: list[str]):
+    """One output directory holding a full-val-shaped file per condition."""
+    with tempfile.TemporaryDirectory() as tmp:
+        out = Path(tmp)
+        for i, cond in enumerate(conditions):
+            preds = [f"{s} {'again ' * (i % 3)}".strip() for s in SENTENCES]
+            _jsonl(out / f"{cond}_val.jsonl", preds, SENTENCES)
+        yield out
+
+
+def _adjacent(conditions: list[str]) -> list[dict]:
+    with _decomp_dir(conditions) as out:
+        report = heldout_decomp.build(
+            out, "val", conditions=conditions, reference="peft", n_resamples=50
+        )
+    return report["adjacent_in_omega"]
+
+
+def test_arms_that_share_a_judge_weight_are_not_an_omega_contrast() -> None:
+    """peft_afsp - peft_knn is the contrast this pass wants, but it is not an omega one."""
+    assert _adjacent(["peft", "peft_knn", "peft_afsp"]) == []
+
+
+def test_arms_that_differ_in_judge_weight_still_pair() -> None:
+    adjacent = _adjacent(["peft", "rlsf_w3_0.0", "rlsf_w3_2.0", "rlsf_w3_6.0"])
+    assert [(r["a"], r["b"]) for r in adjacent] == [
+        ("rlsf_w3_2.0", "rlsf_w3_0.0"),
+        ("rlsf_w3_6.0", "rlsf_w3_2.0"),
+    ]
 
 
 if __name__ == "__main__":

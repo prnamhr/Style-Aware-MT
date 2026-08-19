@@ -108,6 +108,280 @@ their history.
 
 ---
 
+## 2026-08-19 — PEFT+AFSP declared before it is run
+
+Written after the ladder entry below and before any segment of the combined arm exists. It
+states what the arm is predicted to do and what each outcome would mean, so that the reading
+is fixed while the numbers are still unavailable. The 2026-08-19 addendum to
+`docs/preregistration_rlsf.md` had to disclose that T1–T4 were descriptions of numbers already
+in hand; this entry is written under the opposite condition, and the disclosure section says
+exactly what was readable when it was written.
+
+### Summary
+
+The gate is the checkpoint ladder of the entry below, and it passed. Held-out register distance
+climbs with optimizer step in both paid arms and does not move in the control, while COMET, chrF
+and BLEU are flat or rising everywhere. Register drift and measured adequacy came apart along
+that ladder.
+
+A reward produced that. Whether the decoupling belongs to the channel — GRPO against a rubric —
+or to pushing register through any channel is not answerable from the arms, because prompting
+and fine-tuning have never been combined in this project. `peft` runs the zero-shot prompt and
+carries register in the adapter weights; `afsp_full` runs the frozen base with retrieved
+exemplars. Stacking them is the untried cell, and this entry declares it before it is generated.
+
+Two conditions, not one. The adapter was trained completion-only on the zero-shot template, so
+any few-shot prompt fed to it is off-distribution. Without a plain-retrieval control a movement
+in the stacked AFSP condition cannot be told apart from the effect of exemplars being present at
+all.
+
+### The gate, and the evidence it passed on
+
+`results/heldout_traj_val.json`, and the table in the entry below. Held-out distance grows
++0.0399 and +0.0584 per doubling of optimizer step in `w3_2.0` and `w3_6.0` with intervals
+clear of zero, and +0.0044 in the control with an interval that is not. `z_marker_rate` tracks
+it at +0.0442 and +0.0656. Every significant adequacy slope is positive; the two that are not
+significant are −0.0002 on COMET and −0.02 on BLEU in `w3_6.0`, both straddling zero.
+`ordered_in_omega` is `true` for both register quantities and `false` for all three adequacy
+ones. That asymmetry is the passing condition, and it is what authorises the arm below.
+
+### The two conditions
+
+| Condition | Weights | Prompt | Selection |
+|---|---|---|---|
+| `peft` (reference) | LoRA adapter | zero-shot | — |
+| `peft_knn` (control) | LoRA adapter | k = 8 exemplars | plain top-k cosine |
+| `peft_afsp` | LoRA adapter | k = 8 exemplars | AFSP, λ = 0.75, β = 0.3, σ = 1.0 |
+
+`configs/peft_afsp.yaml` serves both stacked rungs; the condition is the CLI flag. Every value
+in it is copied unchanged from `configs/peft_qwen.yaml` and `configs/base_qwen.yaml`: the frozen
+adapter `models/peft_lora_r32_lr2e-4/checkpoint-1358`, the locked decoding (`temperature 0.0`,
+`top_p 1.0`, `seed 42`, `max_tokens 1024`, bf16, unquantized), and the AFSP settings frozen on
+2026-07-23. Nothing is re-selected. Choosing (k, λ, β) again on the fine-tuned base would add a
+second layer of val selection to a table the README's threats section already records as
+selection-optimistic.
+
+The register glossary applies to both stacked rungs, as it does to every other few-shot rung.
+It is a controlled augmentation in the `prompt:` block, so it does not confound the selection
+comparison.
+
+### What is predicted
+
+Directional, with the mechanism, and scored as written whichever way they move.
+
+**P1 — held-out register distance worsens.** `peft_afsp`'s `dist_heldout` rises above `peft`'s
+0.1707 and lands between it and `afsp_full`'s 0.2990, with the paired interval clear of zero.
+The mechanism is the same one the RLSF arms moved along: `marker_rate` z rises from `peft`'s
++0.136 toward `afsp_full`'s +0.214, past a target the initialization already sits above, so the
+rise is movement away rather than toward. `root_ttr` falls from −0.100 toward −0.178 at the same
+time. The floor a rise must clear is about 0.02 — the `dist_heldout` half-widths against `peft`
+in `results/heldout_decomp_val.json` are 0.019–0.024 at n = 1,323.
+
+**P2 — judge Φ does not separate.** |ΔΦ| against `peft` stays inside the detection floor of
+≈0.058 named by the 2026-08-01 entry. `afsp_full` − `peft` on Φ was +0.047 [−0.012, 0.105] and
+did not separate; nothing about stacking makes that gap larger. Φ also tracks COMET (ρ = 0.453
+[0.434, 0.472]) far better than it tracks either register proxy (−0.045 and +0.007 at segment
+level, `results/metric_agreement_val.json`), so P1 moving does not oblige Φ to move with it.
+**Not measured in this pass**; see *Limitations*.
+
+**P3 — the adaptive layer does not separate from its control.** `peft_afsp` − `peft_knn` fails
+to separate on any measured quantity. On the frozen base that contrast is +0.0142
+[−0.0233, +0.0527], p = 0.47 (`results/heldout_decomp_afsp_vs_knn_val.json`) — not separable,
+and pointing the wrong way — and the 2026-08-01 bootstrap found the same null on COMET, Φ, chrF
+and BLEU. A separation here would mean the register rerank does something on a fine-tuned base
+that it does not do on the base. That is the one outcome in this pass that could change the
+AFSP verdict, and it is predicted not to happen.
+
+**P4 — adequacy, secondary.** chrF and BLEU hold or fall against `peft` for both stacked rungs.
+`peft` already leads `afsp_full` by chrF +1.06 and BLEU +2.13, and the adapter has never seen a
+few-shot prompt in training. This prediction is secondary to the argument and is written down
+anyway, because chrF and BLEU *are* measured in this pass and an undeclared adequacy number
+would be read after the fact.
+
+### The four quadrants
+
+Axes: `dist_heldout` against `peft`, and Φ against `peft`. A quadrant is entered only when the
+relevant paired interval clears zero — improvement means the interval sits below zero, and Φ
+rising means a gain past +0.058.
+
+**Q1 — distance improves, Φ rises.** Both measures agree. Retrieval supplies register the
+adapter did not encode, the combination is the best system on val, and stacking is worth
+recommending. It is the only quadrant in which it would be. It also contradicts the 2026-08-01
+reading directly, because there the adaptive layer moved nothing on the frozen base.
+
+**Q2 — distance improves, Φ falls.** The two register measures disagree. Since ρ(Φ, `band_dist`)
+is indistinguishable from zero at segment level, Φ is not measuring register there, and the
+likelier mechanism is an adequacy cost from off-distribution prompting rather than a genuine
+disagreement about register. chrF and BLEU decide between those two readings, and both are
+measured in this pass, so the diagnosis costs nothing.
+
+**Q3 — distance worsens, Φ rises.** The shape the ladder produced, reached by prompting instead
+of by reward: the rubric score rises while the measure the rubric does not see moves away from
+the target. This would put the decoupling outside GRPO and make it a property of pushing
+register at all. It is the strongest result available from this arm, and the only one for which
+buying the rater is clearly worth the money.
+
+**Q4 — distance worsens, Φ does not rise.** Stacking loses on the objective axis and gains
+nothing on the rubric. `peft_knn` decides the mechanism: if the control moves too, the cause is
+exemplars at all, which is prompt-format mismatch; if only `peft_afsp` moves, the cause is AFSP's
+selection.
+
+**Predicted: Q4**, with Q3 second. Stated so it can be scored.
+
+### What would be uninformative
+
+If neither stacked rung separates from `peft` on any measured quantity, no quadrant is entered.
+The pass is then reported as a null result of stacking and not as evidence that the two
+adaptation families compose. This is written down now so it cannot afterwards be read as
+confirmation, on the same argument as the "uninformative outcome" clause in
+`docs/preregistration_rlsf.md`.
+
+### What changed
+
+`src/infer/run.py` gained the two rungs. `CONDITIONS` now holds eight, and the membership the
+dispatch used to spell out as literals is named: `ADAPTER_CONDITIONS`, `RETRIEVAL_CONDITIONS`,
+`RERANK_CONDITIONS`. The adapter check moved out of the zero-shot branch to the top of the
+dispatch, so a missing `generator.adapter_path` raises before the retrieval index or the
+embedding model is loaded. `peft_knn` routes through `index.retrieve()` beside `knn_fewshot`;
+`peft_afsp` routes through `_select_afsp(rerank=True)` beside `afsp_full`.
+
+The usage sidecar gained a `provenance` block: `adapter_path` when one is set, and k, ordering,
+index directory and the AFSP parameters for retrieval conditions. The 2026-08-19 entry below
+records the same gap on `outputs/rlsf_traj/manifest.json` — a run artefact that does not say
+what the run was made at. Keys are additive and the existing sidecars are not rewritten, as with
+`per_call_usd` on 2026-08-15.
+
+`src/eval/heldout_decomp.py`: `omega_of()` raised `KeyError` for every condition that is neither
+an RLSF arm nor a trajectory tag, so `build()` could not read the prompting ladder at all.
+`OMEGA` now lists the prompting and adapter-stacked rungs at 0.0, which is the entry `peft`
+already had and for the same reason — they optimize no reward. `adjacent_in_omega` is now empty
+unless the arms actually differ in ω. Without that guard a pass over conditions that all sit at
+zero would emit pairs labelled as an ω contrast that are nothing of the kind; the `peft_afsp` −
+`peft_knn` contrast is real and is read from its own reference-swapped report instead.
+
+`configs/peft_afsp.yaml` and `notebooks/peft_afsp_gpu.ipynb` are new.
+
+### Two artifacts that back the numbers above
+
+Neither existed before this entry, and P1 and P3 quote both.
+
+`results/heldout_decomp_prompting_val.json` — held-out distance over the six prompting and
+adapter conditions, referenced to `peft`: `peft` 0.1707, `knn_fewshot` 0.2849, `afsp_margin`
+0.2936, `afsp_full` 0.2990, `random_fewshot` 0.4200, `zeroshot` 0.5837. Every rung sits further
+from the target than the adapter, all five intervals clear of zero.
+
+`results/heldout_decomp_afsp_vs_knn_val.json` — the same quantity referenced to `knn_fewshot`,
+which is the base-model analogue of the contrast P3 predicts: `afsp_margin` +0.0091
+[−0.0200, +0.0390] and `afsp_full` +0.0142 [−0.0233, +0.0527], neither separable.
+
+### Reproduction
+
+Declared here; run after this entry is committed.
+
+```bash
+# generation, on a rented card (notebooks/peft_afsp_gpu.ipynb)
+python manage.py infer --condition peft_knn  --config configs/peft_afsp.yaml
+python manage.py infer --condition peft_afsp --config configs/peft_afsp.yaml
+
+# objective scoring, local
+python manage.py eval --conditions peft peft_knn peft_afsp --split val
+python manage.py bootstrap --metric chrf --split val --adjacent \
+  --conditions peft peft_knn peft_afsp --baseline peft \
+  --out results/bootstrap_chrf_peft_afsp_val.json
+python manage.py bootstrap --metric bleu --split val --adjacent \
+  --conditions peft peft_knn peft_afsp --baseline peft \
+  --out results/bootstrap_bleu_peft_afsp_val.json
+python manage.py stylometrics_ci --split val --conditions peft peft_knn peft_afsp \
+  --results_path results/stylometrics_ci_peft_afsp_val.json
+python manage.py heldout_decomp --split val --no-figure \
+  --conditions peft peft_knn peft_afsp --reference peft \
+  --results_path results/heldout_decomp_peft_afsp_val.json
+python manage.py heldout_decomp --split val --no-figure \
+  --conditions peft_knn peft_afsp --reference peft_knn \
+  --results_path results/heldout_decomp_peft_afsp_vs_knn_val.json
+```
+
+The two artifacts this entry quotes were written by the same command:
+
+```bash
+python manage.py heldout_decomp --split val --no-figure \
+  --conditions zeroshot random_fewshot knn_fewshot afsp_margin afsp_full peft \
+  --reference peft --results_path results/heldout_decomp_prompting_val.json
+python manage.py heldout_decomp --split val --no-figure \
+  --conditions knn_fewshot afsp_margin afsp_full --reference knn_fewshot \
+  --results_path results/heldout_decomp_afsp_vs_knn_val.json
+```
+
+`--no-figure` throughout: `figure()` plots against ω₃, which is zero for every condition here.
+
+### Verification
+
+`python -m pytest tests/` — 367 passed, against 364 at the ladder entry below. The three new
+tests are in `tests/test_heldout_decomp.py`: one that the unrewarded rungs carry a weight of
+zero rather than raising, and a pair pinning the adjacency guard in both directions — empty
+when the arms share ω, and still producing the two RLSF pairs when they do not.
+`test_an_unnamed_condition_has_no_judge_weight` lost `knn_fewshot` to the OMEGA table and was
+given `commercial_haiku` in its place, which is the condition that still carries no weight.
+
+`ruff check src`, `ruff format --check src` and `compileall` pass. An offline check confirms the
+adapter guard raises for all three adapter conditions before any model or index is loaded, that
+`ADAPTER_CONDITIONS` and `RETRIEVAL_CONDITIONS` are subsets of `CONDITIONS` with `RERANK` inside
+`RETRIEVAL`, and that `_provenance` records λ = 0.75 for `peft_afsp` and no AFSP block for
+`peft_knn`.
+
+`peft` in `results/heldout_decomp_prompting_val.json` reproduces its cell in the committed
+`results/heldout_decomp_val.json` bit-identically — `dist_heldout`, its interval, and every
+per-feature z. The bootstrap index depends only on n, the seed and `n_resamples`, so adding five
+conditions could not perturb it; the check is that it did not.
+
+**0 paid calls and $0.00.** Nothing in this entry ran a model. The two artifacts are local CPU
+over already-generated val outputs, about 20 s each.
+
+### Limitations and risks
+
+**The adapter is off-distribution under any few-shot prompt.** That is what the arm tests, and it
+also means a null could be an artifact of prompt format rather than a statement about AFSP.
+`peft_knn` is what separates those two readings, and it is the reason the pass generates two
+conditions instead of one.
+
+**The frozen (k, λ, β) were selected on val for the frozen base.** Transferring them unchanged
+avoids a second selection layer, but does not establish that they are the right operating point
+for a fine-tuned policy. A null under P3 is a null at these settings.
+
+**Multiplicity.** Three contrasts across chrF, BLEU and the register distance. Holm–Bonferroni
+is applied per claim and the correction status is stated, as in the README's threats table.
+
+**P2 is unscored after this pass.** The judge is deferred by design: the objective axis is
+measured first so that a later rubric reading cannot be selected on. Buying it costs
+2 × 1,323 = 2,646 calls; at the rate recorded for the 2026-08-05 batch pass
+($6.1173 / 9,261 = $0.00066 per call) that derives to ≈$1.75. That figure is derived from a
+measured rate, not itself measured, and the per-run confirmation rule in `docs/budget.md`
+governs whether it is spent.
+
+**COMET is not in this pass.** It runs locally at $0 and would sharpen the Q2 diagnosis, since Φ
+tracks COMET more closely than it tracks register. It was left out because the pass was scoped to
+chrF, BLEU, stylometrics and the held-out decomposition; adding it later is one command and
+changes no artifact written here.
+
+**The test split stays sealed.** Nothing in this arm reads `data/splits/test.jsonl`, and the
+generation notebook asserts it.
+
+### Disclosure: what was visible when this was written
+
+* **No segment of `peft_knn` or `peft_afsp` exists.** Neither condition has been generated, on
+  any split, at any k, by any model. These are predictions and not descriptions, which is the
+  respect in which this entry differs from T1–T4 in `docs/preregistration_rlsf.md`.
+* The held-out distances for the prompting ladder were computed while this arm was being planned
+  and were read before P1 and P3 were written. They are what those predictions are anchored on,
+  and they are committed as the two artifacts named above rather than quoted from a terminal.
+* `results/heldout_traj_val.json`, `results/heldout_decomp_val.json`,
+  `results/stylometrics_ci_val.json`, `results/metric_agreement_val.json`, the 2026-08-01
+  bootstrap tables and the README val table were all read.
+* The stacked rungs' hyperparameters were not chosen against anything. They are the frozen
+  values, copied.
+
+---
+
 ## 2026-08-19 — The checkpoint ladder, and both axes finally in one table
 
 Covers 2026-08-18 and 2026-08-19: generation of the ladder on a rented GPU box, and its scoring

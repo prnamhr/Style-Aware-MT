@@ -43,8 +43,22 @@ _TRAJ_PANEL_FILE = {
 REFERENCE = "peft"
 
 # Judge weight omega_3 per condition. The reference is the arm's initialization and
-# carries no weight of its own; it is placed at 0 so the figure has an anchor.
-OMEGA = {"peft": 0.0, "rlsf_w3_0.0": 0.0, "rlsf_w3_2.0": 2.0, "rlsf_w3_6.0": 6.0}
+# carries no weight of its own; it is placed at 0 so the figure has an anchor. The
+# prompting and adapter-stacked rungs optimize no reward at all and sit at 0 for the
+# same reason: so the decomposition can read them beside the arms.
+OMEGA = {
+    "zeroshot": 0.0,
+    "random_fewshot": 0.0,
+    "knn_fewshot": 0.0,
+    "afsp_margin": 0.0,
+    "afsp_full": 0.0,
+    "peft": 0.0,
+    "peft_knn": 0.0,
+    "peft_afsp": 0.0,
+    "rlsf_w3_0.0": 0.0,
+    "rlsf_w3_2.0": 2.0,
+    "rlsf_w3_6.0": 6.0,
+}
 
 CONDITIONS = ["peft", "rlsf_w3_0.0", "rlsf_w3_2.0", "rlsf_w3_6.0"]
 
@@ -339,7 +353,10 @@ def build(
 
     # Adjacent in omega_3, so the "is the damage monotone in judge weight" question is
     # answered by an interval rather than by reading the point estimates in order.
+    # Empty when the arms share a weight: those pairs are not an omega contrast.
     arms = sorted((c for c in present if c != reference), key=lambda c: omega_of(c))
+    if len({omega_of(c) for c in arms}) < 2:
+        arms = []
     adjacent = [
         {
             "a": b,

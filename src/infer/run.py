@@ -10,6 +10,10 @@ the one before it so any register shift is attributable to that component:
     afsp_margin     + margin/hub-penalised selection, no register rerank (lambda=0)
     afsp_full       + target-register rerank (lambda>0) -- the full AFSP method
 
+Three further rungs load the trained LoRA adapter: `peft` on the zero-shot prompt,
+and `peft_knn` / `peft_afsp` stacking retrieval on top of it. `peft_knn` is the
+control that separates "exemplars at all" from AFSP's selection.
+
 The register glossary is a controlled prompt augmentation (see the `prompt:`
 config block), applied uniformly to every few-shot rung, not an AFSP-only rider.
 
@@ -17,6 +21,7 @@ Usage:
     python -m src.infer.run --condition zeroshot    --config configs/openai_smoke.yaml
     python -m src.infer.run --condition knn_fewshot  --config configs/openai_smoke.yaml
     python -m src.infer.run --condition afsp_full    --config configs/base_qwen.yaml
+    python -m src.infer.run --condition peft_afsp    --config configs/peft_afsp.yaml
 """
 
 from __future__ import annotations
@@ -41,7 +46,29 @@ from src.retrieval.retrieve import RetrievalIndex
 ORDERINGS = ("most_similar_last", "most_similar_first", "random")
 
 # Ablation ladder: each rung adds one component over the previous one.
-CONDITIONS = ("zeroshot", "random_fewshot", "knn_fewshot", "afsp_margin", "afsp_full", "peft")
+CONDITIONS = (
+    "zeroshot",
+    "random_fewshot",
+    "knn_fewshot",
+    "afsp_margin",
+    "afsp_full",
+    "peft",
+    "peft_knn",
+    "peft_afsp",
+)
+
+# Generated with the LoRA adapter loaded; every other rung runs the frozen base.
+ADAPTER_CONDITIONS = ("peft", "peft_knn", "peft_afsp")
+# Rungs whose prompt carries exemplars, and the subset that applies the register rerank.
+RETRIEVAL_CONDITIONS = (
+    "random_fewshot",
+    "knn_fewshot",
+    "afsp_margin",
+    "afsp_full",
+    "peft_knn",
+    "peft_afsp",
+)
+RERANK_CONDITIONS = ("afsp_full", "peft_afsp")
 
 
 def order_exemplars(
@@ -208,6 +235,25 @@ def _load_configured_glossary(cfg: dict) -> list[tuple[str, str]]:
     return load_glossary(prompt_cfg.get("glossary_file", af.get("glossary_file")))
 
 
+def _provenance(condition: str, cfg: dict) -> dict:
+    """The settings a run was made at, so the sidecar records them rather than the config."""
+    gen, prov = cfg["generator"], {}
+    if gen.get("adapter_path"):
+        prov["adapter_path"] = gen["adapter_path"]
+    if condition in RETRIEVAL_CONDITIONS:
+        retr, af = cfg["retrieval"], cfg.get("afsp", {})
+        prov["k"] = retr["k"]
+        prov["ordering"] = cfg.get("prompt", {}).get("ordering", "most_similar_last")
+        prov["index_dir"] = retr["index_dir"]
+        if condition in ("afsp_margin", "afsp_full", "peft_afsp"):
+            rerank = condition in RERANK_CONDITIONS
+            prov["beta"] = af.get("beta", 0.3)
+            prov["lambda_style"] = af.get("lambda_style", 0.3) if rerank else 0.0
+            prov["style_objective"] = af.get("style_objective", "bandpass")
+            prov["style_target_sigma"] = af.get("style_target_sigma", 1.0)
+    return prov
+
+
 def resolve_out_name(condition: str, cfg: dict, override: str | None = None) -> str:
     name = str(override or cfg.get("output", {}).get("name") or condition).strip()
     if not name:
@@ -236,28 +282,30 @@ def run(condition: str, cfg: dict, out_name: str | None = None) -> None:
     # augmentation), so it never confounds the selection-mechanism comparison.
     glossary = _load_configured_glossary(cfg)
 
+    # Checked before retrieval so a missing adapter fails without loading an index.
+    if condition in ADAPTER_CONDITIONS and not gen.get("adapter_path"):
+        raise ValueError(
+            f"condition '{condition}' requires generator.adapter_path in the config "
+            f"(the trained LoRA adapter); see configs/peft_qwen.yaml"
+        )
+
     # Build the per-segment user messages for the chosen ablation rung.
     # `peft` shares the zero-shot prompt: no exemplars, the register is carried by
     # the LoRA adapter weights (loaded via generator.adapter_path in make_client).
     if condition in ("zeroshot", "peft"):
-        if condition == "peft" and not gen.get("adapter_path"):
-            raise ValueError(
-                "condition 'peft' requires generator.adapter_path in the config "
-                "(the trained LoRA adapter); see configs/peft_qwen.yaml"
-            )
         user_msgs = [build_zeroshot_user(s) for s in sources]
-    elif condition in ("random_fewshot", "knn_fewshot", "afsp_margin", "afsp_full"):
+    elif condition in RETRIEVAL_CONDITIONS:
         retr = cfg["retrieval"]
         k = retr["k"]
         index = RetrievalIndex(retr["index_dir"], embed_model=retr["embed_model"])
         if condition == "random_fewshot":
             print(f"Sampling k={k} random exemplars for {len(sources)} sources ...")
             selected = _select_random(sources, index.pairs, k, rng)
-        elif condition == "knn_fewshot":
+        elif condition in ("knn_fewshot", "peft_knn"):
             print(f"Retrieving k={k} exemplars for {len(sources)} sources ({ordering}) ...")
             selected = index.retrieve(sources, k=k)
-        else:  # afsp_margin | afsp_full
-            rerank = condition == "afsp_full"
+        else:  # afsp_margin | afsp_full | peft_afsp
+            rerank = condition in RERANK_CONDITIONS
             print(f"{condition}: selecting k={k} for {len(sources)} sources ({ordering}) ...")
             selected = _select_afsp(sources, cfg, retr, index, k, rerank=rerank)
         ordered = [order_exemplars(ex, ordering, rng) for ex in selected]
@@ -331,7 +379,13 @@ def run(condition: str, cfg: dict, out_name: str | None = None) -> None:
     usage = client.usage.summary()
     (out_dir / f"{name}_{split}_usage.json").write_text(
         json.dumps(
-            {"condition": condition, "output_name": name, "model": gen["model"], **usage},
+            {
+                "condition": condition,
+                "output_name": name,
+                "model": gen["model"],
+                "provenance": _provenance(condition, cfg),
+                **usage,
+            },
             indent=2,
         ),
         encoding="utf-8",

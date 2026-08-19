@@ -1,0 +1,54 @@
+# The adapter, run under retrieval prompts. Serves both stacked rungs:
+#   python manage.py infer --condition peft_knn  --config configs/peft_afsp.yaml
+#   python manage.py infer --condition peft_afsp --config configs/peft_afsp.yaml
+# Every value below is copied unchanged from configs/peft_qwen.yaml (generator) and
+# configs/base_qwen.yaml (prompt/retrieval/afsp). Nothing is re-selected here.
+
+# Generation
+generator:
+  provider: local
+  model: Qwen/Qwen2.5-7B-Instruct
+  adapter_path: models/peft_lora_r32_lr2e-4/checkpoint-1358
+  max_tokens: 1024
+  temperature: 0.0          # greedy, deterministic (locked decoding)
+  top_p: 1.0
+  seed: 42
+  dtype: bfloat16
+  device_map: auto
+  load_in_4bit: false
+
+# Prompting
+prompt:
+  style_instruction_file: prompts/style_instruction.txt
+  ordering: most_similar_last
+  ordering_seed: 42
+  word_pairs: true                             # controlled augmentation, as on every few-shot rung
+  glossary_file: prompts/register_glossary.tsv
+
+retrieval:
+  embed_model: intfloat/multilingual-e5-large-instruct
+  index_dir: data/knn_index
+  train_file: data/splits/train.jsonl
+  k: 8
+
+# AFSP, frozen 2026-07-23; peft_knn ignores this block
+afsp:
+  beta: 0.3
+  knn_hubness: 5
+  pool_mult: 4
+  lambda_style: 0.75
+  style_objective: bandpass
+  style_target_sigma: 1.0
+  style_register_direction:
+    marker_rate: 0.514
+    lex_density: 0.355
+    root_ttr: -0.296
+    ttr: 0.098
+  centroid_file: results/stylometrics_centroid.json
+
+data:
+  eval_file: data/splits/val.jsonl
+  limit: null
+
+output:
+  dir: outputs
