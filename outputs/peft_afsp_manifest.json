@@ -1,0 +1,74 @@
+{
+  "conditions": [
+    "peft_knn",
+    "peft_afsp"
+  ],
+  "split": "val",
+  "config": "configs/peft_afsp.yaml",
+  "base": "Qwen/Qwen2.5-7B-Instruct",
+  "generator": {
+    "provider": "local",
+    "model": "Qwen/Qwen2.5-7B-Instruct",
+    "adapter_path": "models/peft_lora_r32_lr2e-4/checkpoint-1358",
+    "max_tokens": 1024,
+    "temperature": 0.0,
+    "top_p": 1.0,
+    "seed": 42,
+    "dtype": "bfloat16",
+    "device_map": "auto",
+    "load_in_4bit": false
+  },
+  "retrieval": {
+    "k": 8,
+    "embed_model": "intfloat/multilingual-e5-large-instruct",
+    "index_dir": "data/knn_index"
+  },
+  "afsp": {
+    "beta": 0.3,
+    "lambda_style": 0.75,
+    "style_objective": "bandpass",
+    "style_target_sigma": 1.0,
+    "pool_mult": 4,
+    "knn_hubness": 5
+  },
+  "adapter": {
+    "path": "models/peft_lora_r32_lr2e-4/checkpoint-1358",
+    "sha256": "ad97c46af8528d22d7d26716be16d8ca01343dd86054efe4b1eee2b678243391",
+    "r": 32,
+    "lora_alpha": 64
+  },
+  "index": {
+    "rebuilt_here": false,
+    "sha256": {
+      "embeddings.npy": "9c282c8042ab740ef5aec39606820648536b9e73da5b154c51680e906c9b6a16",
+      "pairs.jsonl": "c48f429809435593f11f0b363fab26b9ad5de6b9eb48beabb8d7e732a4b0c2a1",
+      "meta.json": "b028a2a81f9f0eed107cc00f01a1e2d107c0fd1f42a82420adfd5b1e229ab512"
+    },
+    "meta": {
+      "embed_model": "intfloat/multilingual-e5-large-instruct",
+      "indexed_side": "source",
+      "n_passages": 10860,
+      "dim": 1024,
+      "source_file": "data/splits/train.jsonl"
+    }
+  },
+  "timing": {
+    "peft_knn": {
+      "seconds": 2601.6,
+      "finished": "2026-08-19T17:41:31.666868+00:00"
+    },
+    "peft_afsp": {
+      "seconds": 2532.9,
+      "finished": "2026-08-19T18:23:44.592682+00:00"
+    }
+  },
+  "commit": "8aa0b7e63f5f3e1ecb312503bfb66b8cd13a50a1",
+  "versions": {
+    "device": "NVIDIA GeForce RTX 4090",
+    "torch": "2.12.0+cu130",
+    "cuda": "13.0",
+    "transformers": "5.12.1",
+    "peft": "0.18.0",
+    "python": "3.12.13"
+  }
+}
