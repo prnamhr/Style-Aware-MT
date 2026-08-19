@@ -1,17 +1,23 @@
 from __future__ import annotations
 
+import contextlib
+import json
 import math
 import sys
+import tempfile
 from pathlib import Path
 
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from src.eval import heldout_decomp  # noqa: E402
 from src.eval.heldout_decomp import (  # noqa: E402
     _slope_draws,
     checkpoint_ladder,
+    comet_segments,
     decompose,
+    mean_draws,
     omega_of,
     paired_delta,
     traj_condition,
@@ -139,6 +145,88 @@ def test_slope_recovers_a_planted_growth_rate() -> None:
 def test_a_flat_arm_has_no_slope() -> None:
     x = np.log2(np.asarray([100.0, 200.0, 400.0]) / 100.0)
     assert np.allclose(_slope_draws(np.full((4, 3), 0.2), x), 0.0)
+
+
+@contextlib.contextmanager
+def _comet_files(arms: dict, ladder: dict):
+    """Point the module at throwaway COMET score files, in the two-file layout it reads."""
+    with tempfile.TemporaryDirectory() as tmp:
+        paths = {}
+        for name, stored in (("comet", arms), ("comet_traj", ladder)):
+            path = Path(tmp) / f"{name}_val.json"
+            path.write_text(json.dumps(stored) + "\n", encoding="utf-8")
+            paths[name] = str(Path(tmp) / (name + "_{split}.json"))
+        saved = heldout_decomp._COMET_PATH, heldout_decomp._COMET_TRAJ_PATH
+        heldout_decomp._COMET_PATH = paths["comet"]
+        heldout_decomp._COMET_TRAJ_PATH = paths["comet_traj"]
+        try:
+            yield
+        finally:
+            heldout_decomp._COMET_PATH, heldout_decomp._COMET_TRAJ_PATH = saved
+
+
+def _comet_record(segments: list[float], sources: list[str] | None = None) -> dict:
+    return {
+        "n": len(segments),
+        "model": "Unbabel/wmt22-comet-da",
+        "sources": sources if sources is not None else [f"s{i}" for i in range(len(segments))],
+        "system": sum(segments) / len(segments),
+        "segments": segments,
+    }
+
+
+def test_comet_draws_are_paired_on_shared_indices() -> None:
+    """The same resamples as the register draws, so a constant gap comes back exactly."""
+    idx = np.random.default_rng(42).integers(0, 40, size=(200, 40))
+    values = np.random.default_rng(7).normal(0.7, 0.05, size=40)
+    assert np.allclose(mean_draws(values + 0.01, idx) - mean_draws(values, idx), 0.01)
+
+
+def test_comet_chunking_leaves_the_draws_unchanged() -> None:
+    idx = np.random.default_rng(42).integers(0, 40, size=(200, 40))
+    values = np.random.default_rng(7).normal(0.7, 0.05, size=40)
+    whole = mean_draws(values, idx, chunk=len(idx))
+    assert np.array_equal(mean_draws(values, idx, chunk=7), whole)
+
+
+def test_comet_reads_the_reference_and_the_ladder_from_their_own_files() -> None:
+    arms = {"peft": _comet_record([0.70, 0.60, 0.80])}
+    ladder = {traj_condition("w3_2.0", 100): _comet_record([0.72, 0.62, 0.82])}
+    with _comet_files(arms, ladder):
+        scores, meta = comet_segments(["peft", traj_condition("w3_2.0", 100)], "val", n=3)
+    assert set(scores) == {"peft", "rlsf_w3_2.0_step100"}
+    assert meta["model"] == "Unbabel/wmt22-comet-da"
+    assert np.allclose(scores["rlsf_w3_2.0_step100"] - scores["peft"], 0.02)
+
+
+def test_comet_is_dropped_when_one_ladder_point_is_unscored() -> None:
+    """A partial ladder gives no COMET quantity rather than a trajectory with a hole in it."""
+    with _comet_files({"peft": _comet_record([0.7, 0.6])}, {}):
+        scores, meta = comet_segments(["peft", traj_condition("w3_2.0", 100)], "val")
+    assert (scores, meta) == ({}, {})
+
+
+def test_comet_refuses_segments_that_are_not_paired() -> None:
+    arms = {"peft": _comet_record([0.70, 0.60], sources=["a", "b"])}
+    ladder = {traj_condition("w3_2.0", 100): _comet_record([0.72, 0.62], sources=["b", "a"])}
+    with _comet_files(arms, ladder):
+        try:
+            comet_segments(["peft", traj_condition("w3_2.0", 100)], "val")
+        except ValueError:
+            return
+    raise AssertionError("a reordered source list should not pass as paired")
+
+
+def test_comet_refuses_a_ladder_scored_by_two_models() -> None:
+    arms = {"peft": _comet_record([0.70, 0.60])}
+    ladder = {traj_condition("w3_2.0", 100): _comet_record([0.72, 0.62])}
+    ladder[traj_condition("w3_2.0", 100)]["model"] = "Unbabel/wmt22-cometkiwi-da"
+    with _comet_files(arms, ladder):
+        try:
+            comet_segments(["peft", traj_condition("w3_2.0", 100)], "val")
+        except ValueError:
+            return
+    raise AssertionError("two COMET models on one ladder should not pass")
 
 
 if __name__ == "__main__":

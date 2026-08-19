@@ -55,6 +55,11 @@ def main() -> None:
     parser.add_argument("--split", default="val", help="output split tag (default: val)")
     parser.add_argument("--out_dir", default="outputs", help="inference output directory")
     parser.add_argument("--results_dir", default=str(_RESULTS_DIR))
+    parser.add_argument(
+        "--results_path",
+        default=None,
+        help="scores file to write; default results_dir/comet_<split>.json",
+    )
     parser.add_argument("--model", default=DEFAULT_MODEL)
     parser.add_argument("--batch_size", type=int, default=8)
     parser.add_argument(
@@ -78,7 +83,7 @@ def main() -> None:
         results[cond] = {"n": len(preds), "model": args.model, "sources": sources, **res}
         print(f"{cond:<16} COMET {res['system']:.4f}  (n={len(preds)})")
 
-    out_path = Path(args.results_dir) / f"comet_{args.split}.json"
+    out_path = Path(args.results_path or Path(args.results_dir) / f"comet_{args.split}.json")
     preserved = merge_results(out_path, results)
     if preserved:
         print(f"preserved {len(preserved)} condition(s) not scored here: {', '.join(preserved)}")

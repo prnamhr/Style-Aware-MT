@@ -26,6 +26,8 @@ from src.eval.stylometrics import (
 
 _SPLIT_CENTROID_PATH = Path("results/stylometrics_centroid_split.json")
 _SELECT_PATH = "results/rlsf_select_{cell}.json"
+_COMET_PATH = "results/comet_{split}.json"
+_COMET_TRAJ_PATH = "results/comet_traj_{split}.json"
 _FIGURE_PATH = Path("docs/figures/heldout_decomp_by_omega.png")
 _TRAJ_FIGURE_PATH = Path("docs/figures/heldout_traj_by_step.png")
 
@@ -85,6 +87,50 @@ def z_draws(matrix: np.ndarray, centroid: dict, idx: np.ndarray, chunk: int = 10
     blocks = np.array_split(idx, max(1, len(idx) // chunk))
     means = np.concatenate([matrix[block].mean(axis=1) for block in blocks])
     return (means - mean) / std
+
+
+def mean_draws(values: np.ndarray, idx: np.ndarray, chunk: int = 1000) -> np.ndarray:
+    """Bootstrap draws of a per-segment score's mean, on the same resamples as z_draws."""
+    blocks = np.array_split(idx, max(1, len(idx) // chunk))
+    return np.concatenate([values[block].mean(axis=1) for block in blocks])
+
+
+def comet_segments(
+    conditions: list[str], split: str, n: int | None = None
+) -> tuple[dict[str, np.ndarray], dict]:
+    """Per-segment COMET for every condition asked for, or nothing if any of them is unscored."""
+    stored: dict[str, dict] = {}
+    paths = []
+    for template in (_COMET_TRAJ_PATH, _COMET_PATH):
+        path = Path(template.format(split=split))
+        if not path.exists():
+            continue
+        paths.append(str(path))
+        # The ladder file is read first, so a condition scored in both keeps the ladder's copy.
+        for cond, record in json.loads(path.read_text(encoding="utf-8")).items():
+            stored.setdefault(cond, record)
+
+    missing = [c for c in conditions if c not in stored]
+    if missing:
+        print(f"skip COMET on the ladder: {len(missing)} condition(s) unscored ({missing[0]}, ...)")
+        return {}, {}
+
+    reference = conditions[0]
+    for cond in conditions[1:]:
+        if stored[cond].get("sources") != stored[reference].get("sources"):
+            raise ValueError(f"COMET sources for '{cond}' disagree with '{reference}': not paired")
+
+    scores = {c: np.asarray(stored[c]["segments"], dtype=float) for c in conditions}
+    for cond, values in scores.items():
+        if n is not None and len(values) != n:
+            raise ValueError(f"COMET for '{cond}' has {len(values)} segments, expected {n}")
+        if not np.isfinite(values).all():
+            raise ValueError(f"COMET for '{cond}' holds a missing segment score")
+
+    models = sorted({stored[c].get("model") for c in conditions})
+    if len(models) != 1:
+        raise ValueError(f"the ladder was scored by more than one COMET model: {models}")
+    return scores, {"model": models[0], "paths": paths}
 
 
 def decompose(z: dict[str, float], features: list[str]) -> dict:
@@ -339,7 +385,10 @@ def trajectory(
         return decompose(z_point[cond], HELDOUT_FEATURES)["dist"]
 
     order = [c for c in sorted(cells, key=lambda c: omega_of(cells[c]))]
-    quantities = ("dist_heldout", "z_marker_rate")
+    ladder = [c for c in texts if c != reference]
+    comet, comet_meta = comet_segments([reference, *ladder], split, n)
+    comet_boot = {c: mean_draws(v, idx) for c, v in comet.items()}
+    quantities = ("dist_heldout", "z_marker_rate") + (("comet",) if comet else ())
     slope_boot: dict[str, dict[str, np.ndarray]] = {q: {} for q in quantities}
     arms: dict[str, dict] = {}
 
@@ -364,25 +413,32 @@ def trajectory(
             "dist_heldout": dist_boot[reference],
             "z_marker_rate": z_boot[reference][:, marker_col],
         }
+        if comet:
+            draws["comet"] = np.column_stack([comet_boot[c] for c in conds])
+            point["comet"] = np.asarray([comet[c].mean() for c in conds])
+            ref_draw["comet"] = comet_boot[reference]
 
         rows = []
         for i, (step, cond) in enumerate(zip(present, conds)):
-            rows.append(
-                {
-                    "step": step,
-                    "condition": cond,
-                    "dist_heldout": point["dist_heldout"][i],
-                    "dist_heldout_ci": _interval(draws["dist_heldout"][:, i], alpha),
-                    "dist_heldout_delta": paired_delta(
-                        draws["dist_heldout"][:, i], ref_draw["dist_heldout"], alpha
-                    ),
-                    "z": {name: z_point[cond][name] for name in SPLIT_FEATURES},
-                    "z_marker_rate_ci": _interval(draws["z_marker_rate"][:, i], alpha),
-                    "z_marker_rate_delta": paired_delta(
-                        draws["z_marker_rate"][:, i], ref_draw["z_marker_rate"], alpha
-                    ),
-                }
-            )
+            row = {
+                "step": step,
+                "condition": cond,
+                "dist_heldout": point["dist_heldout"][i],
+                "dist_heldout_ci": _interval(draws["dist_heldout"][:, i], alpha),
+                "dist_heldout_delta": paired_delta(
+                    draws["dist_heldout"][:, i], ref_draw["dist_heldout"], alpha
+                ),
+                "z": {name: z_point[cond][name] for name in SPLIT_FEATURES},
+                "z_marker_rate_ci": _interval(draws["z_marker_rate"][:, i], alpha),
+                "z_marker_rate_delta": paired_delta(
+                    draws["z_marker_rate"][:, i], ref_draw["z_marker_rate"], alpha
+                ),
+            }
+            if comet:
+                row["comet"] = float(point["comet"][i])
+                row["comet_ci"] = _interval(draws["comet"][:, i], alpha)
+                row["comet_delta"] = paired_delta(draws["comet"][:, i], ref_draw["comet"], alpha)
+            rows.append(row)
 
         growth = {}
         for q in quantities:
@@ -430,16 +486,25 @@ def trajectory(
         if not all(c in texts for c in conds):
             continue
         dists = [dist(c) for c in conds]
-        by_step.append(
-            {
-                "step": step,
-                "dist_heldout": dict(zip(ranked, dists)),
-                "z_marker_rate": {
-                    c: z_point[traj_condition(c, step)]["marker_rate"] for c in ranked
-                },
-                "monotone_in_omega": dists == sorted(dists),
-            }
-        )
+        entry = {
+            "step": step,
+            "dist_heldout": dict(zip(ranked, dists)),
+            "z_marker_rate": {c: z_point[traj_condition(c, step)]["marker_rate"] for c in ranked},
+            "monotone_in_omega": dists == sorted(dists),
+        }
+        if comet:
+            entry["comet"] = {c: float(comet[t].mean()) for c, t in zip(ranked, conds)}
+        by_step.append(entry)
+
+    reference_cell = {
+        "dist_heldout": dist(reference),
+        "dist_heldout_ci": _interval(dist_boot[reference], alpha),
+        "z": {name: z_point[reference][name] for name in SPLIT_FEATURES},
+        "z_marker_rate_ci": _interval(z_boot[reference][:, marker_col], alpha),
+    }
+    if comet:
+        reference_cell["comet"] = float(comet[reference].mean())
+        reference_cell["comet_ci"] = _interval(comet_boot[reference], alpha)
 
     return {
         "split": split,
@@ -455,12 +520,9 @@ def trajectory(
             "paired": True,
             "n_segments": n,
         },
-        "reference_cell": {
-            "dist_heldout": dist(reference),
-            "dist_heldout_ci": _interval(dist_boot[reference], alpha),
-            "z": {name: z_point[reference][name] for name in SPLIT_FEATURES},
-            "z_marker_rate_ci": _interval(z_boot[reference][:, marker_col], alpha),
-        },
+        "reference_cell": reference_cell,
+        "quantities": list(quantities),
+        "comet": comet_meta,
         "cells": ranked,
         "arms": arms,
         "by_step": by_step,
@@ -687,25 +749,29 @@ def print_trajectory(report: dict) -> None:
         arm = report["arms"][cell]
         for r in arm["rows"]:
             d, m = r["dist_heldout_delta"], r["z_marker_rate_delta"]
-            rows.append(
-                {
-                    "cell": cell,
-                    "w3": f"{arm['omega_3']:g}",
-                    "step": str(r["step"]),
-                    "dist": f"{r['dist_heldout']:.4f}",
-                    f"dist ci{pct}": _ci(r["dist_heldout_ci"], 4),
-                    f"d vs {ref}": f"{d['delta']:+.4f}" + ("*" if d["significant"] else " "),
-                    "z marker": f"{r['z']['marker_rate']:+.4f}",
-                    f"z ci{pct}": _ci(r["z_marker_rate_ci"], 4),
-                    f"dz vs {ref}": f"{m['delta']:+.4f}" + ("*" if m["significant"] else " "),
-                }
-            )
+            row = {
+                "cell": cell,
+                "w3": f"{arm['omega_3']:g}",
+                "step": str(r["step"]),
+                "dist": f"{r['dist_heldout']:.4f}",
+                f"dist ci{pct}": _ci(r["dist_heldout_ci"], 4),
+                f"d vs {ref}": f"{d['delta']:+.4f}" + ("*" if d["significant"] else " "),
+                "z marker": f"{r['z']['marker_rate']:+.4f}",
+                f"z ci{pct}": _ci(r["z_marker_rate_ci"], 4),
+                f"dz vs {ref}": f"{m['delta']:+.4f}" + ("*" if m["significant"] else " "),
+            }
+            if "comet" in r:
+                c = r["comet_delta"]
+                row["comet"] = f"{r['comet']:.4f}"
+                row[f"comet ci{pct}"] = _ci(r["comet_ci"], 4)
+                row[f"dc vs {ref}"] = f"{c['delta']:+.4f}" + ("*" if c["significant"] else " ")
+            rows.append(row)
     _table(rows, list(rows[0].keys()))
 
     first = report["arms"][report["cells"][0]]["steps"][0]
     print(f"\nGrowth per doubling of training, anchored at step {first}")
     rows = []
-    for q in ("dist_heldout", "z_marker_rate"):
+    for q in report.get("quantities", ["dist_heldout", "z_marker_rate"]):
         for cell in report["cells"]:
             g = report["arms"][cell]["growth"][q]
             e = g["endpoint_delta"]
@@ -752,6 +818,19 @@ def print_trajectory(report: dict) -> None:
     _table(rows, list(rows[0].keys()))
     n_mono = sum(1 for step in report["by_step"] if step["monotone_in_omega"])
     print(f"\n{n_mono}/{len(report['by_step'])} matched steps rank in omega_3 order.")
+
+    if all("comet" in step for step in report["by_step"]):
+        model = report.get("comet", {}).get("model", "COMET")
+        print(f"\nSemantic adequacy at matched training length, {model}")
+        rows = [
+            {
+                "step": str(step["step"]),
+                **{cell: f"{step['comet'][cell]:.4f}" for cell in report["cells"]},
+            }
+            for step in report["by_step"]
+        ]
+        _table(rows, list(rows[0].keys()))
+        print(f"reference {ref} sits at COMET {ref_cell['comet']:.4f}.")
     if report.get("selected"):
         picks = ", ".join(f"{cell} -> {tag}" for cell, tag in report["selected"].items())
         print(f"dev-slice selection picked {picks}; those points are circled in the figure.")
@@ -762,20 +841,38 @@ def trajectory_figure(report: dict, path: Path = _TRAJ_FIGURE_PATH) -> None:
     import matplotlib.pyplot as plt
 
     ref_cell = report["reference_cell"]
-    panels = (
-        ("dist_heldout", "held-out register distance", ref_cell["dist_heldout"]),
-        ("z_marker_rate", "signed z, marker_rate", ref_cell["z"]["marker_rate"]),
-    )
+    panels = [
+        (
+            "dist_heldout",
+            "held-out register distance",
+            ref_cell["dist_heldout"],
+            "drift from the target register",
+        ),
+        (
+            "z_marker_rate",
+            "signed z, marker_rate",
+            ref_cell["z"]["marker_rate"],
+            "marker inflation, the held-out feature the reward never saw",
+        ),
+    ]
+    if "comet" in ref_cell:
+        model = report.get("comet", {}).get("model", "COMET")
+        panels.append(
+            (
+                "comet",
+                f"COMET ({model.split('/')[-1]})",
+                ref_cell["comet"],
+                "semantic adequacy against the gold reference",
+            )
+        )
 
-    fig, axes = plt.subplots(1, 2, figsize=(11.0, 4.4), sharex=True)
-    for ax, (key, ylabel, ref_value) in zip(axes, panels):
+    fig, axes = plt.subplots(1, len(panels), figsize=(5.5 * len(panels), 4.4), sharex=True)
+    for ax, (key, ylabel, ref_value, title) in zip(axes, panels):
         for cell in report["cells"]:
             arm = report["arms"][cell]
             rows = arm["rows"]
             xs = [r["step"] for r in rows]
-            ys = [
-                r["dist_heldout"] if key == "dist_heldout" else r["z"]["marker_rate"] for r in rows
-            ]
+            ys = [r["z"]["marker_rate"] if key == "z_marker_rate" else r[key] for r in rows]
             slope = arm["growth"][key]["slope_per_doubling"]
             (line,) = ax.plot(
                 xs,
@@ -806,10 +903,9 @@ def trajectory_figure(report: dict, path: Path = _TRAJ_FIGURE_PATH) -> None:
         ax.get_xaxis().set_major_formatter(plt.matplotlib.ticker.ScalarFormatter())
         ax.set_xlabel("optimizer step")
         ax.set_ylabel(ylabel)
+        ax.set_title(title)
         ax.legend(fontsize=8)
 
-    axes[0].set_title("drift from the target register")
-    axes[1].set_title("marker inflation, the held-out feature the reward never saw")
     fig.suptitle(
         f"bands: 95% paired interval on the gap to {report['reference']}, drawn about its level",
         y=0.03,
