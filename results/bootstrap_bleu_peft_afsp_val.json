@@ -1,0 +1,53 @@
+{
+  "metric": "bleu",
+  "judge_tag": null,
+  "split": "val",
+  "conditions": [
+    "peft",
+    "peft_knn",
+    "peft_afsp"
+  ],
+  "baseline": "peft",
+  "adjacent": true,
+  "n_resamples": 10000,
+  "alpha": 0.05,
+  "seed": 42,
+  "comparisons": [
+    {
+      "a": "peft_knn",
+      "b": "peft",
+      "n": 1323,
+      "mean_a": 16.852294030893596,
+      "mean_b": 16.02737145270516,
+      "diff": 0.8249225781884348,
+      "ci_low": 0.2624278047105789,
+      "ci_high": 1.3843592178093063,
+      "p_value": 0.0048,
+      "significant": true
+    },
+    {
+      "a": "peft_afsp",
+      "b": "peft",
+      "n": 1323,
+      "mean_a": 16.786042114238672,
+      "mean_b": 16.02737145270516,
+      "diff": 0.758670661533511,
+      "ci_low": 0.2007288140842824,
+      "ci_high": 1.3077134365252405,
+      "p_value": 0.0062,
+      "significant": true
+    },
+    {
+      "a": "peft_afsp",
+      "b": "peft_knn",
+      "n": 1323,
+      "mean_a": 16.786042114238672,
+      "mean_b": 16.852294030893596,
+      "diff": -0.0662519166549238,
+      "ci_low": -0.6033050285405902,
+      "ci_high": 0.4756705255572787,
+      "p_value": 0.8248,
+      "significant": false
+    }
+  ]
+}
