@@ -285,11 +285,17 @@ Read against these intervals, three earlier readings of the table do not hold:
 
 **The `Stylo. dist.` ladder is monotone but not separable.** The column falls
 0.652 → 0.370 across the ladder, and `manage.py stylometrics_ci` resamples it by
-recomputing the condition's mean feature vector inside each bootstrap replicate
-(`results/stylometrics_ci_val.json`, 2,000 paired resamples, seed 42). Under those
-intervals the two AFSP steps do not separate:
+recomputing the condition's mean feature vector inside each bootstrap replicate. The
+canonical artifact is the **joint twelve-condition ladder** — the six study conditions,
+the two PEFT+AFSP stacks, the three RLSF arms and the commercial reference, all scored in
+one paired call (`results/stylometrics_ci_ladder_val.json`, 2,000 paired resamples, seed
+42). Because the resample indices are shared across all twelve, the ranks, the rank
+distributions and all 66 pairwise intervals read on one scale; the per-arm files
+(`results/stylometrics_ci_val.json`, `results/stylometrics_ci_peft_afsp_val.json`) are
+strict subsets of it and reproduce it cell-for-cell. Under those intervals the two AFSP
+steps do not separate:
 
-| Adjacent step | Δ `stylo_dist` | 95 % CI | p |
+| Comparison | Δ `stylo_dist` | 95 % CI | p |
 |---|---:|---|---:|
 | AFSP-full − AFSP-margin | −0.021 | [−0.057, +0.012] | .232 |
 | AFSP-margin − kNN few-shot | −0.009 | [−0.038, +0.021] | .577 |
@@ -299,6 +305,15 @@ intervals the two AFSP steps do not separate:
 So the retrieval floor separates and PEFT separates, while the adaptive layer does not —
 the same pattern the COMET/Φ/chrF/BLEU bootstraps show. Read the monotone ordering as
 descriptive; only the two marked steps are resolved.
+
+Scoring all twelve together also shows how little of the ladder is resolved above PEFT.
+Only 3 of the 11 adjacent gaps separate, and all three are at the bottom (kNN − random
+few-shot, random few-shot − commercial, commercial − zero-shot). The six closest-fitting
+rungs — `peft` itself, the two PEFT+AFSP stacks and the three RLSF arms trained from it —
+sit inside 0.270–0.328 with no adjacent gap resolved. `peft_afsp` holds rank 1 (0.270,
+modal-rank probability 0.776) but does not separate from `peft` (−0.019 [−0.060, +0.025],
+p = .404). Neither the stacked nor the RLSF rungs are written up in the table above; both
+are reported in [`docs/DEVLOG.md`](docs/DEVLOG.md).
 
 **Detection floor for the RLSF arm.** The Φ CI half-width against PEFT at n = 1,323 is
 ≈0.058, and the COMET half-width ≈0.005. RLSF must clear those margins over its own
@@ -503,6 +518,13 @@ python manage.py stylometrics  --conditions $CONDS --split val
 # Bootstrap CIs, paired adjacent differences and rank distributions for stylo_dist and the
 # signed z-vector -> results/stylometrics_ci_val.json
 python manage.py stylometrics_ci --conditions $CONDS --split val
+
+# The canonical ladder artifact: all twelve rungs in one paired resample, so ranks and
+# pairwise intervals are comparable across arms (src.eval.stylometrics_ci.LADDER_CONDITIONS)
+python manage.py stylometrics_ci --split val \
+  --conditions zeroshot random_fewshot knn_fewshot afsp_margin afsp_full peft \
+               peft_knn peft_afsp rlsf_w3_0.0 rlsf_w3_2.0 rlsf_w3_6.0 commercial_haiku \
+  --results_path results/stylometrics_ci_ladder_val.json
 
 # RQ4 metric agreement, condition level and segment level -> results/metric_agreement_val.json
 python manage.py metric_agreement --conditions $CONDS --split val

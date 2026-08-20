@@ -1,5 +1,5 @@
 """
-Bootstrap confidence intervals on the register fit of the seven main conditions.
+Bootstrap confidence intervals on the register fit of a set of conditions.
 
     python manage.py stylometrics_ci
     python manage.py stylometrics_ci --conditions zeroshot peft --split val
@@ -37,6 +37,23 @@ MAIN_CONDITIONS = [
     "afsp_margin",
     "afsp_full",
     "peft",
+    "commercial_haiku",
+]
+
+# Every rung scored on val, in reporting order. Scoring them in one call is what makes
+# the ranks, rank distributions and the 66 pairwise intervals comparable across arms.
+LADDER_CONDITIONS = [
+    "zeroshot",
+    "random_fewshot",
+    "knn_fewshot",
+    "afsp_margin",
+    "afsp_full",
+    "peft",
+    "peft_knn",
+    "peft_afsp",
+    "rlsf_w3_0.0",
+    "rlsf_w3_2.0",
+    "rlsf_w3_6.0",
     "commercial_haiku",
 ]
 
