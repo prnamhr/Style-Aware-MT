@@ -1,0 +1,148 @@
+{
+  "split": "val",
+  "judge": {
+    "tag": "gpt",
+    "model": "gpt-5.6-terra",
+    "template_sha256": "ffd6dad41acb0512",
+    "results_path": "results/judge_gpt_val.json"
+  },
+  "bootstrap": {
+    "n_resamples": 10000,
+    "seed": 42,
+    "alpha": 0.05,
+    "paired": true,
+    "unit": "segment",
+    "n_segments": 1323
+  },
+  "evidence_class": {
+    "study_conditions": [
+      "peft",
+      "peft_knn",
+      "peft_afsp"
+    ],
+    "external_reference": [],
+    "note": "commercial_haiku is a diagnostic external reference baseline, not a condition of the study, and is excluded from study tables. Phi is not seed-reproducible, so differences of order 0.05 are within measurement noise."
+  },
+  "conditions": [
+    "peft",
+    "peft_knn",
+    "peft_afsp"
+  ],
+  "ranking": [
+    "peft_knn",
+    "peft_afsp",
+    "peft"
+  ],
+  "cells": {
+    "peft": {
+      "n": 1323,
+      "n_scored": 1306,
+      "coverage": 0.9871504157218443,
+      "phi": 3.6125574272588055,
+      "sd": 1.0200871641041664,
+      "phi_ci": [
+        3.5567484662576687,
+        3.668195806530985
+      ],
+      "score_histogram": {
+        "1": 0.06355283307810107,
+        "2": 0.07503828483920368,
+        "3": 0.18223583460949463,
+        "4": 0.5436447166921899,
+        "5": 0.13552833078101073
+      },
+      "is_reference": false,
+      "rank": 3,
+      "rank_distribution": {
+        "rank_probs": [
+          0.0126,
+          0.1586,
+          0.8288
+        ],
+        "modal_rank": 3,
+        "modal_prob": 0.8288,
+        "mean_rank": 2.8162
+      }
+    },
+    "peft_knn": {
+      "n": 1323,
+      "n_scored": 1296,
+      "coverage": 0.9795918367346939,
+      "phi": 3.662037037037037,
+      "sd": 0.967411952523787,
+      "phi_ci": [
+        3.610129144431158,
+        3.7149522542331943
+      ],
+      "score_histogram": {
+        "1": 0.05015432098765432,
+        "2": 0.07407407407407407,
+        "3": 0.1705246913580247,
+        "4": 0.5740740740740741,
+        "5": 0.13117283950617284
+      },
+      "is_reference": false,
+      "rank": 1,
+      "rank_distribution": {
+        "rank_probs": [
+          0.8564,
+          0.1313,
+          0.0123
+        ],
+        "modal_rank": 1,
+        "modal_prob": 0.8564,
+        "mean_rank": 1.1559
+      }
+    },
+    "peft_afsp": {
+      "n": 1323,
+      "n_scored": 1299,
+      "coverage": 0.981859410430839,
+      "phi": 3.636643571978445,
+      "sd": 0.9862286596744155,
+      "phi_ci": [
+        3.5833973866256725,
+        3.6904581809449923
+      ],
+      "score_histogram": {
+        "1": 0.053117782909930716,
+        "2": 0.07698229407236336,
+        "3": 0.18398768283294842,
+        "4": 0.5519630484988453,
+        "5": 0.13394919168591224
+      },
+      "is_reference": false,
+      "rank": 2,
+      "rank_distribution": {
+        "rank_probs": [
+          0.131,
+          0.7101,
+          0.1589
+        ],
+        "modal_rank": 2,
+        "modal_prob": 0.7101,
+        "mean_rank": 2.0279
+      }
+    }
+  },
+  "paired_adjacent": [
+    {
+      "a": "peft_knn",
+      "b": "peft_afsp",
+      "diff": 0.025581596059897134,
+      "ci_low": -0.02097144964912352,
+      "ci_high": 0.0700025296058262,
+      "p_value": 0.2696,
+      "significant": false
+    },
+    {
+      "a": "peft_afsp",
+      "b": "peft",
+      "diff": 0.02439500008159461,
+      "ci_low": -0.023363540304955455,
+      "ci_high": 0.0722374503890817,
+      "p_value": 0.3236,
+      "significant": false
+    }
+  ]
+}

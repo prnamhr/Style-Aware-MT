@@ -278,7 +278,7 @@ def _print_summary(report: dict) -> None:
                 "sig": "*" if rec["significant"] else "",
             }
         )
-    _table(rows, list(rows[0].keys()))
+    _table(rows, list(rows[0].keys()) if rows else [])
 
     n_sig = sum(1 for r in report["paired_adjacent"] if r["significant"])
     print(
