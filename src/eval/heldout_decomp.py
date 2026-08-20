@@ -739,9 +739,7 @@ def print_report(report: dict) -> None:
         f"{ladder['n_monotone']}/{len(ladder['steps'])} matched checkpoints rank in omega_3 order."
     )
     if not ladder["selected_matched"]:
-        print(
-            "The val arms are NOT matched on training length."
-        )
+        print("The val arms are NOT matched on training length.")
 
 
 def figure(report: dict, path: Path = _FIGURE_PATH) -> None:
