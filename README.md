@@ -362,24 +362,6 @@ A few rules matter when reading the results:
 
 ---
 
-## Main limitations
-
-This project is intentionally narrow, and the README should be read with that scope in mind.
-
-- One corpus
-- One main language combination
-- One base open-source model
-- One training realization per LoRA/RLSF cell
-- no repeated-seed estimate of GRPO training variance
-- automatic style measures are imperfect proxies for a complex literary register
-- the two LLM judges disagree on some small effects
-- PEFT and AFSP were tuned on validation, so validation differences can be optimistic
-- the final test evaluation has not yet been reported
-
-The goal is not to claim that these metrics fully define Shoghi Effendi's style. The goal is to compare adaptation strategies under one controlled, reproducible experimental setting and document where the evaluation signals agree or disagree.
-
----
-
 ## Repository structure
 
 ```text
