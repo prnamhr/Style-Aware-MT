@@ -550,17 +550,16 @@ For full experiment provenance and the exact commands used for each run, see [`d
 
 - [`docs/proposal.pdf`](docs/proposal.pdf): original thesis proposal and hypotheses
 - [`docs/DEVLOG.md`](docs/DEVLOG.md): engineering and decision log
-- [`docs/preregistration_rlsf.md`](docs/preregistration_rlsf.md): RLSF preregistration and addenda
-- [`docs/afsp_strategies.md`](docs/afsp_strategies.md): AFSP mechanism
-- [`docs/budget.md`](docs/budget.md): compute and API budget rules
-- `results/comet_val.json`: COMET scores
-- `results/judge_val.json`: Phi_A
-- `results/judge_gpt_val.json`: Phi_B
-- `results/stylometrics_ci_ladder_val.json`: canonical full stylometric comparison
-- `results/heldout_decomp_val.json`: RLSF held-out style decomposition
-- `results/heldout_traj_val.json`: RLSF trajectory analysis
-- `results/heldout_decomp_peft_afsp_val.json`: hybrid held-out analysis
-
+- [`docs/preregistration_rlsf.md`](docs/preregistration_rlsf.md): RLSF preregistration and dated addenda
+- [`docs/afsp_strategies.md`](docs/afsp_strategies.md): AFSP retrieval and reranking methodology
+- [`docs/budget.md`](docs/budget.md): compute and API budget records and spending rules
+- [`results/comet_val.json`](results/comet_val.json): validation COMET scores
+- [`results/judge_val.json`](results/judge_val.json): primary LLM-as-Judge scores, Φ_A
+- [`results/judge_gpt_val.json`](results/judge_gpt_val.json): second LLM-as-Judge scores, Φ_B
+- [`results/stylometrics_ci_ladder_val.json`](results/stylometrics_ci_ladder_val.json): canonical full stylometric comparison with uncertainty estimates
+- [`results/heldout_decomp_val.json`](results/heldout_decomp_val.json): RLSF held-out style decomposition
+- [`results/heldout_traj_val.json`](results/heldout_traj_val.json): RLSF checkpoint-trajectory analysis
+- [`results/heldout_decomp_peft_afsp_val.json`](results/heldout_decomp_peft_afsp_val.json): PEFT+AFSP held-out style analysis
 ---
 
 ## Current takeaway
