@@ -22,10 +22,8 @@ _SPLIT_DIR = Path("data/splits")
 _CENTROID_PATH = Path("results/stylometrics_centroid.json")
 _SPLIT_CENTROID_PATH = Path("results/stylometrics_centroid_split.json")
 
-_MARKERS = re.compile(
-    r"\b(thou|thee|thy|thine|art|hast|hath|dost|doth|shalt|wilt|unto|ye)\b"
-    r"|\bO\b",
-)
+_PRONOUNS = r"thou|thee|thy|thine|art|hast|hath|dost|doth|shalt|wilt|unto|ye"
+_MARKERS = re.compile(rf"(?i:\b({_PRONOUNS})\b)|\bO\b")
 
 # Standard English function words plus the archaic grammatical forms (thee/thou/hath
 # family, archaic adverbs and relative forms) that recur in the authorized register.

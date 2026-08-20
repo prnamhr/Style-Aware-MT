@@ -1,16 +1,13 @@
 """Sanity checks for src/eval/stylometrics.py -- no pytest dependency.
 
 Run directly:  python tests/test_stylometrics.py
-
-The lexical-density check is hand-labeled: the reference excerpt below is a real
-training target, and its 42 tokens were split into content vs. function words by
-hand (see the comment block) so the code's counts can be confirmed against a human
-reading -- exactly the sanity check the metric's approximate nature calls for.
 """
 
 from __future__ import annotations
 
+import json
 import math
+import statistics
 import sys
 from pathlib import Path
 
@@ -25,14 +22,31 @@ REF = (
     "are inscrutable to all but God, the Lord of the kingdoms of earth and heaven."
 )
 
-# Hand count (rose-garden splits on the hyphen into two tokens -> 42 tokens):
-#  FUNCTION (24): verily the within the of my and the in the of my such and as
-#                 are to all but the of the of and
-#  CONTENT  (18): birds abiding domains Kingdom doves dwelling rose garden wisdom
-#                 utter melodies warblings inscrutable God Lord kingdoms earth heaven
 EXPECTED_TOKENS = 42
 EXPECTED_CONTENT = 18
 EXPECTED_TYPES = 31  # the x6, of x4, and x3, my x2 -> 11 duplicates removed
+
+HAND_COUNTED = [
+    (REF, 0, EXPECTED_TOKENS),
+    (
+        "This is the Day wherein the earth hath told out her tidings and hath laid bare "
+        "her treasures.",
+        2,
+        18,
+    ),
+    ("He hath no associate in His judgment nor any helper in His sovereignty.", 1, 13),
+    ("Unto Thee be praise, O Lord my God!", 3, 8),
+    ("Thou art the God of power, of glory and bounty.", 2, 10),
+    (
+        "Blessing be unto Thee, O Lord of Names, and glory be unto Thee, O Creator of the heavens,",
+        6,
+        18,
+    ),
+]
+
+# Mean marker_rate the case-sensitive regex produced over the 10,860 train targets.
+CASE_SENSITIVE_MARKER_MEAN = 0.0327
+MARKER_BAND = (0.050, 0.065)
 
 
 def test_tokenizing_strips_punctuation() -> None:
@@ -77,10 +91,44 @@ def test_empty_text_is_all_zeros() -> None:
 
 def test_marker_rate_normalized_per_word() -> None:
     # "verily" is a function word for lex density but NOT an archaic marker; "thou"
-    # and "thee" are. Two markers over four words = 0.5. (The shared marker regex is
-    # case-sensitive, matching quick.py, so the words are given lowercase here.)
+    # and "thee" are. Two markers over four words = 0.5.
     f = features("thou and thee speak")
     assert math.isclose(f["marker_rate"], 2 / 4, rel_tol=1e-9)
+
+
+def test_capitalized_markers_are_counted() -> None:
+    # Sentence-initial and vocative capitals are the same markers; before the pronoun
+    # class was made case-insensitive only the lowercase "art" here scored.
+    assert math.isclose(features("Thou art")["marker_rate"], 1.0, rel_tol=1e-9)
+    assert math.isclose(features("Thy grace")["marker_rate"], 1 / 2, rel_tol=1e-9)
+
+
+def test_vocative_o_stays_case_sensitive() -> None:
+    # The scoped (?i:...) must not leak onto the O branch, or every ordinary "o" counts.
+    assert math.isclose(features("O Lord")["marker_rate"], 1 / 2, rel_tol=1e-9)
+    assert features("o lord")["marker_rate"] == 0.0
+
+
+def test_marker_rate_matches_hand_counts_on_train_targets() -> None:
+    for text, markers, tokens in HAND_COUNTED:
+        f = features(text)
+        assert len(_words(text)) == tokens, (text, len(_words(text)))
+        assert math.isclose(f["marker_rate"], markers / tokens, rel_tol=1e-9), text
+
+
+def test_committed_centroid_marker_rate_in_hand_checked_band() -> None:
+    """Guard against a centroid file left over from the case-sensitive regex."""
+    path = Path(__file__).resolve().parent.parent / "results" / "stylometrics_centroid.json"
+    if not path.exists():
+        print("skip centroid guard: build it with python manage.py stylometrics --build-centroid")
+        return
+    centroid = json.loads(path.read_text(encoding="utf-8"))
+    mean = centroid["mean"][centroid["features"].index("marker_rate")]
+    assert MARKER_BAND[0] <= mean <= MARKER_BAND[1], mean
+    assert mean > CASE_SENSITIVE_MARKER_MEAN * 1.5, mean
+
+    hand_mean = statistics.fmean(m / t for _, m, t in HAND_COUNTED)
+    assert mean < hand_mean, (mean, hand_mean)
 
 
 if __name__ == "__main__":
