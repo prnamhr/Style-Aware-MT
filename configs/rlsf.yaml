@@ -18,8 +18,6 @@ prompt:
 rlsf:
   seed: 42
 
-  # Not the locked greedy decoding: at temperature 0 a group has no variance and
-  # group_normalize returns all zeros (reward.py:203). Greedy still governs inference.
   rollout:
     temperature: 1.0                      # -> GRPOConfig.temperature
     top_p: 0.95                           # -> GRPOConfig.top_p

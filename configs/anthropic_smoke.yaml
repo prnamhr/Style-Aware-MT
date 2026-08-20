@@ -1,4 +1,4 @@
-# SMOKE TEST ONLY -- NOT A THESIS CONDITION, NOT A SOURCE OF FINDINGS.
+# SMOKE TEST ONLY
 
 generator:
   provider: anthropic
@@ -9,7 +9,7 @@ generator:
 prompt:
   style_instruction_file: prompts/style_instruction.txt
   ordering: most_similar_last  
-  ordering_seed: 42             # only used when ordering: random
+  ordering_seed: 42             # only used when ordering is random
 
 retrieval:
   embed_model: intfloat/multilingual-e5-large-instruct

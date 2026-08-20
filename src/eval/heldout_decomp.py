@@ -38,7 +38,7 @@ _TRAJ_PANEL_FILE = {
     "z_marker_rate": "traj_marker_rate_z.png",
 }
 
-# The frozen-PEFT initialization every RLSF arm starts from: the arms are read as
+# The frozen-PEFT initialization every RLSF arm starts from the arms are read as
 # movement away from it, not against each other.
 REFERENCE = "peft"
 
@@ -62,7 +62,7 @@ OMEGA = {
 
 CONDITIONS = ["peft", "rlsf_w3_0.0", "rlsf_w3_2.0", "rlsf_w3_6.0"]
 
-# cell -> the val condition trained from it, for the checkpoint ladder
+# cell the val condition trained from it, for the checkpoint ladder
 CELLS = {"w3_0.0": "rlsf_w3_0.0", "w3_2.0": "rlsf_w3_2.0", "w3_6.0": "rlsf_w3_6.0"}
 
 # The checkpoints regenerated on val by notebooks/rlsf_trajectory_gpu.ipynb, and where they live.
@@ -740,8 +740,7 @@ def print_report(report: dict) -> None:
     )
     if not ladder["selected_matched"]:
         print(
-            "The val arms are NOT matched on training length: the arm-level comparison above "
-            "confounds judge weight with the checkpoint each arm's selection rule picked."
+            "The val arms are NOT matched on training length."
         )
 
 

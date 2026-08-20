@@ -18,28 +18,28 @@ prompt:
 
 retrieval:
   embed_model: intfloat/multilingual-e5-large-instruct
-  index_dir: data/knn_index             # built by `build_index` (source-side)
+  index_dir: data/knn_index             # built by build_index (source-side)
   train_file: data/splits/train.jsonl   # exemplar pool (source side indexed)
   k: 8                              
 
 # AFSP
 afsp:
-  beta: 0.3                                    # hub-penalisation weight; 0 = plain cosine
-  knn_hubness: 5                               # neighbours used to estimate hubness per side
-  pool_mult: 4                                 # candidate pool = pool_mult * k, re-ranked by register fit
-  lambda_style: 0.75                            # target-distribution-priority weight in [0, 1]
-  style_objective: bandpass                    # register-fit target: bandpass | proximity | salience
-  style_target_sigma: 1.0                      # bandpass: target sits this many std-devs along the register direction
+  beta: 0.3
+  knn_hubness: 5
+  pool_mult: 4
+  lambda_style: 0.75
+  style_objective: bandpass
+  style_target_sigma: 1.0
   style_register_direction:
     marker_rate: 0.514
     lex_density: 0.355
     root_ttr: -0.296
     ttr: 0.098
-  centroid_file: results/stylometrics_centroid.json  # built by `stylometrics --build-centroid`
+  centroid_file: results/stylometrics_centroid.json  
 
 data:
   eval_file: data/splits/val.jsonl
-  limit: null                            # full dev set
+  limit: null
 
 output:
   dir: outputs

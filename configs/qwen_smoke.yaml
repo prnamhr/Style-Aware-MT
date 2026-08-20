@@ -1,6 +1,6 @@
-# LOCAL QWEN LOOP-VALIDATION SMOKE -- validates the local generator end to end,
+# LOCAL QWEN LOOP-VALIDATION SMOKE
 
-# Generation (local open-source base; decoding LOCKED, matches base_qwen.yaml) 
+# Generation
 generator:
   provider: local
   model: Qwen/Qwen2.5-7B-Instruct
@@ -20,14 +20,14 @@ prompt:
   word_pairs: true                             # smoke the glossary augmentation too
   glossary_file: prompts/register_glossary.tsv
 
-# Retrieval (unused by the reference condition; kept for knn_fewshot/afsp smokes) 
+# Retrieval
 retrieval:
   embed_model: intfloat/multilingual-e5-large-instruct
   index_dir: data/knn_index
   train_file: data/splits/train.jsonl
   k: 4
 
-# AFSP (required by afsp_margin/afsp_full smokes; mirrors base_qwen.yaml) 
+# AFSP
 afsp:
   beta: 0.3
   knn_hubness: 5
@@ -35,12 +35,12 @@ afsp:
   lambda_style: 0.3
   style_objective: bandpass    # bandpass | proximity | salience
   style_target_sigma: 1.0
-  style_register_direction:    # signed per-axis register direction (corr with distance); omit for isotropic
+  style_register_direction:
     marker_rate: 0.514
     lex_density: 0.355
     root_ttr: -0.296
     ttr: 0.098
-  centroid_file: results/stylometrics_centroid.json  # built by `stylometrics --build-centroid`
+  centroid_file: results/stylometrics_centroid.json
 
 # Data 
 # DEV split only. test.jsonl stays sealed until the final evaluation.

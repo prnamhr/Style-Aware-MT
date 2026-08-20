@@ -1,4 +1,4 @@
-# Val inference for the RLSF-0 arm (cell w3_0.0), run through the `peft` condition.
+# Val inference for the RLSF-0 arm.
 
 generator:
   provider: local

@@ -56,7 +56,7 @@ def measure(model: str, sources: list[str]) -> dict:
         n_words = len(src.split())
         if n_words == 0:
             continue
-        # No special tokens: we count only the content the model encodes.
+        # We count only the content the model encodes.
         n_tokens = len(tok.encode(src, add_special_tokens=False))
         total_words += n_words
         total_tokens += n_tokens

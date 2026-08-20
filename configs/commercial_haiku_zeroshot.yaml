@@ -12,7 +12,7 @@ generator:
 prompt:
   style_instruction_file: prompts/style_instruction.txt
 
-# Data (VAL ONLY; test stays sealed) 
+# Data
 data:
   eval_file: data/splits/val.jsonl
   limit: null
@@ -20,4 +20,4 @@ data:
 # Output 
 output:
   dir: outputs
-  name: commercial_haiku    # -> outputs/commercial_haiku_val.jsonl
+  name: commercial_haiku

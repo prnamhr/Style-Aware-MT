@@ -1,6 +1,5 @@
 # Evaluation-time LLM-as-Judge, SECOND (cross-family) rater 
 
-
 judge:
   provider: openai
   model: gpt-5.6-terra

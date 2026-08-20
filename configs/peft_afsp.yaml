@@ -1,16 +1,10 @@
-# The adapter, run under retrieval prompts. Serves both stacked rungs:
-#   python manage.py infer --condition peft_knn  --config configs/peft_afsp.yaml
-#   python manage.py infer --condition peft_afsp --config configs/peft_afsp.yaml
-# Every value below is copied unchanged from configs/peft_qwen.yaml (generator) and
-# configs/base_qwen.yaml (prompt/retrieval/afsp). Nothing is re-selected here.
-
 # Generation
 generator:
   provider: local
   model: Qwen/Qwen2.5-7B-Instruct
   adapter_path: models/peft_lora_r32_lr2e-4/checkpoint-1358
   max_tokens: 1024
-  temperature: 0.0          # greedy, deterministic (locked decoding)
+  temperature: 0.0
   top_p: 1.0
   seed: 42
   dtype: bfloat16
@@ -22,7 +16,7 @@ prompt:
   style_instruction_file: prompts/style_instruction.txt
   ordering: most_similar_last
   ordering_seed: 42
-  word_pairs: true                             # controlled augmentation, as on every few-shot rung
+  word_pairs: true
   glossary_file: prompts/register_glossary.tsv
 
 retrieval:
@@ -31,7 +25,7 @@ retrieval:
   train_file: data/splits/train.jsonl
   k: 8
 
-# AFSP, frozen 2026-07-23; peft_knn ignores this block
+# AFSP
 afsp:
   beta: 0.3
   knn_hubness: 5

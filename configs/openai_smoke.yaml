@@ -1,5 +1,4 @@
-
-# SMOKE TEST ONLY -- NOT A THESIS CONDITION, NOT A SOURCE OF FINDINGS.
+# SMOKE TEST ONLY
 
 generator:
   provider: openai
@@ -21,10 +20,9 @@ retrieval:
   k: 4                               
 
 # Data 
-# Tuning and smoke runs use the DEV split. test.jsonl is sealed for final eval.
 data:
   eval_file: data/splits/val.jsonl
-  limit: 25                # smoke slice; null = full dev set
+  limit: 25
 
 # Output 
 output:

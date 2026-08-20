@@ -116,7 +116,7 @@ def _assert_aligned(present: list[str], sources: dict) -> None:
 
 
 def _parse_extra_pairs(specs: list[str] | None, present: list[str]) -> list[tuple[str, str]]:
-    """Parse ``a:b`` comparison specs, rejecting unknown or unscored conditions."""
+    """Parse a:b comparison specs, rejecting unknown or unscored conditions."""
     out: list[tuple[str, str]] = []
     for spec in specs or []:
         a, sep, b = spec.partition(":")

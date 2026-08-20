@@ -30,9 +30,7 @@ __pycache__/
 
 results/judge_gpt_val_batch/
 
-notebooks/Style-Aware-MT/
 
 models/
-CLAUDE.md
 
 .venv-comet/
