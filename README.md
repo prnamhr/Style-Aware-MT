@@ -1,108 +1,79 @@
 # Style-Aware NMT of Low-Resource Texts
 
-Can a language model preserve not only the meaning of a translation, but also the voice of a specific translator?
+Can a language model preserve both the meaning of a translation and the register of a specific translator?
 
-This project explores that question using Persian and mixed Persian/Arabic Bahá'í scripture translated into English. The target is the formal, scriptural register found in Shoghi Effendi's authorized translations.
+This project studies that question using Persian and mixed Persian/Arabic Bahá'í scripture translated into English. The target is the formal scriptural register found in Shoghi Effendi's authorized translations.
 
-It is an undergraduate Computer Engineering thesis project at BIHE, supervised by Dr. Fares Hedayati.
+This is an undergraduate Computer Engineering thesis project at BIHE, supervised by Dr. Fares Hedayati.
 
-> **Status:** Core validation experiments are complete. The final test split is still reserved for the final pass, so every score in this README is a validation result.
+> **Status:** The main validation experiments and the marker-case correction audit are complete. The final test split is still sealed, so every score reported here is a validation result.
 
-## The short version
+## At a glance
 
-I compare three main ways of adapting the same open-source LLM:
+The controlled comparison uses the same open-source base model, `Qwen2.5-7B-Instruct`, with three adaptation strategies.
 
-| Method | What it changes | Weight updates? |
+| Method | What changes | Weight updates? |
 |---|---|---|
-| **PEFT (LoRA)** | Learns the domain and translation style from parallel data | Yes, adapters only |
-| **AFSP** | Retrieves useful examples and places them in the prompt at inference time | No |
-| **RLSF (GRPO)** | Fine-tunes from PEFT using a reward that combines adequacy, overlap, and an LLM style judge | Yes |
+| **PEFT (LoRA)** | Learns from the parallel corpus through a small trainable adapter | Yes, adapter weights only |
+| **AFSP** | Retrieves source-target examples and adds them to the prompt at inference time | No |
+| **RLSF (GRPO)** | Starts from PEFT and continues training with a reward combining adequacy, lexical overlap, and an LLM style judge | Yes |
 
-I also test two hybrid conditions:
+Two hybrid conditions test PEFT with retrieval:
 
-- **PEFT+KNN:** PEFT with ordinary retrieved examples
-- **PEFT+AFSP:** PEFT with AFSP-selected examples
+- **PEFT+KNN:** frozen PEFT with ordinary nearest-neighbour examples
+- **PEFT+AFSP:** frozen PEFT with AFSP-selected examples
 
-The main validation result is not that one method wins every metric.
+The corrected validation results do not produce one winner on every metric. RLSF has the best objective register scores at the selected checkpoints, PEFT+KNN leads chrF, BLEU, and the primary evaluation judge, and the original PEFT+AFSP run has the highest COMET score. A later AFSP case-fix rerun changes many retrieved examples and individual translations but leaves aggregate performance broadly similar.
 
-Instead:
-
-- **PEFT** gives the best score on the deliberately held-out style features.
-- **PEFT+AFSP** gives the best observed full stylometric distance and the best COMET score among the study systems.
-- **PEFT+KNN** gives the highest chrF, BLEU, and primary judge mean, although it is worse than PEFT+AFSP on objective full-register fit.
-- **RLSF** improves some adequacy and judge scores, but continued optimization with a strong style-judge reward can push the model toward exaggerated style cues rather than closer target-register fidelity.
-
-That last point became one of the most interesting findings in the project.
-
----
-
-## Why this problem matters
-
-General-purpose LLMs can translate Persian and Arabic fluently, but fluent is not always faithful.
-
-In literary and scriptural translation, style carries part of the meaning. Vocabulary, cadence, formality, syntax, and recurring register choices all contribute to the reader's experience.
-
-The goal here is therefore not simply:
-
-> "Produce a correct English translation."
-
-It is closer to:
-
-> "Produce a semantically correct English translation that also behaves like the target translator's register."
-
-That makes evaluation harder. BLEU or COMET alone cannot tell the whole story, so this project evaluates both **translation quality** and **style fidelity** from several angles.
-
----
+One evaluation bug materially changed the interpretation of the style results. The original `marker_rate` implementation counted archaic pronouns case-sensitively, which undercounted reverential capitalization in the training references. It was corrected before the test split was opened. The tables below use the corrected stylometric instrument.
 
 ## Research questions
 
-**RQ1.** How do PEFT, AFSP, and RLSF compare on semantic adequacy, stylistic fidelity, and practical cost when the base model and data are held constant?
+**RQ1.** How do PEFT, AFSP, and RLSF compare on semantic adequacy and stylistic fidelity when the base model and data are held constant?
 
 **RQ2.** Do retrieved examples and reward-driven updates move the model closer to the target register?
 
 **RQ3.** How sensitive is RLSF to the weight placed on the LLM style judge?
 
-**RQ4.** When COMET, stylometrics, and LLM-as-Judge evaluate the same translations, where do they agree and where do they disagree?
+**RQ4.** When COMET, stylometric measures, and LLM-as-Judge score the same translations, where do they agree and where do they disagree?
 
-The original hypotheses and proposal are in [`docs/proposal.pdf`](docs/proposal.pdf).
-
----
+The original proposal and hypotheses are in [`docs/proposal.pdf`](docs/proposal.pdf).
 
 ## Experimental design
 
 ### Base model
 
-All study conditions use **Qwen2.5-7B-Instruct**.
-
-The base model is locked across the comparison so that changes can be attributed to the adaptation method rather than to a different model.
+All controlled study conditions use **Qwen2.5-7B-Instruct**. Keeping the base model fixed makes the comparison about the adaptation method rather than a change in model family.
 
 ### Data
 
-The corpus contains Persian and mixed Persian/Arabic Bahá'í texts paired with Shoghi Effendi's authorized English translations.
+The corpus contains Persian and mixed Persian/Arabic Bahá'í texts paired with authorized English translations by Shoghi Effendi.
 
-Key choices:
+The main experiments use sentence-level examples. Mixed Persian/Arabic passages are kept intact, no synthetic training data is added, and the train, validation, and test partitions are split by work rather than by random row. Cross-boundary duplicate checks and split hashes are stored with the project artifacts.
 
-- sentence-level examples for the main experiments
-- mixed Persian/Arabic passages are kept intact
-- no synthetic training data
-- document-aware splitting rather than random-row splitting
-- fixed split hashes stored under `data/splits/`
+Current split sizes are:
 
-The final test split is not used for model selection or for the results reported here.
+```text
+train       10,860
+validation   1,323
+test         1,322
+```
+
+The final test split is not used for the results in this README.
 
 ### Prompting ladder
 
-The prompting experiments are deliberately staged so each step adds one new mechanism.
+The prompting experiments add one mechanism at a time.
 
 | Condition | Exemplars | Selection method |
 |---|---|---|
 | `zeroshot` | none | style instruction only |
 | `random_fewshot` | k examples | seeded random selection |
 | `knn_fewshot` | k examples | cosine top-k retrieval |
-| `afsp_margin` | k examples | AFSP margin and hub penalization |
+| `afsp_margin` | k examples | margin and hub penalization |
 | `afsp_full` | k examples | margin plus target-register reranking |
 
-The frozen AFSP configuration is:
+The frozen AFSP operating point is:
 
 ```text
 k = 8
@@ -111,31 +82,30 @@ beta = 0.3
 sigma = 1.0
 ```
 
-The source-side retrieval index is built from the training partition. Target-side English is used only after retrieval, when the candidate exemplar is scored for register fit.
+The retrieval index is built from the training source texts. For `afsp_full`, the target side of a retrieved candidate is used only during reranking to estimate its fit to the target register.
 
 More detail is in [`docs/afsp_strategies.md`](docs/afsp_strategies.md).
 
 ### PEFT
 
-PEFT uses LoRA adapters while keeping the base model frozen.
-
-Frozen configuration:
+PEFT uses LoRA while the base model remains frozen.
 
 ```text
 rank = 32
 alpha = 64
 learning rate = 2e-4
 epochs = 2
-trainable parameters = 80.7M, about 1.06% of the base model
+selected checkpoint = models/peft_lora_r32_lr2e-4/checkpoint-1358
+trainable parameters = about 80.7M, or 1.06% of the base model
 ```
 
-The selected PEFT checkpoint also becomes the initialization for RLSF.
+The selected PEFT adapter is also the initialization for RLSF.
 
 ### RLSF
 
-The final implementation uses **GRPO**, not PPO.
+The proposal originally planned PPO. The implemented experiment uses **GRPO**.
 
-For a generated translation \(y\), the reward is:
+For a generated translation `y`, the training reward is:
 
 ```text
 r(y) = w1 * COMET-Kiwi(x, y)
@@ -143,27 +113,19 @@ r(y) = w1 * COMET-Kiwi(x, y)
      + w3 * Phi_train(y, target_style)
 ```
 
-Important details:
+The adequacy component uses reference-free COMET-Kiwi, the lexical component uses BLEU, and the style component uses `gpt-4o-mini` with a frozen training-time rubric. The evaluation judges are separate from the reward judge.
 
-- adequacy reward: reference-free COMET-Kiwi
-- lexical reward: BLEU
-- style reward: training-time LLM-as-Judge
-- reward judge: `gpt-4o-mini`
-- evaluation judges: different models from the reward judge
-- initialization: frozen PEFT checkpoint
-- KL reference: frozen copy of PEFT
-- reward components are normalized within each GRPO group
-- reward weights are L2-normalized before use
+Reward components are standardized within each GRPO group, and the weight vector is L2-normalized before use. The KL reference is a frozen copy of the PEFT initialization.
 
-Three RLSF arms were trained:
+Three arms were trained:
 
 | Arm | Role |
 |---|---|
-| `w3_0.0` | metric-only RL control, no style-judge reward |
-| `w3_2.0` | moderate style-judge pressure |
-| `w3_6.0` | high style-judge pressure, diagnostic arm |
+| `w3_0.0` | metric-only RL control, no paid style-judge reward |
+| `w3_2.0` | moderate style-judge weight |
+| `w3_6.0` | high style-judge weight used as a diagnostic arm |
 
-Selected validation checkpoints:
+The selected checkpoints remain:
 
 ```text
 w3_0.0 -> step 200
@@ -171,196 +133,353 @@ w3_2.0 -> step 200
 w3_6.0 -> step 100
 ```
 
-The high-pressure `w3_6.0` arm was added as a diagnostic training condition and is not treated as a new primary model-selection candidate.
+The high-weight arm is a diagnostic training condition rather than an extra model-selection candidate.
 
-The full engineering record, budget rules, drift checks, and preregistration are in:
+The engineering history and the RLSF declarations are in:
 
 - [`docs/DEVLOG.md`](docs/DEVLOG.md)
 - [`docs/preregistration_rlsf.md`](docs/preregistration_rlsf.md)
 - [`docs/budget.md`](docs/budget.md)
 
-### PEFT+AFSP hybrid
+### PEFT with retrieval
 
-The hybrid experiment asks a simple follow-up question:
-
-> If PEFT learns the global domain and register in its weights, can AFSP still help by supplying useful local examples at inference time?
-
-Two conditions were added without retraining the adapter:
+The hybrid experiment asks whether retrieved examples still help after the model has already learned the corpus through PEFT.
 
 | Condition | Model | Prompt examples |
 |---|---|---|
 | `peft_knn` | frozen PEFT | plain kNN examples |
 | `peft_afsp` | frozen PEFT | AFSP-selected examples |
 
-The KNN condition matters because it separates the value of **having examples at all** from the value of **AFSP's selection strategy**.
+The KNN control separates the effect of adding examples from the effect of AFSP's reranking strategy. PEFT and AFSP hyperparameters were not tuned again for the hybrid experiment.
 
-No PEFT or AFSP hyperparameter was re-tuned for this experiment.
+## Evaluation
 
----
+The project separates translation quality from register fidelity rather than reducing both to one score.
 
-## How the systems are evaluated
+| Measure | What it is used for |
+|---|---|
+| COMET | semantic adequacy |
+| chrF, BLEU | reference overlap |
+| `Phi_A`, `Phi_B` | perceived register under two independent evaluation judges |
+| full stylometric distance | corpus-level distance from the training target-register centroid |
+| held-out stylometric distance | distance on `ttr`, `root_ttr`, and `marker_rate`, none of which is part of the main RLSF reward |
+| feature diagnostics | lexical density, TTR, root TTR, sentence statistics, and marker rate |
 
-Style is not treated as one number.
+The evaluation judges are:
 
-| Axis | Metric | What it tells us |
-|---|---|---|
-| Semantic adequacy | COMET | how well meaning is preserved |
-| Surface overlap | chrF, BLEU | overlap with the authorized reference |
-| Perceived register | Phi_A, Phi_B | how two independent LLM judges rate the target style |
-| Objective style | stylometric distance | distance from the target register across measured linguistic features |
-| Independent style check | held-out distance | style distance on features not used in the RLSF reward |
-| Linguistic diagnostics | lexical density, TTR, root TTR, marker rate, sentence statistics | which features are actually moving |
+```text
+Phi_A = claude-haiku-4-5
+Phi_B = gpt-5.6-terra
+```
 
-For the two LLM judges:
+Their absolute scores are reported separately and are never averaged.
 
-- **Phi_A:** `claude-haiku-4-5`
-- **Phi_B:** `gpt-5.6-terra`
+Lower stylometric distance is better. Higher COMET, chrF, BLEU, `Phi_A`, and `Phi_B` are better.
 
-The two judges use the same frozen evaluation rubric, but their absolute scores are not interchangeable. They are reported separately and never averaged.
+### The corrected marker feature
 
-Lower stylometric distance is better.
+The original marker expression matched forms such as `thou`, `thee`, `thy`, and `thine` case-sensitively. That was a poor fit for the corpus because the authorized translations often capitalize reverential forms such as `Thou`, `Thee`, and `Thy`.
 
----
+The corrected implementation treats the archaic pronoun and verb class case-insensitively while keeping vocative `O` capital-sensitive:
+
+```python
+_PRONOUNS = r"thou|thee|thy|thine|art|hast|hath|dost|doth|shalt|wilt|unto|ye"
+_MARKERS = re.compile(rf"(?i:\b({_PRONOUNS})\b)|\bO\b")
+```
+
+On the 10,860 training references, 52.1% of all markers were missed by the previous implementation. Correcting the count changed the target marker centroid from `0.032684` to `0.057349`.
+
+The correction changes objective register scores and their interpretation. It does not change COMET, chrF, BLEU, the existing LLM-judge scores, the PEFT adapter, or the trained RLSF adapters.
 
 ## Validation results
 
-All rows below use the same 1,323-segment validation split and locked greedy decoding.
+The table below reports the original controlled generations with the **corrected stylometric scoring**. All conditions use the same 1,323-segment validation split.
 
-Higher is better for COMET, chrF, BLEU, Phi_A, and Phi_B. Lower is better for the two style-distance columns.
-
-| Condition | COMET | chrF | BLEU | Phi_A | Phi_B | Full style dist. | Held-out dist. |
+| Condition | COMET ↑ | chrF ↑ | BLEU ↑ | Phi_A ↑ | Phi_B ↑ | Full style dist. ↓ | Held-out dist. ↓ |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| Zero-shot | 0.6480 | 36.42 | 10.27 | 2.546 | 3.648 | 0.6518 | 0.5837 |
-| Random few-shot | 0.6644 | 37.52 | 11.64 | 2.633 | 3.633 | 0.4736 | 0.4200 |
-| kNN few-shot | 0.6839 | 39.82 | 13.99 | 2.748 | 3.679 | 0.4005 | 0.2849 |
-| AFSP-margin | 0.6824 | 39.68 | 13.69 | 2.763 | 3.667 | 0.3910 | 0.2936 |
-| AFSP-full | 0.6853 | 39.99 | 14.52 | 2.791 | **3.707** | 0.3698 | 0.2990 |
-| PEFT | 0.6986 | 41.58 | 16.90 | 2.744 | 3.613 | 0.2886 | **0.1707** |
-| RLSF `w3=0`, step 200 | 0.7007 | 41.85 | 17.01 | 2.769 | 3.598 | 0.2960 | 0.1802 |
-| RLSF `w3=2`, step 200 | 0.7007 | 42.04 | 17.00 | 2.791 | 3.653 | 0.3279 | 0.2133 |
-| RLSF `w3=6`, step 100 | 0.6993 | 42.08 | 17.13 | 2.742 | 3.636 | 0.2990 | 0.1912 |
-| PEFT+KNN | 0.7015 | **42.40** | **17.98** | **2.802** | 3.662 | 0.3152 | 0.2306 |
-| PEFT+AFSP | **0.7033** | 42.12 | 17.77 | 2.795 | 3.637 | **0.2701** | 0.1908 |
-
-### What I take from this table
+| Zero-shot | 0.6480 | 36.42 | 10.27 | 2.546 | 3.648 | 0.4481 | 0.3417 |
+| Random few-shot | 0.6644 | 37.52 | 11.64 | 2.633 | 3.633 | 0.3162 | 0.2282 |
+| kNN few-shot | 0.6839 | 39.82 | 13.99 | 2.748 | 3.679 | 0.3659 | 0.2337 |
+| AFSP-margin | 0.6824 | 39.68 | 13.69 | 2.763 | 3.667 | 0.3394 | 0.2203 |
+| AFSP-full | 0.6853 | 39.99 | 14.52 | 2.791 | **3.707** | 0.3032 | 0.2111 |
+| PEFT | 0.6986 | 41.58 | 16.90 | 2.744 | 3.613 | 0.2890 | 0.1713 |
+| RLSF `w3=0`, step 200 | 0.7007 | 41.85 | 17.01 | 2.769 | 3.598 | 0.2857 | 0.1626 |
+| RLSF `w3=2`, step 200 | 0.7007 | 42.04 | 17.00 | 2.791 | 3.653 | 0.2793 | **0.1264** |
+| RLSF `w3=6`, step 100 | 0.6993 | 42.08 | 17.13 | 2.742 | 3.636 | **0.2704** | 0.1423 |
+| PEFT+KNN | 0.7015 | **42.40** | **17.98** | **2.802** | 3.662 | 0.3589 | 0.2874 |
+| PEFT+AFSP | **0.7033** | 42.12 | 17.77 | 2.795 | 3.637 | 0.3244 | 0.2620 |
 
 There is no single metric winner.
 
-**PEFT remains the strongest on the deliberately held-out style features.** Its held-out distance is 0.1707, compared with 0.1908 for PEFT+AFSP.
+At the selected checkpoints, `w3_6.0` has the lowest full stylometric point estimate, while `w3_2.0` has the lowest held-out distance. Relative to PEFT, the held-out distance is significantly lower for `w3_2.0` (`Δ = -0.0432`, `p < .001`) and `w3_6.0` (`Δ = -0.0281`, `p = .0002`). The metric-only arm does not separate from PEFT on that measure.
 
-**PEFT+AFSP has the best observed full stylometric distance.** Its value of 0.2701 is the lowest point estimate in the study. However, its improvement over PEFT on that metric is not statistically resolved on validation.
+`w3_2.0` is also the only selected RLSF arm that improves both evaluation judges relative to PEFT with paired intervals excluding zero. Its `Phi_A` gain is about `+0.047` (`p = .0018`) and its `Phi_B` gain is about `+0.039` (`p = .024`).
 
-**PEFT+AFSP also has the best COMET score among the study systems.** Compared with PEFT, it improves COMET, chrF, and BLEU significantly in paired validation tests.
+PEFT+KNN has the highest chrF, BLEU, and `Phi_A` mean among the controlled validation conditions. The original PEFT+AFSP generation has the highest COMET score, but it was generated before the marker correction and therefore used the earlier centroid during AFSP reranking. The sensitivity experiment below checks how much that matters.
 
-**PEFT+KNN gets the highest chrF, BLEU, and Phi_A mean.** The two hybrid systems are not clearly separated by either LLM judge.
+## AFSP case-fix sensitivity
 
-So the hybrid result is better described as:
+AFSP is the one adaptation method for which the marker bug affected generation, not only evaluation. `afsp_full` and `peft_afsp` used the target-register centroid when reranking retrieved examples.
 
-> PEFT+AFSP is the strongest overall validation candidate, but it is not an unconditional winner on every definition of style.
-
----
-
-## The RLSF finding: stronger style pressure can overshoot
-
-The selected RLSF checkpoints alone did not explain what was happening, so I ran a matched checkpoint trajectory over:
+Both conditions were therefore regenerated after the marker correction using the same frozen operating point:
 
 ```text
-steps = 100, 200, 400, 800, 1200
-arms  = w3_0.0, w3_2.0, w3_6.0
+k = 8
+lambda_style = 0.75
+beta = 0.3
+sigma = 1.0
 ```
 
-That produced 15 full-validation checkpoint outputs.
+No new sweep or tuning was performed.
 
-The main pattern is visible in the per-doubling slopes:
-
-| Arm | Held-out style distance | Marker-rate z | COMET | chrF | BLEU |
+| Condition | COMET ↑ | chrF ↑ | BLEU ↑ | Full style dist. ↓ | Held-out dist. ↓ |
 |---|---:|---:|---:|---:|---:|
-| `w3_0.0` | +0.0044 | -0.0001 | +0.0016* | +0.29* | +0.25* |
-| `w3_2.0` | +0.0399* | +0.0442* | +0.0009* | +0.34* | +0.19* |
-| `w3_6.0` | +0.0584* | +0.0656* | -0.0002 | +0.15* | -0.02 |
+| AFSP-full, original generation | 0.6853 | 39.99 | 14.52 | 0.3032 | 0.2111 |
+| AFSP-full, corrected rerank | 0.6836 | 39.88 | 14.17 | 0.2961 | 0.1979 |
+| PEFT+AFSP, original generation | 0.7033 | 42.12 | 17.77 | 0.3244 | 0.2620 |
+| PEFT+AFSP, corrected rerank | 0.7008 | 42.17 | 17.85 | 0.3290 | 0.2497 |
+
+The corrected centroid changed exemplar selection substantially. For 1,323 validation segments, 967 AFSP selections changed their exemplar set, 311 changed only the order, and 45 stayed identical. The final translation changed on 1,132 AFSP-full segments and 953 PEFT+AFSP segments.
+
+Even with those segment-level changes, the aggregate style differences between the original and corrected generations are unresolved. AFSP-full changes by about `-0.0064` in full stylometric distance (`p = .694`), and PEFT+AFSP changes by about `+0.0042` (`p = .730`). This sensitivity run therefore suggests that the reranking bug had a large effect on which examples and outputs were produced, but a much smaller effect on the aggregate validation profile.
+
+The corrected PEFT+AFSP run has slightly lower COMET than the original (`0.7008` versus `0.7033`) while chrF and BLEU remain close. The corrected AFSP sensitivity conditions have not been rescored by `Phi_A` and `Phi_B`, so no judge values are inferred for them here.
+
+Artifacts for this pass include:
+
+```text
+outputs/afsp_full_casefix_val.jsonl
+outputs/peft_afsp_casefix_val.jsonl
+outputs/afsp_casefix_manifest.json
+results/stylometrics_ci_casefix_val.json
+results/heldout_decomp_afsp_casefix_val.json
+results/heldout_decomp_peft_afsp_casefix_val.json
+results/bootstrap_comet_casefix_val.json
+```
+
+## RLSF trajectory after the correction
+
+The selected checkpoints are the primary RLSF conditions. A later post-hoc analysis evaluates saved checkpoints at steps 100, 200, 400, 800, and 1200 for each arm. It is used to inspect training behavior, not to choose a new official checkpoint.
+
+The corrected per-doubling slopes are:
+
+| Arm | Held-out distance ↓ | Marker-rate z | COMET | chrF | BLEU |
+|---|---:|---:|---:|---:|---:|
+| `w3_0.0` | +0.0058 | -0.0010 | +0.0016* | +0.29* | +0.25* |
+| `w3_2.0` | **-0.0205*** | +0.0328* | +0.0009* | +0.34* | +0.19* |
+| `w3_6.0` | **-0.0259*** | +0.0514* | -0.0002 | +0.15* | -0.02 |
 
 `*` means the paired 95% interval excludes zero.
 
-The metric-only control stays roughly stable in independent register space.
+The corrected interpretation is different from the original one. PEFT and the early RLSF checkpoints start below the training centroid on `marker_rate`. As judge weight and optimization continue, marker use rises and the two judge-conditioned arms move closer to the held-out target distribution rather than farther away from it.
 
-The two judge-rewarded arms drift farther from the held-out target as training continues, and the high-pressure arm drifts fastest. At the same time, measured adequacy does not collapse.
+The high-weight arm also shows why the trajectory should not be reduced to "more is always better." For `w3_6.0`, held-out distance falls from `0.1534` at step 100 to `0.0405` at step 800, where marker z is almost exactly on target at `-0.004`. At step 1200, marker z crosses above the target to `+0.076` and held-out distance rises to `0.0834`.
 
-That suggests the model is not simply "getting worse." Instead, stronger and longer optimization against the style reward appears to encourage more obvious style cues without producing a matching gain in independent register fidelity.
-
-In other words:
-
-> **More stylistic intensity is not automatically more stylistic fidelity.**
-
-This is why the project reports the reward judge, independent judges, and objective style measurements separately.
+This is consistent with an under-target policy moving toward the measured register and then beginning to overshoot under prolonged high judge pressure. Because the trajectory analysis was written after the checkpoint results were visible, it is reported as exploratory rather than as a preregistered test.
 
 Trajectory artifacts are in:
 
-- `results/heldout_traj_val.json`
-- `results/comet_traj_val.json`
-- `docs/figures/`
-
----
-
-## What the PEFT+AFSP follow-up adds
-
-The hybrid experiment produced another useful distinction.
-
-Compared with PEFT:
-
-- PEFT+AFSP improves COMET, chrF, and BLEU
-- full stylometric distance improves numerically
-- held-out style distance does not significantly separate
-- Phi_A rises slightly
-- Phi_B also rises slightly, but does not separate statistically
-
-Compared with PEFT+KNN:
-
-- adequacy is essentially tied
-- both LLM judges are essentially tied
-- PEFT+AFSP has a clearly better full stylometric point estimate
-
-This suggests that ordinary retrieval already gives the PEFT model useful local context, while AFSP's main added value may be in **which examples it chooses**, especially for objective register fit.
-
-That interpretation is intentionally cautious because these are validation results, not final test results.
-
----
+```text
+results/heldout_traj_val.json
+results/comet_traj_val.json
+docs/figures/
+```
 
 ## External reference baseline
 
-For context, I also score `claude-haiku-4-5` zero-shot on the same validation corpus.
+`claude-haiku-4-5` is also evaluated zero-shot on the same validation split. It is an external reference rather than a controlled study condition because it changes the model family.
 
-This is **not a condition of the controlled study** because it changes the model family and compute budget.
-
-| Condition | COMET | chrF | BLEU | Phi_A | Phi_B | Full style dist. |
+| Condition | COMET ↑ | chrF ↑ | BLEU ↑ | Phi_A ↑ | Phi_B ↑ | Full style dist. ↓ |
 |---|---:|---:|---:|---:|---:|---:|
-| Commercial zero-shot | 0.7185 | 45.24 | 18.06 | 3.333 | 3.981 | 0.5557 |
+| Commercial zero-shot | 0.7185 | 45.24 | 18.06 | 3.333 | 3.981 | 0.4873 |
 
-The commercial model is much stronger on adequacy metrics, but much farther from the target-register centroid than PEFT or the hybrid systems.
+The commercial model is stronger on the adequacy and judge metrics, but farther from the training target-register centroid than the adapted open-source conditions.
 
-Its Phi_A score also has a self-judging problem because the generator and primary judge are the same model family. Phi_B confirms that the commercial output is strongly preferred by the second judge too, but the size of the primary-judge advantage should not be read as an unbiased style effect.
+Its `Phi_A` value also has a self-judging caveat: the generator and the primary judge use the same model family. `Phi_B` provides a cross-family comparison, but the size of the `Phi_A` advantage should not be treated as an independent style effect.
 
----
+## Statistical reporting
 
-## Statistical approach
-
-The project uses paired bootstrap comparisons at the segment level, usually with:
+Paired comparisons over segment-level adequacy and held-out quantities usually use:
 
 ```text
-10,000 resamples
+10,000 bootstrap resamples
 alpha = 0.05
 seed = 42
 ```
 
-Stylometric rank and distance uncertainty are also bootstrapped by recomputing the condition-level feature vector inside each resample.
+The full stylometric ranking uses 2,000 paired resamples because each draw recomputes the condition-level feature vector and its distance from the centroid.
 
-A few rules matter when reading the results:
+Point estimates are not treated as evidence of separation when the paired interval crosses zero. `Phi_A` and `Phi_B` remain separate because their absolute scales and some small pairwise effects differ. Multiple-comparison status is reported for comparison families where several endpoints are tested together.
 
-1. **Point estimates are not treated as proof.** If a confidence interval crosses zero, the comparison is reported as unresolved.
-2. **Phi_A and Phi_B are never averaged.** Several small judge differences depend on which rater is used.
-3. **Multiple comparisons matter.** Near-threshold p-values are not promoted to findings without considering the relevant correction family.
-4. **Validation is not final evidence.** PEFT and AFSP were selected using validation, so the sealed test set is needed for the final unbiased comparison.
+Validation is still a model-development split. The final test pass is needed before the validation findings can be treated as the final system comparison.
 
----
+## Interpreting the stylometric distances
+
+The stylometric centroid is estimated from the training works. Because the split is work-level, the validation references do not have exactly the same corpus composition as the training references.
+
+Under the corrected instrument, the authorized validation references themselves have a full distance of about `0.2156` and a held-out distance of about `0.2109` from the training centroid.
+
+This means a smaller distance should be read as **closer to the training corpus centroid on the measured features**, not as "more Shoghi Effendi-like than the authorized translation." The metric is a corpus-level proxy for register, and work composition affects it.
+
+The reward-side distance also needs a narrow interpretation. Its three features are lexical density, sentence-length mean, and sentence-length variance, but in some comparisons lexical density contributes most of the standardized distance. It should not be read as three equally informative independent style signals.
+
+## Reproducibility
+
+The repository records or freezes the main sources of experimental provenance:
+
+- random seeds and split hashes
+- prompt hashes
+- base-model revision
+- decoding settings
+- LoRA configuration and selected checkpoint
+- RLSF reward configuration and selected checkpoints
+- judge templates
+- adapter hashes for the RLSF trajectory
+- centroid fingerprints
+- per-run outputs, manifests, and scoring artifacts
+
+Greedy generation is stable within a session, but some cross-session output drift has been observed. Paid LLM judges are also not byte-reproducible when the provider does not expose deterministic behavior.
+
+The detailed engineering record is in [`docs/DEVLOG.md`](docs/DEVLOG.md).
+
+## Setup
+
+Create the main environment:
+
+```bash
+git clone <repo-url>
+cd <repo>
+
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+COMET is kept in a separate environment:
+
+```bash
+python -m venv .venv-comet
+source .venv-comet/bin/activate
+
+pip install torch --index-url https://download.pytorch.org/whl/cpu
+pip install -r requirements-comet.txt
+```
+
+Prepare the data:
+
+```bash
+python -m src.data.preprocess
+python -m src.data.split
+```
+
+Build the retrieval index and target-register centroids:
+
+```bash
+python manage.py build_index --config configs/base_qwen.yaml
+python manage.py stylometrics --build-centroid
+python manage.py stylometrics --build-split-centroid
+```
+
+## Running the main conditions
+
+Generate the prompting ladder:
+
+```bash
+python manage.py infer --condition zeroshot        --config configs/base_qwen.yaml
+python manage.py infer --condition random_fewshot --config configs/base_qwen.yaml
+python manage.py infer --condition knn_fewshot    --config configs/base_qwen.yaml
+python manage.py infer --condition afsp_margin    --config configs/base_qwen.yaml
+python manage.py infer --condition afsp_full      --config configs/base_qwen.yaml
+```
+
+Generate PEFT and the hybrid retrieval conditions:
+
+```bash
+python manage.py infer --condition peft      --config configs/peft_qwen.yaml
+python manage.py infer --condition peft_knn  --config configs/peft_afsp.yaml
+python manage.py infer --condition peft_afsp --config configs/peft_afsp.yaml
+```
+
+RLSF training:
+
+```bash
+python manage.py rlsf_train --cell w3_0.0 --steps 300 --skip_judge
+python manage.py rlsf_train --cell w3_2.0 --steps 300 --yes
+python manage.py rlsf_train --cell w3_6.0 --steps 300 --yes
+```
+
+Checkpoint selection on the RLSF dev slice:
+
+```bash
+python manage.py rlsf_select --cell w3_0.0
+python manage.py rlsf_select --cell w3_2.0
+python manage.py rlsf_select --cell w3_6.0
+```
+
+A selected RLSF adapter is evaluated through the PEFT inference path, for example:
+
+```bash
+python manage.py infer --condition peft \
+    --config configs/rlsf_eval_w3_2.0.yaml \
+    --out-name rlsf_w3_2.0
+```
+
+The GPU runbooks are under [`notebooks/`](notebooks/).
+
+### Reproducing the AFSP correction sensitivity
+
+The corrected pass keeps the original conditions and configs but writes separate output names:
+
+```bash
+python manage.py infer \
+    --condition afsp_full \
+    --config configs/base_qwen.yaml \
+    --out-name afsp_full_casefix
+
+python manage.py infer \
+    --condition peft_afsp \
+    --config configs/peft_afsp.yaml \
+    --out-name peft_afsp_casefix
+```
+
+The full runbook and provenance checks are in [`notebooks/afsp_casefix_gpu.ipynb`](notebooks/afsp_casefix_gpu.ipynb).
+
+## Evaluation commands
+
+Example validation pass:
+
+```bash
+CONDS="zeroshot random_fewshot knn_fewshot afsp_margin afsp_full peft peft_knn peft_afsp rlsf_w3_0.0 rlsf_w3_2.0 rlsf_w3_6.0"
+
+python manage.py eval \
+    --conditions $CONDS \
+    --split val
+
+python manage.py comet \
+    --conditions $CONDS \
+    --split val
+
+python manage.py judge \
+    --conditions $CONDS \
+    --split val \
+    --config configs/judge_eval.yaml
+
+python manage.py stylometrics \
+    --conditions $CONDS \
+    --split val
+```
+
+The canonical full-register ladder is:
+
+```bash
+python manage.py stylometrics_ci \
+    --split val \
+    --conditions zeroshot random_fewshot knn_fewshot afsp_margin afsp_full peft \
+                 peft_knn peft_afsp rlsf_w3_0.0 rlsf_w3_2.0 rlsf_w3_6.0 commercial_haiku \
+    --results_path results/stylometrics_ci_ladder_val.json
+```
+
+For exact run provenance, use [`docs/DEVLOG.md`](docs/DEVLOG.md) rather than reconstructing commands from the README.
 
 ## Repository structure
 
@@ -393,194 +512,35 @@ A few rules matter when reading the results:
 
 Raw corpus files and large model weights are not committed to Git.
 
----
-
-## Reproducibility
-
-The project records or freezes:
-
-- random seeds
-- split hashes
-- prompt hashes
-- base model and revision
-- decoding parameters
-- LoRA configuration
-- RLSF reward configuration
-- checkpoint selection rules
-- judge templates
-- adapter hashes for the RLSF trajectory
-- per-run outputs and scoring artifacts
-
-The detailed engineering record is in [`docs/DEVLOG.md`](docs/DEVLOG.md).
-
-One reproducibility caveat is important: greedy generation is stable within a session, but a small amount of cross-session output drift has been observed. LLM judge scores are also not byte-reproducible, especially when the provider does not expose deterministic seed control.
-
----
-
-## Setup
-
-```bash
-git clone <repo-url>
-cd <repo>
-
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-```
-
-COMET is kept in a separate environment:
-
-```bash
-python -m venv .venv-comet
-source .venv-comet/bin/activate
-
-pip install torch --index-url https://download.pytorch.org/whl/cpu
-pip install -r requirements-comet.txt
-```
-
-Prepare the data:
-
-```bash
-python -m src.data.preprocess
-python -m src.data.split
-```
-
----
-
-## Running the main conditions
-
-Build the retrieval index and target-register statistics:
-
-```bash
-python manage.py build_index --config configs/base_qwen.yaml
-python manage.py stylometrics --build-centroid
-```
-
-Generate the prompting ladder:
-
-```bash
-python manage.py infer --condition zeroshot       --config configs/base_qwen.yaml
-python manage.py infer --condition random_fewshot --config configs/base_qwen.yaml
-python manage.py infer --condition knn_fewshot    --config configs/base_qwen.yaml
-python manage.py infer --condition afsp_margin    --config configs/base_qwen.yaml
-python manage.py infer --condition afsp_full      --config configs/base_qwen.yaml
-```
-
-Generate PEFT:
-
-```bash
-python manage.py infer --condition peft --config configs/peft_qwen.yaml
-```
-
-Generate the stacked PEFT retrieval conditions:
-
-```bash
-python manage.py infer --condition peft_knn  --config configs/peft_afsp.yaml
-python manage.py infer --condition peft_afsp --config configs/peft_afsp.yaml
-```
-
-<details>
-<summary>RLSF training and selected-checkpoint inference</summary>
-
-```bash
-# Free metric-only control
-python manage.py rlsf_train --cell w3_0.0 --steps 300 --skip_judge
-
-# Paid style-judge arms
-python manage.py rlsf_train --cell w3_2.0 --steps 300 --yes
-python manage.py rlsf_train --cell w3_6.0 --steps 300 --yes
-
-# Select checkpoints on the RLSF dev slice
-python manage.py rlsf_select --cell w3_0.0
-python manage.py rlsf_select --cell w3_2.0
-python manage.py rlsf_select --cell w3_6.0
-
-# A trained RLSF adapter is evaluated through the PEFT inference path
-python manage.py infer --condition peft \
-    --config configs/rlsf_eval_w3_2.0.yaml \
-    --out-name rlsf_w3_2.0
-```
-
-The full GPU runbooks are under [`notebooks/`](notebooks/).
-
-</details>
-
----
-
-## Evaluation commands
-
-Example:
-
-```bash
-CONDS="zeroshot random_fewshot knn_fewshot afsp_margin afsp_full peft peft_knn peft_afsp rlsf_w3_0.0 rlsf_w3_2.0 rlsf_w3_6.0"
-
-python manage.py eval \
-    --conditions $CONDS \
-    --split val
-
-python manage.py comet \
-    --conditions $CONDS \
-    --split val
-
-python manage.py judge \
-    --conditions $CONDS \
-    --split val \
-    --config configs/judge_eval.yaml
-
-python manage.py stylometrics \
-    --conditions $CONDS \
-    --split val
-```
-
-The canonical paired stylometric ladder is:
-
-```bash
-python manage.py stylometrics_ci \
-    --split val \
-    --conditions zeroshot random_fewshot knn_fewshot afsp_margin afsp_full peft \
-                 peft_knn peft_afsp rlsf_w3_0.0 rlsf_w3_2.0 rlsf_w3_6.0 commercial_haiku \
-    --results_path results/stylometrics_ci_ladder_val.json
-```
-
-For full experiment provenance and the exact commands used for each run, see [`docs/DEVLOG.md`](docs/DEVLOG.md).
-
----
-
 ## Key files
 
 - [`docs/proposal.pdf`](docs/proposal.pdf): original thesis proposal and hypotheses
 - [`docs/DEVLOG.md`](docs/DEVLOG.md): engineering and decision log
 - [`docs/preregistration_rlsf.md`](docs/preregistration_rlsf.md): RLSF preregistration and dated addenda
 - [`docs/afsp_strategies.md`](docs/afsp_strategies.md): AFSP retrieval and reranking methodology
-- [`docs/budget.md`](docs/budget.md): compute and API budget records and spending rules
-- [`results/comet_val.json`](results/comet_val.json): validation COMET scores
-- [`results/judge_val.json`](results/judge_val.json): primary LLM-as-Judge scores, Φ_A
-- [`results/judge_gpt_val.json`](results/judge_gpt_val.json): second LLM-as-Judge scores, Φ_B
-- [`results/stylometrics_ci_ladder_val.json`](results/stylometrics_ci_ladder_val.json): canonical full stylometric comparison with uncertainty estimates
-- [`results/heldout_decomp_val.json`](results/heldout_decomp_val.json): RLSF held-out style decomposition
-- [`results/heldout_traj_val.json`](results/heldout_traj_val.json): RLSF checkpoint-trajectory analysis
-- [`results/heldout_decomp_peft_afsp_val.json`](results/heldout_decomp_peft_afsp_val.json): PEFT+AFSP held-out style analysis
----
+- [`docs/budget.md`](docs/budget.md): compute and API budget records
+- [`results/comet_val.json`](results/comet_val.json): validation COMET scores, including the case-fix reruns
+- [`results/judge_val.json`](results/judge_val.json): primary LLM-as-Judge scores, `Phi_A`
+- [`results/judge_gpt_val.json`](results/judge_gpt_val.json): second LLM-as-Judge scores, `Phi_B`
+- [`results/stylometrics_ci_ladder_val.json`](results/stylometrics_ci_ladder_val.json): corrected canonical stylometric comparison
+- [`results/heldout_decomp_val.json`](results/heldout_decomp_val.json): corrected selected-RLSF held-out decomposition
+- [`results/heldout_traj_val.json`](results/heldout_traj_val.json): corrected RLSF checkpoint trajectory
+- [`results/stylometrics_ci_casefix_val.json`](results/stylometrics_ci_casefix_val.json): AFSP case-fix stylometric sensitivity
+- [`results/heldout_decomp_afsp_casefix_val.json`](results/heldout_decomp_afsp_casefix_val.json): AFSP-full case-fix held-out comparison
+- [`results/heldout_decomp_peft_afsp_casefix_val.json`](results/heldout_decomp_peft_afsp_casefix_val.json): PEFT+AFSP case-fix held-out comparison
+- [`outputs/afsp_casefix_manifest.json`](outputs/afsp_casefix_manifest.json): corrected AFSP generation provenance
 
 ## Current takeaway
 
-The project started with the expectation that direct reinforcement learning for style might be the strongest approach.
+The original proposal expected the reinforcement-learning stage to provide the strongest stylistic control. The corrected validation evidence supports part of that expectation, but not a simple "RLSF wins" conclusion.
 
-The validation evidence turned out to be more complicated.
+PEFT provides a strong domain-adapted starting point. Retrieval improves several adequacy and perceived-register measures, although the PEFT hybrids move farther from the training centroid on the held-out stylometric features. Judge-conditioned RLSF, in contrast, moves the selected systems closer on those held-out features, and the corrected trajectory shows that this improvement continues through much of training.
 
-PEFT learns the target corpus well. Retrieval improves adequacy and perceived style. AFSP can improve the objective register fit of a PEFT-plus-retrieval system relative to plain KNN. RLSF can improve some translation and judge metrics, but strong and prolonged optimization against a style judge can also exaggerate the signals that the reward recognizes.
+The high-weight RLSF trajectory also suggests a limit. By step 800 it is very close to the measured held-out target, while the later step begins to cross the marker target and move away again. That pattern is exploratory, but it is more consistent with useful style adaptation followed by possible late over-stylization than with the earlier interpretation of continuous register drift.
 
-So the central lesson so far is not:
+The marker-case correction is therefore part of the result, not just a code cleanup. It changed the sign of the main RLSF trajectory interpretation while leaving the adequacy metrics, trained adapters, and LLM-judge results untouched. The AFSP sensitivity rerun also shows that large changes in exemplar selection do not necessarily produce large changes in aggregate system performance.
 
-> "One adaptation method is always best."
-
-It is:
-
-> **Different adaptation methods improve different parts of style-aware translation, and a model can look more stylistic to a reward or judge without becoming more faithful to the target register.**
-
-The final sealed-test evaluation will determine how well these validation findings generalize.
-
----
+The final sealed-test pass will determine which of these validation patterns generalize.
 
 ## Citation
 
