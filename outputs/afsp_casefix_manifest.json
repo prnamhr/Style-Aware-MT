@@ -1,0 +1,115 @@
+{
+  "purpose": "AFSP regenerated with exemplars reranked against the corrected centroid",
+  "runs": [
+    {
+      "condition": "afsp_full",
+      "config": "configs/base_qwen.yaml",
+      "output_name": "afsp_full_casefix"
+    },
+    {
+      "condition": "peft_afsp",
+      "config": "configs/peft_afsp.yaml",
+      "output_name": "peft_afsp_casefix"
+    }
+  ],
+  "split": "val",
+  "supersedes": [
+    "afsp_full",
+    "peft_afsp"
+  ],
+  "centroid": {
+    "path": "results/stylometrics_centroid.json",
+    "fingerprint": "fd5aec8d69454b02",
+    "superseded_fingerprint": "5a3e703bfd82da17",
+    "casefix_commit": "141c532"
+  },
+  "selection_divergence": {
+    "n_segments": 1323,
+    "k": 8,
+    "changed_set": 967,
+    "changed_order_only": 311,
+    "identical": 45,
+    "mean_exemplars_shared": 6.921,
+    "centroid_old": "5a3e703bfd82da17",
+    "centroid_new": "fd5aec8d69454b02"
+  },
+  "selection_divergence_basis": "Both selections are reconstructions run in this session over the index digested under `index` below. The exemplars the committed afsp_full/peft_afsp runs actually received are stored neither in their output rows nor in their usage sidecars, which predate the provenance block. The divergence therefore compares two centroids over today's index, and carries over to the committed runs only if that index is byte-identical to the one they read -- which index.rebuilt_here must be false for. The same condition governs the per-condition counts of moved translations.",
+  "generator": {
+    "afsp_full": {
+      "provider": "local",
+      "model": "Qwen/Qwen2.5-7B-Instruct",
+      "max_tokens": 1024,
+      "temperature": 0.0,
+      "top_p": 1.0,
+      "seed": 42,
+      "dtype": "bfloat16",
+      "device_map": "auto",
+      "load_in_4bit": false
+    },
+    "peft_afsp": {
+      "provider": "local",
+      "model": "Qwen/Qwen2.5-7B-Instruct",
+      "adapter_path": "models/peft_lora_r32_lr2e-4/checkpoint-1358",
+      "max_tokens": 1024,
+      "temperature": 0.0,
+      "top_p": 1.0,
+      "seed": 42,
+      "dtype": "bfloat16",
+      "device_map": "auto",
+      "load_in_4bit": false
+    }
+  },
+  "retrieval": {
+    "k": 8,
+    "embed_model": "intfloat/multilingual-e5-large-instruct",
+    "index_dir": "data/knn_index"
+  },
+  "afsp": {
+    "beta": 0.3,
+    "lambda_style": 0.75,
+    "style_objective": "bandpass",
+    "style_target_sigma": 1.0,
+    "pool_mult": 4,
+    "knn_hubness": 5
+  },
+  "adapter": {
+    "path": "models/peft_lora_r32_lr2e-4/checkpoint-1358",
+    "sha256": "ad97c46af8528d22d7d26716be16d8ca01343dd86054efe4b1eee2b678243391",
+    "r": 32,
+    "lora_alpha": 64
+  },
+  "index": {
+    "rebuilt_here": false,
+    "sha256": {
+      "embeddings.npy": "9c282c8042ab740ef5aec39606820648536b9e73da5b154c51680e906c9b6a16",
+      "pairs.jsonl": "c48f429809435593f11f0b363fab26b9ad5de6b9eb48beabb8d7e732a4b0c2a1",
+      "meta.json": "b028a2a81f9f0eed107cc00f01a1e2d107c0fd1f42a82420adfd5b1e229ab512"
+    },
+    "meta": {
+      "embed_model": "intfloat/multilingual-e5-large-instruct",
+      "indexed_side": "source",
+      "n_passages": 10860,
+      "dim": 1024,
+      "source_file": "data/splits/train.jsonl"
+    }
+  },
+  "timing": {
+    "afsp_full_casefix": {
+      "seconds": 1005.7,
+      "finished": "2026-08-21T06:30:00.920190+00:00"
+    },
+    "peft_afsp_casefix": {
+      "seconds": 2042.3,
+      "finished": "2026-08-21T07:04:03.236686+00:00"
+    }
+  },
+  "commit": "dbf20f0c93af36b11abca0c0778fed7486470d43",
+  "versions": {
+    "device": "NVIDIA GeForce RTX 4090",
+    "torch": "2.12.0+cu130",
+    "cuda": "13.0",
+    "transformers": "5.12.1",
+    "peft": "0.18.0",
+    "python": "3.12.13"
+  }
+}

@@ -3,6 +3,17 @@
   "adequacy_margin": 1.0,
   "epochs_keep": 2,
   "select_target_sigma": 0.5,
+  "centroid": {
+    "path": "results/stylometrics_centroid.json",
+    "features": [
+      "lex_density",
+      "ttr",
+      "root_ttr",
+      "marker_rate"
+    ],
+    "n_segments": 10860,
+    "fingerprint": "fd5aec8d69454b02"
+  },
   "selection_note": "candidates are (r, lr, epoch); eval_loss is a generation pre-filter only. Ranked on chrF adequacy band + register_fit (Phi). Confirm on COMET/judge via src.peft.verify before freezing.",
   "cells": [
     {
@@ -17,9 +28,9 @@
       "n": 1323,
       "chrF": 41.96,
       "BLEU": 17.05,
-      "marker_rate": 0.99,
-      "stylo_dist": 0.4439,
-      "register_fit": 1.0829
+      "marker_rate": 1.16,
+      "stylo_dist": 0.4057,
+      "register_fit": 1.2539
     },
     {
       "tag": "peft_r16_lr2e-4_e2",
@@ -33,9 +44,9 @@
       "n": 1323,
       "chrF": 41.73,
       "BLEU": 17.28,
-      "marker_rate": 0.91,
-      "stylo_dist": 0.3027,
-      "register_fit": 1.0386
+      "marker_rate": 1.06,
+      "stylo_dist": 0.298,
+      "register_fit": 1.2325
     },
     {
       "tag": "peft_r8_lr2e-4_e1",
@@ -49,9 +60,9 @@
       "n": 1323,
       "chrF": 41.4,
       "BLEU": 16.93,
-      "marker_rate": 1.01,
-      "stylo_dist": 0.4562,
-      "register_fit": 1.0776
+      "marker_rate": 1.16,
+      "stylo_dist": 0.4138,
+      "register_fit": 1.2526
     },
     {
       "tag": "peft_r8_lr2e-4_e2",
@@ -65,9 +76,9 @@
       "n": 1323,
       "chrF": 41.57,
       "BLEU": 16.67,
-      "marker_rate": 0.92,
-      "stylo_dist": 0.3066,
-      "register_fit": 1.0616
+      "marker_rate": 1.06,
+      "stylo_dist": 0.3152,
+      "register_fit": 1.2578
     },
     {
       "tag": "peft_r32_lr2e-4_e1",
@@ -81,9 +92,9 @@
       "n": 1323,
       "chrF": 42.18,
       "BLEU": 17.33,
-      "marker_rate": 0.96,
-      "stylo_dist": 0.4002,
-      "register_fit": 1.0736
+      "marker_rate": 1.11,
+      "stylo_dist": 0.3791,
+      "register_fit": 1.2523
     },
     {
       "tag": "peft_r32_lr2e-4_e2",
@@ -97,9 +108,9 @@
       "n": 1323,
       "chrF": 41.58,
       "BLEU": 16.9,
-      "marker_rate": 0.92,
-      "stylo_dist": 0.2886,
-      "register_fit": 1.0265
+      "marker_rate": 1.06,
+      "stylo_dist": 0.289,
+      "register_fit": 1.2241
     },
     {
       "tag": "peft_r16_lr1e-4_e1",
@@ -113,9 +124,9 @@
       "n": 1323,
       "chrF": 41.1,
       "BLEU": 16.57,
-      "marker_rate": 1.01,
-      "stylo_dist": 0.4778,
-      "register_fit": 1.1015
+      "marker_rate": 1.18,
+      "stylo_dist": 0.4377,
+      "register_fit": 1.2697
     },
     {
       "tag": "peft_r16_lr1e-4_e2",
@@ -129,9 +140,9 @@
       "n": 1323,
       "chrF": 41.66,
       "BLEU": 16.95,
-      "marker_rate": 0.92,
-      "stylo_dist": 0.3264,
-      "register_fit": 1.0449
+      "marker_rate": 1.08,
+      "stylo_dist": 0.3061,
+      "register_fit": 1.2325
     }
   ],
   "recommended": {
@@ -146,8 +157,8 @@
     "n": 1323,
     "chrF": 41.58,
     "BLEU": 16.9,
-    "marker_rate": 0.92,
-    "stylo_dist": 0.2886,
-    "register_fit": 1.0265
+    "marker_rate": 1.06,
+    "stylo_dist": 0.289,
+    "register_fit": 1.2241
   }
 }

@@ -22,6 +22,7 @@ from src.eval.metric_agreement import holm_bonferroni, permutation_p_floor
 from src.eval.stylometrics import (
     aggregate,
     bootstrap_draws,
+    centroid_provenance,
     distance_to_centroid,
     draw_intervals,
     feature_vector,
@@ -209,6 +210,7 @@ def build(
         "split": split,
         "sweep_path": str(sweep_path),
         "out_dir": str(out_dir),
+        "centroid": centroid_provenance(centroid, _CENTROID_PATH),
         "evidence_class": "exploratory",
         "evidence_note": (
             "sweep cells, no pre-specified contrast; register is bootstrapped per segment, "

@@ -3,10 +3,10 @@
   "sweep_result": "results/afsp_sweep_val.json",
   "adequacy_margin": 1.0,
   "comet_adequacy": 0.01,
-  "judge": true,
+  "judge": false,
   "proxy_pick": "afsp_k8_l0.75",
-  "freeze": "afsp_k8_l0.75",
-  "proxy_pick_held": true,
+  "freeze": "afsp_k16_l0.75",
+  "proxy_pick_held": false,
   "sources": [
     "\u062c\u0648\u0627\u0647\u0631 \u0627\u0644\u0623\u0633\u0631\u0627\u0631 \u0641\u06cc \u0645\u0639\u0627\u0631\u062c \u0627\u0644\u0623\u0633\u0641\u0627\u0631 \u0644\u0645\u0646 \u0627\u0631\u0627\u062f \u0627\u0646 \u06cc\u062a\u0642\u0631\u0651\u0628 \u0628\u0627\u0644\u0644\u0647 \u0627\u0644\u0645\u0642\u062a\u062f\u0631 \u0627\u0644\u063a\u0641\u0651\u0627\u0631 \u0641\u0647\u0646\u06cc\u0627\u064b \u0644\u0644\u0623\u0628\u0631\u0627\u0631 \u0627\u0644\u0651\u0630\u06cc\u0646 \u06cc\u0634\u0631\u0628\u0648\u0646 \u0645\u0646 \u0647\u0630\u0647 \u0627\u0644\u0623\u0646\u0647\u0627\u0631.",
     "\u0647\u0648 \u0627\u0644\u0639\u0644\u06cc\u0651 \u0627\u0644\u0623\u0639\u0644\u06cc.",
@@ -2665,8 +2665,8 @@
         0.8721210360527039,
         0.8146913647651672
       ],
-      "judge_mean": 2.797430083144369,
-      "judge_coverage": 1.0
+      "judge_mean": null,
+      "judge_coverage": null
     },
     {
       "tag": "afsp_k8_l1",
@@ -4000,8 +4000,8 @@
         0.8721210360527039,
         0.6736870408058167
       ],
-      "judge_mean": 2.762660619803477,
-      "judge_coverage": 1.0
+      "judge_mean": null,
+      "judge_coverage": null
     },
     {
       "tag": "afsp_k16_l0.75",
@@ -5335,8 +5335,8 @@
         0.8674035668373108,
         0.8341966271400452
       ],
-      "judge_mean": 2.7777777777777777,
-      "judge_coverage": 1.0
+      "judge_mean": null,
+      "judge_coverage": null
     }
   ]
 }

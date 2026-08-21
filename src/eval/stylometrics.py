@@ -10,6 +10,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import re
@@ -22,10 +23,8 @@ _SPLIT_DIR = Path("data/splits")
 _CENTROID_PATH = Path("results/stylometrics_centroid.json")
 _SPLIT_CENTROID_PATH = Path("results/stylometrics_centroid_split.json")
 
-_MARKERS = re.compile(
-    r"\b(thou|thee|thy|thine|art|hast|hath|dost|doth|shalt|wilt|unto|ye)\b"
-    r"|\bO\b",
-)
+_PRONOUNS = r"thou|thee|thy|thine|art|hast|hath|dost|doth|shalt|wilt|unto|ye"
+_MARKERS = re.compile(rf"(?i:\b({_PRONOUNS})\b)|\bO\b")
 
 # Standard English function words plus the archaic grammatical forms (thee/thou/hath
 # family, archaic adverbs and relative forms) that recur in the authorized register.
@@ -191,6 +190,29 @@ def subcentroid(centroid: dict, names: list[str]) -> dict:
         "features": list(names),
         "mean": [centroid["mean"][i] for i in idx],
         "std": [centroid["std"][i] for i in idx],
+    }
+
+
+def fingerprint(centroid: dict) -> str:
+    """Digest of the statistics a score was measured against, for artifact provenance."""
+    payload = "|".join(
+        [
+            ",".join(centroid["features"]),
+            ",".join(repr(float(x)) for x in centroid["mean"]),
+            ",".join(repr(float(x)) for x in centroid["std"]),
+        ]
+    )
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
+
+
+def centroid_provenance(centroid: dict, path: str | Path) -> dict:
+    """The centroid block a report carries: where it came from and which one it was."""
+    # Pass the dict as loaded from file, never a subcentroid: this identifies the source.
+    return {
+        "path": str(path),
+        "features": list(centroid["features"]),
+        "n_segments": centroid.get("n_segments", 0),
+        "fingerprint": fingerprint(centroid),
     }
 
 

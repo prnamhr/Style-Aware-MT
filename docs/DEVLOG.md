@@ -67,6 +67,303 @@ A second audit on 2026-08-10 checked `README.md` and `docs/budget.md` against th
 
 This log was audited for internal consistency against the committed artifacts, configs, and git history on 2026-08-01. Corrections made in that pass are marked inline as *Correction (2026-08-01)*; they amend the claims of earlier entries but do not restate their history.
 
+## 2026-08-20: The marker regex was case-sensitive and the centroid was built through it
+
+Written after the scoring entry below and before the fix is committed, so that the defect and its consequences are on record separately from the change that removes it. The `marker_rate` feature has been miscounted since 2026-06-12, on the target corpus far more than on any system output, and every register number this project has reported was computed through it. The measured consequences are given here; the correction is the next commit.
+
+### Summary
+
+`_MARKERS` matched the archaic pronoun class case-sensitively. The authorized reference capitalizes the reverential pronouns - `Thou`, `Thee`, `Thy`, `Thine` - as a matter of convention, and the systems mostly do not. So the regex deleted 52.1% of the target's markers and only 10-27% of each system's, and the centroid built from those targets sat at a marker density well below the corpus's real one. Under that centroid every condition in the project appeared to *overshoot* the target's marker rate. Ten of twelve in fact undershoot it.
+
+The effect is not a uniform undercount that a standardized distance would absorb. It is a class-selective deletion applied asymmetrically to the two sides of the comparison, and it inverts the sign of the register trajectory that the 2026-08-19 ladder entry rests on.
+
+### The defect
+
+`src/eval/stylometrics.py:25`, unchanged since `e73d2ce`:
+
+```python
+_MARKERS = re.compile(
+    r"\b(thou|thee|thy|thine|art|hast|hath|dost|doth|shalt|wilt|unto|ye)\b"
+    r"|\bO\b",
+)
+```
+
+No `re.IGNORECASE`. `_words()` lowercases for every other feature - `lex_density`, `ttr`, `root_ttr` all run over `_WORD_RE` output - but `marker_rate` at `src/eval/stylometrics.py:139` calls `_MARKERS.findall(text)` on the raw string. The vocative `O` branch has to stay capital-only or every ordinary "o" counts; the pronoun branch did not, and inherited the same case-sensitivity by sharing the pattern.
+
+### What the gold looks like
+
+Over the 10,860 train targets that build the centroid, counted case-insensitively:
+
+| token | capitalized | lowercase | % capitalized |
+|---|---:|---:|---:|
+| `thy` | 4,738 | 377 | 92.6% |
+| `thee` | 1,729 | 388 | 81.7% |
+| `thine` | 463 | 100 | 82.2% |
+| `thou` | 1,625 | 576 | 73.8% |
+| `wilt` | 10 | 58 | 14.7% |
+| `doth` | 6 | 36 | 14.3% |
+| `ye` | 42 | 637 | 6.2% |
+| `unto` | 54 | 1,183 | 4.4% |
+| `dost` | 2 | 43 | 4.4% |
+| `hast` | 7 | 529 | 1.3% |
+| `hath` | 22 | 2,161 | 1.0% |
+| `art` | 2 | 530 | 0.4% |
+| `shalt` | 0 | 14 | 0.0% |
+
+15,332 pronoun-class hits, of which 8,700 are capitalized: 56.7%. With the 1,371 vocative `O` hits the target corpus holds 16,703 markers and the case-sensitive regex found 8,003 of them. 8,555 of the 8,700 missed hits - 98.3% - are the four reverential pronouns, which the register capitalizes for the divine referent and the archaic verbs do not.
+
+### The differential miss
+
+The same count over each condition's val predictions, against the val references:
+
+| source | markers | missed | miss rate |
+|---|---:|---:|---:|
+| train targets (centroid corpus) | 16,703 | 8,700 | 52.1% |
+| val targets | 1,227 | 178 | 14.5% |
+| `knn_fewshot` | 1,629 | 432 | 26.5% |
+| `afsp_margin` | 1,658 | 385 | 23.2% |
+| `peft_knn` | 1,335 | 304 | 22.8% |
+| `zeroshot` | 2,373 | 520 | 21.9% |
+| `afsp_full` | 1,583 | 292 | 18.4% |
+| `random_fewshot` | 1,827 | 325 | 17.8% |
+| `peft_afsp` | 1,261 | 215 | 17.0% |
+| `peft` | 1,402 | 189 | 13.5% |
+| `rlsf_w3_6.0` | 1,448 | 193 | 13.3% |
+| `rlsf_w3_0.0` | 1,410 | 184 | 13.0% |
+| `rlsf_w3_2.0` | 1,501 | 190 | 12.7% |
+| `commercial_haiku` | 1,642 | 168 | 10.2% |
+
+The gap between the target's 52.1% and the systems' 10-27% is the whole of the artifact. A measure that undercounted both sides equally would shift the centroid and the conditions together and largely cancel in a z-scored distance. This one moved the reference far more than the things being compared to it.
+
+The val targets miss only 14.5%, against the train targets' 52.1%. The split is work-level, so the centroid corpus and the val references are disjoint sets of works and the capitalization convention travels with the work. Train is led by `Prayers-and-Meditations` and `Epistle-to-Son-of-the-Wolf`, where the reverential pronouns address the divine directly, and capitalizes 56.7% of them; val is led by `Gems-of-Divine-Mysteries` and `Will-and-Testament-Abdul-baha` at 15.4%, and test sits at 33.2%. Raw marker density travels with it too - 1.41 pronoun-class hits per segment in train against 0.87 in val and 0.57 in test. Nothing in the pipeline compares the centroid corpus's marker statistics against the split it is used to score, so neither the case artifact nor the convention gap beneath it had anywhere to surface.
+
+### What it does to the centroid
+
+`results/stylometrics_centroid.json` and `results/stylometrics_centroid_split.json`, rebuilt over the same 10,860 segments:
+
+| | before | after | change |
+|---|---:|---:|---:|
+| `marker_rate` mean | 0.032684 | 0.057349 | +75.5% |
+| `marker_rate` std | 0.056741 | 0.078181 | +37.8% |
+
+The other five features are bit-identical, as they must be: nothing else reads the raw string.
+
+### What it does to the ladder
+
+`stylo_dist` over the twelve conditions, before and after, and the `marker_rate` z that drives the change:
+
+| condition | dist before | rank | dist after | rank | z before | z after |
+|---|---:|---:|---:|---:|---:|---:|
+| `peft_afsp` | 0.2701 | 1 | 0.3244 | 7 | +0.137 | −0.187 |
+| `peft` | 0.2886 | 2 | 0.2890 | 4 | +0.136 | −0.137 |
+| `rlsf_w3_0.0` | 0.2960 | 3 | 0.2857 | 3 | +0.150 | −0.128 |
+| `rlsf_w3_6.0` | 0.2990 | 4 | 0.2704 | 1 | +0.169 | −0.110 |
+| `peft_knn` | 0.3152 | 5 | 0.3589 | 9 | +0.036 | −0.175 |
+| `rlsf_w3_2.0` | 0.3279 | 6 | 0.2793 | 2 | +0.195 | −0.092 |
+| `afsp_full` | 0.3698 | 7 | 0.3032 | 5 | +0.214 | −0.032 |
+| `afsp_margin` | 0.3910 | 8 | 0.3394 | 8 | +0.194 | −0.009 |
+| `knn_fewshot` | 0.4005 | 9 | 0.3659 | 10 | +0.164 | −0.018 |
+| `random_fewshot` | 0.4736 | 10 | 0.3162 | 6 | +0.366 | +0.097 |
+| `commercial_haiku` | 0.5557 | 11 | 0.4873 | 12 | +0.271 | −0.048 |
+| `zeroshot` | 0.6518 | 12 | 0.4481 | 11 | +0.547 | +0.275 |
+
+Ten of twelve `marker_rate` z-scores change sign. Before the fix every condition without exception sat above the target's marker density, which read as uniform over-archaizing; after it, only `zeroshot` and `random_fewshot` do, and the rest fall short of the register they are being scored against. The two readings are opposite descriptions of the same generations.
+
+Separation collapses with the ordering. Adjacent-rank gaps that clear zero go from 3 of 11 to 1 of 11, and the single survivor is `knn_fewshot` − `zeroshot`. The ladder committed at `900a891` is a ranking whose ordering was already mostly unsupported; under the fixed instrument it is a ranking of a different order that is even less supported.
+
+### What it does to the trajectory
+
+The sign flip. Held-out register distance per doubling of optimizer step, `results/heldout_traj_val.json` recomputed:
+
+| arm | dist_heldout before | after | z marker_rate before | after |
+|---|---:|---:|---:|---:|
+| `w3_0.0` | +0.0044 | +0.0058 | −0.0001 | −0.0010 |
+| `w3_2.0` | +0.0399* | −0.0205* | +0.0442* | +0.0328* |
+| `w3_6.0` | +0.0584* | −0.0259* | +0.0656* | +0.0514* |
+
+`*` = 95% paired interval clear of zero. COMET, chrF and BLEU are bit-identical before and after, which is the check that the fix touches the register axis and nothing else.
+
+`marker_rate` still rises with training in both paid arms, still separates, and still ranks in ω₃ order. What changed is where zero is. Under the old centroid the arms began the ladder at z = +0.166 and +0.151 at step 100, already above the target, so the rise read as movement away from it. Under the fixed centroid they begin at −0.111 and −0.122, below the target, and the same rise carries them toward it for most of the ladder - `w3_2.0` reaches +0.008 and `w3_6.0` +0.076 only at step 1200. Held-out distance therefore falls with training in both paid arms instead of climbing, and `ordered_in_omega` for `dist_heldout` goes from `true` to `false`. Matched-step ω₃ ordering goes from 3 of 5 steps to 0 of 5.
+
+That inverts the reading of the 2026-08-19 ladder entry. Its conclusion was that register drift and measured adequacy came apart, with the paid arms drifting away from an independent target while adequacy held - the Goodhart shape, and the gate that authorized the stacked arm below. Under the fixed instrument the paid arms move *toward* the held-out target as training proceeds, and the asymmetry the entry called "the main asymmetry in the trajectory" does not survive. What survives is the narrower claim that marker density inflates with ω₃ and that adequacy does not pay for it. The claim that inflation is drift away from the register does not.
+
+The declaration below is affected in both directions. Under the fixed instrument P1 would have been confirmed - `peft_afsp` − `peft` on `dist_heldout` becomes +0.0889 [+0.0549, +0.1246], p = 0.0, a separated rise where the committed instrument gave +0.0202 at p = 0.434. P3's failure survives on `stylo_dist`, at −0.0341 [−0.0651, −0.0047], p = 0.027 against the committed −0.0442 at p = 0.004, but on `dist_heldout` it reverts to a null at −0.0251 [−0.0561, +0.0055], p = 0.112. The entry below scores those predictions on the instrument they were written under, which is the only instrument under which they were ever predictions; this entry records what a rerun gives, and the two should not be merged.
+
+### A known property, not an undiscovered bug
+
+`tests/test_stylometrics.py:79-81`, at `900a891`, on `test_marker_rate_normalized_per_word`:
+
+```python
+    # "verily" is a function word for lex density but NOT an archaic marker; "thou"
+    # and "thee" are. Two markers over four words = 0.5. (The shared marker regex is
+    # case-sensitive, matching quick.py, so the words are given lowercase here.)
+```
+
+The case-sensitivity was known, deliberate, documented, and consistent across the two call sites - the test even adjusts its own fixture to accommodate it. The test suite passed on it for two months. What was never done is the step from the property to its consequence: nobody asked what a case-sensitive marker count does to a centroid estimated from a corpus whose markers are majority-capitalized. The property was checked; the thing the property was load-bearing for was not.
+
+That distinction is the reason this entry exists separately. It is not a case of an untested code path. It is a case of a tested code path whose downstream effect on the measurement instrument nobody derived, and no test in the suite was positioned to catch it, because every test compared the code against the specification and none compared the specification against the corpus.
+
+### Blast radius
+
+`marker_rate` is not in `REWARD_FEATURES` (`lex_density`, `sent_len_mean`, `sent_len_var`), and the stylometric reward term is off by default, so the RLSF training reward never read the defective count. The three arms were trained against the judge, not against this. For RLSF the defect is measurement only.
+
+AFSP is not. `src/retrieval/afsp.py` reranks exemplars with `register_band_distance` over `CENTROID_FEATURES`, which includes `marker_rate`, against `results/stylometrics_centroid.json` (`configs/base_qwen.yaml:38`, `configs/peft_afsp.yaml:41`). The two rerank conditions - `afsp_full` and `peft_afsp` - selected their exemplars against a target sitting at 0.0327 rather than 0.0573. Rescoring them with the fixed centroid measures generations that were chosen under the old one. `afsp_margin` is not among them: `src/infer/run.py:216` hands it a null centroid and forces `lambda_style` to 0, and `AFSPRetriever.select` gates the style term on both, so the band distance is never computed on that rung and its selection is margin-only. The sweep already showed as much - `afsp_margin` and `afsp_k8_l0` are byte-identical on all 1,323 segments (2026-08-01). The retrieval index itself is unaffected; `src/retrieval/build_index.py` reads no stylometric feature.
+
+`src/eval/quick.py:16` imports `_MARKERS` directly, so the `marker_rate` and `ref_marker_rate` columns of every `manage.py eval` table move too, as do the same columns in `src/infer/sweep.py` and `src/rlsf/select.py`. The λ and k sweeps (`results/afsp_sweep_val.json`, `results/peft_sweep_val.json`, `results/sweep_curves_val.json`) were selected on distances computed through the old centroid.
+
+### Verification
+
+The capitalization counts and the miss table were computed directly over `data/splits/train.jsonl`, `data/splits/val.jsonl` and `outputs/*_val.jsonl`, matching the pronoun class case-insensitively and testing the first character of each hit. The two totals quoted in the summary - 56.7% of pronoun-class hits and 52.1% of all markers - are the same count expressed with and without the vocative `O`, which is capital-only under both regexes.
+
+The before and after reports were produced by the same commands over the same generations, differing only in the working-tree state of `src/eval/stylometrics.py` and the two centroid files. The adequacy columns of the trajectory report reproduce bit-identically across the two, which is what establishes that the difference is confined to the register features.
+
+The rebuilt centroid preserves `n_segments` at 10,860 and reproduces the five untouched features exactly.
+
+### Reproduction
+
+The after-fix reports are not committed. They were written to a scratch path so that no committed artifact was overwritten before the fix itself lands:
+
+```bash
+python manage.py stylometrics --build-centroid
+python manage.py stylometrics_ci --split val \
+  --conditions zeroshot random_fewshot knn_fewshot afsp_margin afsp_full peft \
+               peft_knn peft_afsp rlsf_w3_0.0 rlsf_w3_2.0 rlsf_w3_6.0 commercial_haiku \
+  --results_path <scratch>/stylometrics_ci_ladder_val_fixed.json
+python manage.py heldout_decomp --split val --trajectory --no-figure \
+  --results_path <scratch>/heldout_traj_val_fixed.json
+python manage.py heldout_decomp --split val --no-figure \
+  --conditions peft peft_knn peft_afsp --reference peft \
+  --results_path <scratch>/heldout_decomp_peft_afsp_val_fixed.json
+python manage.py heldout_decomp --split val --no-figure \
+  --conditions peft_knn peft_afsp --reference peft_knn \
+  --results_path <scratch>/heldout_decomp_peft_afsp_vs_knn_val_fixed.json
+```
+
+0 paid calls and $0.00. All of it is local CPU over already-generated outputs; the trajectory report dominates the runtime and the rest is seconds.
+
+### Limitations and risks
+
+Every committed register number in `results/` and in `README.md` was computed through the defective count and none has been reissued. Until they are, the two states coexist in the repository and the reader cannot tell them apart from the artifacts alone. The reissue is a separate change and is not started here.
+
+The two rerank conditions cannot be corrected by rescoring. Their exemplar selection ran against the old centroid, so a fixed-instrument number for `afsp_full` or `peft_afsp` measures a generation the fixed instrument would not have produced. Establishing what AFSP does under the corrected target requires regenerating both, which is GPU time that has not been booked.
+
+The λ, k and β operating points were selected on distances computed through the old centroid. Whether they remain the selected points under the fixed one is unknown and untested, and re-selecting would add a second selection layer to a val table the README already records as selection-optimistic.
+
+The corrected trajectory reading is a rerun, not a pre-registered prediction. `docs/preregistration_rlsf.md` prediction 4 concerns held-out register distance and was scored as confirmed against the old instrument; it now scores the other way. Nothing in this entry decides how that should be reported, and the addendum has not been amended.
+
+The fixed regex changes `ref_marker_rate` as well as `marker_rate`, so the descriptive tables in the sweep artifacts move on both sides. None of the sweep artifacts has been regenerated.
+
+Whether 0.0573 is the right target is a separate question from whether 0.0327 was wrong. The corrected count is the count the marker list specifies; it is not evidence that the marker list itself is the right operationalization of the register.
+
+## 2026-08-20: The stacked arm, scored against its declaration
+
+Covers 2026-08-19 and 2026-08-20: generation of the two stacked rungs (`72a3c1a`), objective scoring (`57339a3`), the two judge passes (`ec099f6`), and the joint twelve-condition stylometrics ladder (`900a891`). The entry below fixed four predictions before any segment of the arm existed. This entry scores them and records nothing else. Every number is read from the artifact named beside it, as committed at `900a891`.
+
+### Summary
+
+One prediction of four holds, and only under the version of its criterion that was written down rather than the one the instrument turned out to support. Nothing in the arm separates from `peft`, which is where the declaration put both of its reading axes. What does separate is the contrast against `peft_knn` - the plain-retrieval control that P3 named as the single outcome able to change the AFSP verdict, and predicted would show nothing. So the four-quadrant scheme returns no quadrant while the pass is not uninformative, because the scheme was referenced to the wrong condition.
+
+### What was generated
+
+Both rungs decoded the whole of `data/splits/val.jsonl` under the settings the declaration froze: adapter `models/peft_lora_r32_lr2e-4/checkpoint-1358`, k = 8, `most_similar_last`, and for `peft_afsp` λ = 0.75, β = 0.3, σ = 1.0 against the band-pass objective. The `provenance` block introduced for this arm records all of it in `outputs/peft_afsp_val_usage.json` and `outputs/peft_knn_val_usage.json`; nothing was re-selected. 1,323 segments per rung, 0 paid calls - local Qwen2.5-7B-Instruct on a rented card.
+
+### What changed
+
+Three code changes across the four commits, none of them to a metric. `src/eval/stylometrics_ci.py` gained `LADDER_CONDITIONS`, the twelve rungs in reporting order, so that ranks, rank distributions and all 66 pairwise intervals are drawn on one shared resample instead of being assembled from separate calls. `src/eval/judge.py:145` truncates a resumed cache to the number of sources before checking alignment, which is what lets a partially judged condition resume rather than raise. `src/eval/judge_ci.py:281` stops the summary printer raising when the adjacency table is empty.
+
+### The four predictions
+
+Against `peft`, 95% paired bootstrap, n = 1,323.
+
+| | Declared | Observed | Verdict |
+|---|---|---|---|
+| P1 | `dist_heldout` rises above 0.1707 with the interval clear of zero | 0.1908, delta +0.0202 [−0.0289, +0.0713], p = 0.434 | fails |
+| P2 | \|ΔΦ\| stays inside the ≈0.058 detection floor | +0.0514 [+0.0030, +0.1013], p = 0.038 | holds on the declared floor, fails on the realized interval |
+| P3 | `peft_afsp` − `peft_knn` separates on no measured quantity | −0.0442 [−0.0771, −0.0127], p = 0.004 on `stylo_dist` | fails |
+| P4 | chrF and BLEU hold or fall for both rungs | chrF +0.90, BLEU +0.76, both separated | fails |
+
+P1 fails on separation, and its mechanism fails outright. The direction is right and the magnitude lands inside the declared band - 0.1908 sits between `peft`'s 0.1707 and `afsp_full`'s 0.2990 - but the interval covers zero at p = 0.434, so by the declaration's own rule the rise is not readable. The mechanism was named as two features moving together: `marker_rate` z rising from `peft`'s +0.136 toward `afsp_full`'s +0.214, and `root_ttr` falling from −0.100 toward −0.178. `root_ttr` did exactly that, to −0.148 (delta −0.0475 [−0.0704, −0.0249], p = 0.0002). `marker_rate` went the other way, to +0.051 (delta −0.0850 [−0.1240, −0.0474], p = 0.0), and that move is separated while the composite it feeds is not. The declared floor is also wrong. P1 put it at "about 0.02", citing `dist_heldout` half-widths of 0.019-0.024 in `results/heldout_decomp_afsp_vs_knn_val.json`; that file's `dist_heldout` half-widths are 0.030 and 0.038, the peft-referenced ones in `results/heldout_decomp_prompting_val.json` run 0.049-0.065, and the realized half-width for this contrast is 0.050. P1 was declared against a resolution the instrument does not have, and would have failed at +0.0202 whichever way the arm moved.
+
+P2 holds or fails depending on which half of it is read. ΔΦ = +0.0514 is inside the ≈0.058 floor the prediction named, and under the quadrant rule that floor is what decides whether Φ counts as rising, so the declared criterion is satisfied. The realized half-width is 0.049, not 0.058, and the paired interval [+0.0030, +0.1013] clears zero at p = 0.038. The second rater does not reproduce the separation: `gpt-5.6-terra` gives +0.0234 [−0.0242, +0.0725], p = 0.352. The two raters rank the three conditions identically (`peft_knn` > `peft_afsp` > `peft` on both), with pooled QWK 0.520 [0.500, 0.539] and Spearman 0.683 [0.664, 0.702] over 3,901 shared segments, so the disagreement is about resolution, not about ordering. Read as written, P2 holds. Read against the interval the data produced, a 0.05 Φ gain over `peft` is now detectable and both stacked rungs show one.
+
+P3 fails, and it is the one failure the declaration said could change the verdict. `peft_afsp` − `peft_knn` separates on both register instruments, in AFSP's favour:
+
+| Quantity | `peft_afsp` − `peft_knn` | p |
+|---|---:|---:|
+| `stylo_dist` | −0.0442 [−0.0771, −0.0127] | 0.004 |
+| `dist_heldout` | −0.0387 [−0.0714, −0.0067] | 0.019 |
+| chrF | −0.063 [−0.575, +0.465] | 0.831 |
+| BLEU | −0.066 [−0.603, +0.476] | 0.825 |
+| COMET | +0.0017 [−0.0013, +0.0047] | 0.261 |
+| Φ | −0.0068 [−0.0514, +0.0378] | 0.784 |
+| Φ (gpt) | −0.0275 [−0.0723, +0.0189] | 0.241 |
+
+Negative is closer to the target centroid. On the frozen base the same contrast was +0.0142 [−0.0233, +0.0527], not separable and pointing the other way; on the fine-tuned base it separates and points toward the target. Holm over the two register contrasts leaves both standing (0.004 < 0.025; 0.019 < 0.05). Holm over all seven quantities carried for this contrast leaves `stylo_dist` standing and drops `dist_heldout` (0.004 < 0.0071; 0.019 > 0.0083), so the claim that survives correction is the four-feature centroid distance, and the three-feature held-out variant supports it without independently establishing it.
+
+P4 fails cleanly and in the opposite direction. Both rungs gained on both surface metrics and both gains separate: `peft_knn` chrF +0.96 [+0.40, +1.53] p = 0.001 and BLEU +0.82 [+0.26, +1.38] p = 0.005; `peft_afsp` chrF +0.90 [+0.33, +1.47] p = 0.001 and BLEU +0.76 [+0.20, +1.31] p = 0.006. COMET, which the declaration left out of the pass and which was run anyway, agrees for the reranked rung: +0.0047 [+0.0011, +0.0081] p = 0.010, against +0.0029 [−0.0008, +0.0066] p = 0.121 for the control. The argument P4 rested on - the adapter was trained completion-only on the zero-shot template, so any few-shot prompt is off-distribution - produces no measurable adequacy cost on three metrics of two kinds.
+
+### The quadrant that was not entered
+
+Both axes were referenced to `peft`. `dist_heldout` does not separate (p = 0.434) and ΔΦ = +0.0514 does not clear the +0.058 the declaration set for "Φ rising", so no quadrant is entered and the *uninformative outcome* clause applies as written: this is reported as a null result of stacking, not as evidence that the two adaptation families compose.
+
+That clause was drafted for the case where nothing moves. Something moved. The separation is on `peft_afsp` − `peft_knn`, which the quadrant scheme has no axis for, because the declaration treated the control as a diagnostic to be consulted only inside Q4 rather than as a contrast in its own right. The declared reading and the informative contrast are not the same comparison, and that is a defect in the declaration rather than in the arm.
+
+### What the declaration deferred and the pass bought anyway
+
+P2 was written as unscored: "the objective axis is measured first so that a later rubric reading cannot be selected on." Both raters were bought in the same pass, so that ordering did not hold. The objective artifacts were committed first (`57339a3`, 2026-08-19) and the judge artifacts second (`ec099f6`, 2026-08-20), which preserves the audit trail but not the argument, since the judge was commissioned knowing the objective result. P2's outcome should be read with that in mind. COMET was likewise declared out of scope and run.
+
+The declaration priced the judge at 2 × 1,323 = 2,646 calls, ≈$1.75, derived from the 2026-08-05 batch rate of $0.00066 per call. That derivation held for the rater it came from: the `gpt-5.6-terra` batch pass was 2,646 calls at $1.7346. It did not cover the primary rater, which was not in the projection. Both were bought.
+
+Paid usage for 2026-08-20: `claude-haiku-4-5` 2,621 calls, $2.6640 (cumulative 3,969 → 6,590 calls, $4.0546 → $6.7186); `gpt-5.6-terra` via batch 2,646 calls, $1.7346 (cumulative 13,230 → 15,876, $8.7220 → $10.4566). Total 5,267 calls and $4.3986, against a declared ≈$1.75. Generation, COMET, chrF, BLEU, the stylometric ladder and every bootstrap were local and free.
+
+`results/judge_val_usage.json` records only the last session - 1,298 calls for `peft_knn` - because the sidecar is overwritten per invocation and `peft_afsp` was judged in a separate call. The pass total is recoverable only from the `cumulative` block. Additive per-session records would avoid that; this is noted rather than fixed.
+
+### Verification
+
+No metric changed and no committed artifact was rewritten in the course of writing this entry. `python -m pytest tests/` at `900a891` is 367 passed, unchanged from the declaration below.
+
+Every figure above was re-read from the committed JSON rather than from a notebook print. The Φ means behind the P2 numbers are `peft` 2.7438, `peft_knn` 2.8020, `peft_afsp` 2.7952 for the primary rater and 3.6150, 3.6633, 3.6383 for the second. `peft`'s cell in `results/heldout_decomp_peft_afsp_val.json` reproduces its cell in `results/heldout_decomp_prompting_val.json` and in the committed `results/heldout_decomp_val.json`: `dist_heldout` 0.1707 and every per-feature z, bit-identical across all three.
+
+The twelve-condition ladder (`900a891`) is where the P3 `stylo_dist` contrast is read from. It reports 3 of 11 adjacent-rank gaps separated, so the ladder's ordering below the level of those three gaps is not a finding and is not used as one here.
+
+### Reproduction
+
+Scoring only; the generation commands are in the declaration below.
+
+```bash
+python manage.py eval --conditions peft peft_knn peft_afsp --split val
+python manage.py bootstrap --metric chrf --split val --adjacent \
+  --conditions peft peft_knn peft_afsp --baseline peft \
+  --out results/bootstrap_chrf_peft_afsp_val.json
+python manage.py bootstrap --metric bleu --split val --adjacent \
+  --conditions peft peft_knn peft_afsp --baseline peft \
+  --out results/bootstrap_bleu_peft_afsp_val.json
+python manage.py heldout_decomp --split val --no-figure \
+  --conditions peft peft_knn peft_afsp --reference peft \
+  --results_path results/heldout_decomp_peft_afsp_val.json
+python manage.py heldout_decomp --split val --no-figure \
+  --conditions peft_knn peft_afsp --reference peft_knn \
+  --results_path results/heldout_decomp_peft_afsp_vs_knn_val.json
+python manage.py stylometrics_ci --split val \
+  --conditions zeroshot random_fewshot knn_fewshot afsp_margin afsp_full peft \
+               peft_knn peft_afsp rlsf_w3_0.0 rlsf_w3_2.0 rlsf_w3_6.0 commercial_haiku \
+  --results_path results/stylometrics_ci_ladder_val.json
+```
+
+COMET runs under `.venv-comet` into `results/comet_val.json`. The two judge passes and their bootstraps are cells 30-45 of `notebooks/peft_afsp_scoring.ipynb`; both are gated on an explicit `SPEND_OK` flag and both are re-runnable at $0 over the stored segment scores.
+
+### Limitations and risks
+
+Val only, n = 1,323, one split. `data/splits/test.jsonl` was not read.
+
+The register instruments are the two this project uses everywhere: `stylo_dist` over the four-feature centroid and `dist_heldout` over the three held-out features. They share `marker_rate` and the corpus centroid in `results/stylometrics_centroid_split.json`. This scoring is against those instruments as committed at `900a891`; it is not independent of them.
+
+The frozen (k, λ, β) were selected on val for the frozen base and transferred unchanged. P3's separation is a separation at those settings, and the README's threats table already records the val table as selection-optimistic.
+
+Multiplicity is stated per claim above and not applied across the four predictions jointly. Scoring four declared predictions is not the same multiple-comparison problem as searching for one, but the correction status of each individual claim is what is recorded, and P3 is the only one whose survival under correction was checked.
+
+P2 was measured after the objective axis was known. It is scored here because it was declared, not because the ordering it specified was honoured.
+
 ## 2026-08-19: PEFT+AFSP declared before generation
 
 Written after the ladder entry below and before any segment of the combined arm exists. It states what the arm is predicted to do and what each outcome would mean, so that the reading is fixed while the numbers are still unavailable. The 2026-08-19 addendum to `docs/preregistration_rlsf.md` had to disclose that T1-T4 were descriptions of numbers already in hand; this entry is written under the opposite condition, and the disclosure section says exactly what was readable when it was written.

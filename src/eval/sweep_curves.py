@@ -18,6 +18,7 @@ from src.eval.stylometrics import (
     FEATURE_NAMES,
     aggregate,
     bootstrap_cell,
+    centroid_provenance,
     distance_to_centroid,
     feature_vector,
     signed_z,
@@ -80,7 +81,8 @@ def _judge_points() -> dict[str, dict]:
     verify = json.loads(_VERIFY_PATH.read_text(encoding="utf-8"))
     points: dict[str, dict] = {}
     for cell in verify.get("cells", []):
-        if "judge_mean" not in cell:
+        # A re-verified cell carries the key with a null value; that is no judge evidence.
+        if cell.get("judge_mean") is None:
             continue
         entry = {
             "judge_mean": cell["judge_mean"],
@@ -188,7 +190,7 @@ def build(
     return {
         "split": split,
         "out_dir": str(out_dir),
-        "centroid": {"features": centroid["features"], "n_segments": centroid["n_segments"]},
+        "centroid": centroid_provenance(centroid, _CENTROID_PATH),
         "bootstrap": {"n_resamples": n_resamples, "seed": seed} if bootstrap else None,
         "comet_source": str(comet_path) if comet else None,
         "cells": cells,
