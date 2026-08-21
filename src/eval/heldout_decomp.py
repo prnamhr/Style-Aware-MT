@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -22,7 +23,9 @@ from src.eval.stylometrics import (
     HELDOUT_FEATURES,
     REWARD_FEATURES,
     SPLIT_FEATURES,
+    centroid_provenance,
     feature_vector,
+    fingerprint,
     subcentroid,
 )
 
@@ -230,6 +233,7 @@ def checkpoint_ladder(cells: dict[str, str] = CELLS) -> dict:
     """Held-out distance per saved checkpoint per arm, and which tags rank in omega order."""
     rows: dict[str, dict] = {}
     selected: dict[str, str] = {}
+    fingerprints: dict[str, str | None] = {}
     for cell in cells:
         path = Path(_SELECT_PATH.format(cell=cell))
         if not path.exists():
@@ -237,6 +241,7 @@ def checkpoint_ladder(cells: dict[str, str] = CELLS) -> dict:
         record = json.loads(path.read_text(encoding="utf-8"))
         rows[cell] = {r["tag"]: r for r in record["rows"]}
         selected[cell] = record["selected"]
+        fingerprints[cell] = (record.get("centroid") or {}).get("fingerprint")
     if not rows:
         return {}
 
@@ -258,9 +263,30 @@ def checkpoint_ladder(cells: dict[str, str] = CELLS) -> dict:
         "cells": order,
         "selected": selected,
         "selected_matched": len(set(selected.values())) == 1,
+        "centroid_fingerprints": fingerprints,
         "steps": ladder,
         "n_monotone": sum(1 for row in ladder if row["monotone_in_omega"]),
     }
+
+
+def _checked_ladder(centroid: dict) -> dict:
+    ladder = checkpoint_ladder()
+    if not ladder:
+        return ladder
+
+    live = fingerprint(centroid)
+    stale = [cell for cell, fp in ladder["centroid_fingerprints"].items() if fp != live]
+    ladder["stale_vs_centroid"] = bool(stale)
+    if stale:
+        # The rows are copied verbatim from rlsf_select, which needs a GPU to refresh.
+        print(
+            f"\nWARNING: checkpoint_ladder cells {', '.join(stale)} were scored against a "
+            f"different centroid than {live}. Their dist_heldout and z[marker_rate] are "
+            f"stale; the rest of this report is not. Refresh with: "
+            f"{' '.join(f'python manage.py rlsf_select --cell {c}' for c in stale)}",
+            file=sys.stderr,
+        )
+    return ladder
 
 
 def build(
@@ -371,7 +397,7 @@ def build(
         "out_dir": str(out_dir),
         "reference": reference,
         "reference_dir": str(dirs[reference]),
-        "centroid": {"path": str(_SPLIT_CENTROID_PATH), "n_segments": centroid["n_segments"]},
+        "centroid": centroid_provenance(centroid, _SPLIT_CENTROID_PATH),
         "heldout_features": HELDOUT_FEATURES,
         "reward_features": REWARD_FEATURES,
         "bootstrap": {
@@ -384,7 +410,7 @@ def build(
         "conditions": present,
         "cells": cells,
         "adjacent_in_omega": adjacent,
-        "checkpoint_ladder": checkpoint_ladder(),
+        "checkpoint_ladder": _checked_ladder(centroid),
     }
 
 
@@ -596,7 +622,7 @@ def trajectory(
         "traj_dir": str(traj_dir),
         "reference": reference,
         "reference_dir": str(ref_dir),
-        "centroid": {"path": str(_SPLIT_CENTROID_PATH), "n_segments": centroid["n_segments"]},
+        "centroid": centroid_provenance(centroid, _SPLIT_CENTROID_PATH),
         "heldout_features": HELDOUT_FEATURES,
         "bootstrap": {
             "n_resamples": n_resamples,

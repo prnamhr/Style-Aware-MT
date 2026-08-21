@@ -13,7 +13,26 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.eval.stylometrics import FUNCTION_WORDS, _words, features  # noqa: E402
+from src.eval.stylometrics import (  # noqa: E402
+    FUNCTION_WORDS,
+    _words,
+    centroid_provenance,
+    features,
+    fingerprint,
+    subcentroid,
+)
+
+# The committed centroids, pinned so a rebuild that moves a statistic fails here rather
+# than silently invalidating every artifact scored against the old numbers.
+COMMITTED_FINGERPRINT = "fd5aec8d69454b02"
+COMMITTED_SPLIT_FINGERPRINT = "1df4a3bce707e27d"
+
+CENTROID = {
+    "n_segments": 10860,
+    "features": ["lex_density", "ttr", "root_ttr", "marker_rate"],
+    "mean": [0.43441683786355584, 0.8539792280574662, 4.043694717066596, 0.05734825999590584],
+    "std": [0.11008438318652523, 0.10851904269667961, 1.0426119828132956, 0.07818115778564699],
+}
 
 # A real train target (data/splits/train.jsonl, record 0).
 REF = (
@@ -129,6 +148,63 @@ def test_committed_centroid_marker_rate_in_hand_checked_band() -> None:
 
     hand_mean = statistics.fmean(m / t for _, m, t in HAND_COUNTED)
     assert mean < hand_mean, (mean, hand_mean)
+
+
+def test_fingerprint_is_stable_and_moves_with_every_statistic() -> None:
+    assert fingerprint(CENTROID) == fingerprint(json.loads(json.dumps(CENTROID)))
+
+    bumped = {**CENTROID, "mean": [*CENTROID["mean"][:3], 0.032683957493381564]}
+    assert fingerprint(bumped) != fingerprint(CENTROID)
+    widened = {**CENTROID, "std": [*CENTROID["std"][:3], 0.05674076332518254]}
+    assert fingerprint(widened) != fingerprint(CENTROID)
+
+    # A reorder preserving the feature/statistic pairing must still change the digest,
+    # since features is what indexes mean and std.
+    order = [3, 0, 1, 2]
+    reordered = {
+        **CENTROID,
+        "features": [CENTROID["features"][i] for i in order],
+        "mean": [CENTROID["mean"][i] for i in order],
+        "std": [CENTROID["std"][i] for i in order],
+    }
+    assert fingerprint(reordered) != fingerprint(CENTROID)
+
+
+def test_fingerprint_ignores_n_segments() -> None:
+    """n_segments can move without shifting any scored number, so it is not hashed."""
+    assert fingerprint({**CENTROID, "n_segments": 1}) == fingerprint(CENTROID)
+
+
+def test_subcentroid_fingerprints_differ_from_their_parent() -> None:
+    """Callers must stamp the file-level dict; a slice identifies the wrong thing."""
+    part = subcentroid(CENTROID, ["ttr", "marker_rate"])
+    assert fingerprint(part) != fingerprint(CENTROID)
+
+
+def test_committed_centroids_match_their_pinned_fingerprints() -> None:
+    root = Path(__file__).resolve().parent.parent / "results"
+    for name, pinned in (
+        ("stylometrics_centroid.json", COMMITTED_FINGERPRINT),
+        ("stylometrics_centroid_split.json", COMMITTED_SPLIT_FINGERPRINT),
+    ):
+        path = root / name
+        if not path.exists():
+            print(f"skip {name}: build it with python manage.py stylometrics --build-centroid")
+            continue
+        got = fingerprint(json.loads(path.read_text(encoding="utf-8")))
+        assert got == pinned, (
+            f"{name} hashes to {got}, not the pinned {pinned}. If the centroid was rebuilt "
+            f"on purpose, every artifact carrying {pinned} needs rescoring; update the pin "
+            f"in the same commit as the rescore."
+        )
+
+
+def test_centroid_provenance_carries_path_and_fingerprint() -> None:
+    block = centroid_provenance(CENTROID, "results/stylometrics_centroid.json")
+    assert block["path"] == "results/stylometrics_centroid.json"
+    assert block["features"] == CENTROID["features"]
+    assert block["n_segments"] == 10860
+    assert block["fingerprint"] == fingerprint(CENTROID)
 
 
 if __name__ == "__main__":

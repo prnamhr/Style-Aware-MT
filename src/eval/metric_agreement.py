@@ -21,6 +21,7 @@ from src.eval._io import condition_path, load_condition
 from src.eval.stylometrics import (
     CENTROID_FEATURES,
     aggregate,
+    centroid_provenance,
     distance_to_centroid,
     features,
     register_band_distance,
@@ -335,6 +336,7 @@ def build(
     report = {
         "split": split,
         "out_dir": str(out_dir),
+        "centroid": centroid_provenance(centroid, _CENTROID_PATH),
         "register_params": {
             "config": str(config_path),
             "select_target_sigma": sigma,

@@ -26,7 +26,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer, TrainerCallback
 from trl import GRPOTrainer
 
 from peft import LoraConfig, PeftModel, get_peft_model
-from src.eval.stylometrics import REWARD_FEATURES, subcentroid
+from src.eval.stylometrics import REWARD_FEATURES, fingerprint, subcentroid
 from src.infer.run import build_zeroshot_user
 from src.rlsf.config import (
     drift_rule,
@@ -367,6 +367,10 @@ def run_manifest(cfg: dict, *, cell: str | None, rc, steps: int, held_flat: list
         "length_band": [rc.len_min_ratio, rc.len_max_ratio],
         "drift_rule": vars(drift_rule(cfg)),
         "train_file": cfg["data"]["train_file"],
+        "centroid": {
+            "path": cfg["data"]["split_centroid_file"],
+            "fingerprint": fingerprint(load_centroid(cfg["data"]["split_centroid_file"])),
+        },
         "versions": library_versions(),
     }
 

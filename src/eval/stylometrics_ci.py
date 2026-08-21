@@ -20,6 +20,7 @@ from src.eval.stylometrics import (
     FEATURE_NAMES,
     aggregate,
     bootstrap_draws,
+    centroid_provenance,
     distance_to_centroid,
     draw_intervals,
     feature_vector,
@@ -216,7 +217,7 @@ def build(
     return {
         "split": split,
         "out_dir": str(out_dir),
-        "centroid": {"features": centroid["features"], "n_segments": centroid["n_segments"]},
+        "centroid": centroid_provenance(centroid, _CENTROID_PATH),
         "bootstrap": {
             "n_resamples": n_resamples,
             "seed": seed,

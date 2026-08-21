@@ -22,7 +22,8 @@ import yaml
 from src.eval._io import load_condition
 from src.eval.quick import score as quick_score
 from src.eval.stylometrics import aggregate, distance_to_centroid
-from src.infer.afsp_sweep import _register_fit_fn
+from src.infer.afsp_sweep import _centroid_block, _register_fit_fn
+from src.infer.afsp_sweep import _load_centroid as _afsp_load_centroid
 from src.infer.run import build_zeroshot_user, make_client
 from src.peft.train import train
 
@@ -225,14 +226,15 @@ def _read_eval_loss(out_dir: Path) -> float | None:
     return json.loads(p.read_text(encoding="utf-8")).get("eval_loss")
 
 
+def _load_centroid(cfg: dict) -> tuple[dict | None, Path]:
+    return _afsp_load_centroid({"afsp": cfg.get("register", {})})
+
+
 def score_candidates(cfg: dict, candidates: list[dict], split: str) -> list[dict]:
     """Score each present candidate on the matched proxy axis (chrF + register_fit)."""
 
     sweep_dir = _sweep_dir(cfg)
-    centroid_path = Path(cfg.get("register", {}).get("centroid_file", ""))
-    centroid = (
-        json.loads(centroid_path.read_text(encoding="utf-8")) if centroid_path.exists() else None
-    )
+    centroid, _ = _load_centroid(cfg)
     # Reuse AFSP's register-fit builder verbatim so Phi is the SAME axis; it reads the
     # direction/target-sigma from cfg["afsp"], so shim the `register:` block into place.
     register_fit = _register_fit_fn({"afsp": cfg.get("register", {})}, centroid)
@@ -263,14 +265,7 @@ def score_candidates(cfg: dict, candidates: list[dict], split: str) -> list[dict
 
 
 def ranked_cells(rows: list[dict], adequacy_margin: float) -> list[dict]:
-    """Candidates best-first by the rule AFSP uses: chrF adequacy band, then Phi.
-
-    Unlike src.infer.afsp_sweep, the `anchor` flag here is a COSMETIC label for the
-    documented-default cell (r=16, lr=2e-4), not an exclusion: it is a first-class
-    (r, lr, epoch) candidate and can be selected. (AFSP's anchor is the zero-shot
-    reference, a different condition, so it is filtered there; PEFT has no such
-    non-candidate reference in the grid.)
-    """
+    """Candidates best-first by the rule AFSP uses: chrF adequacy band, then Phi."""
     if not rows:
         return []
 
@@ -433,6 +428,7 @@ def main() -> None:
                 "select_target_sigma": float(
                     cfg.get("register", {}).get("select_target_sigma", 0.5)
                 ),
+                "centroid": _centroid_block(*_load_centroid(cfg)),
                 "selection_note": "candidates are (r, lr, epoch); eval_loss is a generation "
                 "pre-filter only. Ranked on chrF adequacy band + register_fit (Phi). Confirm "
                 "on COMET/judge via src.peft.verify before freezing.",

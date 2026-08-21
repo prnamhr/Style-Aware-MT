@@ -2,6 +2,17 @@
   "split": "val",
   "adequacy_margin": 1.0,
   "select_target_sigma": 0.5,
+  "centroid": {
+    "path": "results/stylometrics_centroid.json",
+    "features": [
+      "lex_density",
+      "ttr",
+      "root_ttr",
+      "marker_rate"
+    ],
+    "n_segments": 10860,
+    "fingerprint": "fd5aec8d69454b02"
+  },
   "cells": [
     {
       "tag": "afsp_k4_l0",
@@ -10,9 +21,9 @@
       "n": 1323,
       "chrF": 39.37,
       "BLEU": 13.6,
-      "marker_rate": 1.02,
-      "stylo_dist": 0.4174,
-      "register_fit": 0.9715
+      "marker_rate": 1.34,
+      "stylo_dist": 0.3256,
+      "register_fit": 1.0924
     },
     {
       "tag": "afsp_k4_l0.1",
@@ -21,9 +32,9 @@
       "n": 1323,
       "chrF": 39.34,
       "BLEU": 13.52,
-      "marker_rate": 1.04,
-      "stylo_dist": 0.4282,
-      "register_fit": 0.963
+      "marker_rate": 1.33,
+      "stylo_dist": 0.3278,
+      "register_fit": 1.0886
     },
     {
       "tag": "afsp_k4_l0.25",
@@ -32,9 +43,9 @@
       "n": 1323,
       "chrF": 39.25,
       "BLEU": 13.63,
-      "marker_rate": 1.01,
-      "stylo_dist": 0.4026,
-      "register_fit": 0.962
+      "marker_rate": 1.29,
+      "stylo_dist": 0.307,
+      "register_fit": 1.0927
     },
     {
       "tag": "afsp_k4_l0.5",
@@ -43,9 +54,9 @@
       "n": 1323,
       "chrF": 39.18,
       "BLEU": 13.67,
-      "marker_rate": 1.04,
-      "stylo_dist": 0.4295,
-      "register_fit": 0.9575
+      "marker_rate": 1.31,
+      "stylo_dist": 0.3336,
+      "register_fit": 1.0803
     },
     {
       "tag": "afsp_k4_l0.75",
@@ -54,9 +65,9 @@
       "n": 1323,
       "chrF": 39.23,
       "BLEU": 13.75,
-      "marker_rate": 1.07,
-      "stylo_dist": 0.4402,
-      "register_fit": 0.9273
+      "marker_rate": 1.32,
+      "stylo_dist": 0.3071,
+      "register_fit": 1.0606
     },
     {
       "tag": "afsp_k4_l1",
@@ -65,9 +76,9 @@
       "n": 1323,
       "chrF": 38.81,
       "BLEU": 13.21,
-      "marker_rate": 1.11,
-      "stylo_dist": 0.4353,
-      "register_fit": 0.9217
+      "marker_rate": 1.34,
+      "stylo_dist": 0.2933,
+      "register_fit": 1.0622
     },
     {
       "tag": "afsp_k8_l0",
@@ -76,9 +87,9 @@
       "n": 1323,
       "chrF": 39.68,
       "BLEU": 13.69,
-      "marker_rate": 0.96,
-      "stylo_dist": 0.391,
-      "register_fit": 1.014
+      "marker_rate": 1.25,
+      "stylo_dist": 0.3394,
+      "register_fit": 1.1394
     },
     {
       "tag": "afsp_k8_l0.1",
@@ -87,9 +98,9 @@
       "n": 1323,
       "chrF": 39.86,
       "BLEU": 14.11,
-      "marker_rate": 0.93,
-      "stylo_dist": 0.4167,
-      "register_fit": 1.0447
+      "marker_rate": 1.23,
+      "stylo_dist": 0.3692,
+      "register_fit": 1.1659
     },
     {
       "tag": "afsp_k8_l0.25",
@@ -98,9 +109,9 @@
       "n": 1323,
       "chrF": 39.92,
       "BLEU": 14.23,
-      "marker_rate": 0.92,
-      "stylo_dist": 0.4163,
-      "register_fit": 1.0403
+      "marker_rate": 1.21,
+      "stylo_dist": 0.3704,
+      "register_fit": 1.1675
     },
     {
       "tag": "afsp_k8_l0.5",
@@ -109,9 +120,9 @@
       "n": 1323,
       "chrF": 39.92,
       "BLEU": 14.26,
-      "marker_rate": 0.93,
-      "stylo_dist": 0.3969,
-      "register_fit": 1.0027
+      "marker_rate": 1.19,
+      "stylo_dist": 0.3417,
+      "register_fit": 1.1406
     },
     {
       "tag": "afsp_k8_l0.75",
@@ -120,9 +131,9 @@
       "n": 1323,
       "chrF": 39.99,
       "BLEU": 14.52,
-      "marker_rate": 0.98,
-      "stylo_dist": 0.3709,
-      "register_fit": 0.9611
+      "marker_rate": 1.2,
+      "stylo_dist": 0.3038,
+      "register_fit": 1.1197
     },
     {
       "tag": "afsp_k8_l1",
@@ -131,9 +142,9 @@
       "n": 1323,
       "chrF": 39.76,
       "BLEU": 13.89,
-      "marker_rate": 1.0,
-      "stylo_dist": 0.4113,
-      "register_fit": 0.9728
+      "marker_rate": 1.21,
+      "stylo_dist": 0.321,
+      "register_fit": 1.1247
     },
     {
       "tag": "afsp_k16_l0",
@@ -142,9 +153,9 @@
       "n": 1323,
       "chrF": 40.33,
       "BLEU": 14.31,
-      "marker_rate": 0.9,
-      "stylo_dist": 0.4066,
-      "register_fit": 1.0562
+      "marker_rate": 1.19,
+      "stylo_dist": 0.3794,
+      "register_fit": 1.1842
     },
     {
       "tag": "afsp_k16_l0.1",
@@ -153,9 +164,9 @@
       "n": 1323,
       "chrF": 40.29,
       "BLEU": 14.19,
-      "marker_rate": 0.86,
-      "stylo_dist": 0.397,
-      "register_fit": 1.069
+      "marker_rate": 1.15,
+      "stylo_dist": 0.3739,
+      "register_fit": 1.1935
     },
     {
       "tag": "afsp_k16_l0.25",
@@ -164,9 +175,9 @@
       "n": 1323,
       "chrF": 40.28,
       "BLEU": 14.39,
-      "marker_rate": 0.9,
-      "stylo_dist": 0.3843,
-      "register_fit": 1.0336
+      "marker_rate": 1.14,
+      "stylo_dist": 0.3556,
+      "register_fit": 1.1839
     },
     {
       "tag": "afsp_k16_l0.5",
@@ -175,9 +186,9 @@
       "n": 1323,
       "chrF": 40.44,
       "BLEU": 14.92,
-      "marker_rate": 0.9,
-      "stylo_dist": 0.3928,
-      "register_fit": 1.0123
+      "marker_rate": 1.15,
+      "stylo_dist": 0.3511,
+      "register_fit": 1.1594
     },
     {
       "tag": "afsp_k16_l0.75",
@@ -186,9 +197,9 @@
       "n": 1323,
       "chrF": 40.44,
       "BLEU": 14.86,
-      "marker_rate": 0.95,
-      "stylo_dist": 0.3831,
-      "register_fit": 0.9745
+      "marker_rate": 1.15,
+      "stylo_dist": 0.3146,
+      "register_fit": 1.143
     },
     {
       "tag": "afsp_k16_l1",
@@ -197,9 +208,9 @@
       "n": 1323,
       "chrF": 40.26,
       "BLEU": 14.88,
-      "marker_rate": 0.94,
-      "stylo_dist": 0.3808,
-      "register_fit": 0.9811
+      "marker_rate": 1.15,
+      "stylo_dist": 0.3248,
+      "register_fit": 1.1393
     },
     {
       "tag": "afsp_zeroshot",
@@ -209,9 +220,9 @@
       "n": 1323,
       "chrF": 36.42,
       "BLEU": 10.27,
-      "marker_rate": 1.4,
-      "stylo_dist": 0.6515,
-      "register_fit": 0.9555
+      "marker_rate": 1.79,
+      "stylo_dist": 0.4479,
+      "register_fit": 0.996
     }
   ],
   "recommended": {
@@ -221,8 +232,8 @@
     "n": 1323,
     "chrF": 39.99,
     "BLEU": 14.52,
-    "marker_rate": 0.98,
-    "stylo_dist": 0.3709,
-    "register_fit": 0.9611
+    "marker_rate": 1.2,
+    "stylo_dist": 0.3038,
+    "register_fit": 1.1197
   }
 }

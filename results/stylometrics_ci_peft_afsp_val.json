@@ -2,13 +2,15 @@
   "split": "val",
   "out_dir": "outputs",
   "centroid": {
+    "path": "results/stylometrics_centroid.json",
     "features": [
       "lex_density",
       "ttr",
       "root_ttr",
       "marker_rate"
     ],
-    "n_segments": 10860
+    "n_segments": 10860,
+    "fingerprint": "fd5aec8d69454b02"
   },
   "bootstrap": {
     "n_resamples": 2000,

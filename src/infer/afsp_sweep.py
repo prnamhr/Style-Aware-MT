@@ -10,7 +10,12 @@ import yaml
 
 from src.eval._io import load_condition
 from src.eval.quick import score as quick_score
-from src.eval.stylometrics import aggregate, distance_to_centroid, register_band_distance
+from src.eval.stylometrics import (
+    aggregate,
+    centroid_provenance,
+    distance_to_centroid,
+    register_band_distance,
+)
 from src.infer.run import (
     _load_configured_glossary,
     build_fewshot_user,
@@ -190,6 +195,25 @@ def generate_zeroshot(cfg: dict, *, overwrite: bool = False) -> str:
     return split
 
 
+def _load_centroid(cfg: dict) -> tuple[dict | None, Path]:
+    """The scoring centroid and where it came from; None when absent, as callers tolerate."""
+    path = Path(cfg.get("afsp", {}).get("centroid_file", ""))
+    if not path.exists():
+        return None, path
+    return json.loads(path.read_text(encoding="utf-8")), path
+
+
+def _centroid_block(centroid: dict | None, path: Path) -> dict:
+    """Records the no-centroid fallback rather than leaving the artifact silent about it."""
+    if centroid is not None:
+        return centroid_provenance(centroid, path)
+    return {
+        "path": str(path),
+        "fingerprint": None,
+        "note": "centroid absent; register_fit dropped and selection fell back to max chrF",
+    }
+
+
 def score_zeroshot(cfg: dict, split: str) -> dict | None:
     """Score the zero-shot anchor, if present. Returns an anchor-flagged row."""
     sweep_dir = _sweep_dir(cfg)
@@ -197,10 +221,7 @@ def score_zeroshot(cfg: dict, split: str) -> dict | None:
     if not path.exists():
         print(f"skip {ZEROSHOT_TAG}: {path} not found")
         return None
-    centroid_path = Path(cfg.get("afsp", {}).get("centroid_file", ""))
-    centroid = (
-        json.loads(centroid_path.read_text(encoding="utf-8")) if centroid_path.exists() else None
-    )
+    centroid, _ = _load_centroid(cfg)
     s = quick_score(ZEROSHOT_TAG, sweep_dir, split)
     _, preds, _ = load_condition(sweep_dir, ZEROSHOT_TAG, split)
     row = {
@@ -245,10 +266,7 @@ def _register_fit_fn(cfg: dict, centroid: dict | None):
 def score_grid(cfg: dict, ks: list[int], lambdas: list[float], split: str) -> list[dict]:
     """Score every present cell with free/local metrics only."""
     sweep_dir = _sweep_dir(cfg)
-    centroid_path = Path(cfg.get("afsp", {}).get("centroid_file", ""))
-    centroid = (
-        json.loads(centroid_path.read_text(encoding="utf-8")) if centroid_path.exists() else None
-    )
+    centroid, _ = _load_centroid(cfg)
     register_fit = _register_fit_fn(cfg, centroid)
 
     rows: list[dict] = []
@@ -387,6 +405,7 @@ def main() -> None:
                 "split": split,
                 "adequacy_margin": args.adequacy_margin,
                 "select_target_sigma": float(cfg.get("afsp", {}).get("select_target_sigma", 0.5)),
+                "centroid": _centroid_block(*_load_centroid(cfg)),
                 "cells": rows,
                 "recommended": pick,
             },

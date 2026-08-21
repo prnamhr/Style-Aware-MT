@@ -10,6 +10,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import re
@@ -189,6 +190,29 @@ def subcentroid(centroid: dict, names: list[str]) -> dict:
         "features": list(names),
         "mean": [centroid["mean"][i] for i in idx],
         "std": [centroid["std"][i] for i in idx],
+    }
+
+
+def fingerprint(centroid: dict) -> str:
+    """Digest of the statistics a score was measured against, for artifact provenance."""
+    payload = "|".join(
+        [
+            ",".join(centroid["features"]),
+            ",".join(repr(float(x)) for x in centroid["mean"]),
+            ",".join(repr(float(x)) for x in centroid["std"]),
+        ]
+    )
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
+
+
+def centroid_provenance(centroid: dict, path: str | Path) -> dict:
+    """The centroid block a report carries: where it came from and which one it was."""
+    # Pass the dict as loaded from file, never a subcentroid: this identifies the source.
+    return {
+        "path": str(path),
+        "features": list(centroid["features"]),
+        "n_segments": centroid.get("n_segments", 0),
+        "fingerprint": fingerprint(centroid),
     }
 
 

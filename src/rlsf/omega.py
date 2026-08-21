@@ -19,6 +19,7 @@ from src.eval.stylometrics import (
     REWARD_FEATURES,
     aggregate,
     bootstrap_draws,
+    centroid_provenance,
     distance_to_centroid,
     feature_vector,
     features,
@@ -749,8 +750,9 @@ def main() -> None:
                 "subgroup": subgroup,
                 "seed": seed,
                 "feature": feature,
+                "centroid": centroid_provenance(centroid, cfg["data"]["centroid_file"]),
                 "feature_split": {
-                    "centroid": cfg["data"]["split_centroid_file"],
+                    "centroid": centroid_provenance(split, cfg["data"]["split_centroid_file"]),
                     "reward": REWARD_FEATURES,
                     "heldout": HELDOUT_FEATURES,
                 },

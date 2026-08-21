@@ -35,6 +35,7 @@ from pathlib import Path
 import yaml
 
 from src.eval._io import read_completed_jsonl
+from src.eval.stylometrics import fingerprint
 from src.infer.anthropic_client import AnthropicChatClient
 from src.infer.gemini_client import GeminiChatClient
 from src.infer.local_client import LocalChatClient
@@ -251,6 +252,12 @@ def _provenance(condition: str, cfg: dict) -> dict:
             prov["lambda_style"] = af.get("lambda_style", 0.3) if rerank else 0.0
             prov["style_objective"] = af.get("style_objective", "bandpass")
             prov["style_target_sigma"] = af.get("style_target_sigma", 1.0)
+            if rerank:
+                # The centroid steers retrieval here, so it is a generation-time input.
+                prov["centroid"] = {
+                    "path": af["centroid_file"],
+                    "fingerprint": fingerprint(load_centroid(af["centroid_file"])),
+                }
     return prov
 
 

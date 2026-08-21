@@ -5,7 +5,16 @@
   "reference_dir": "outputs",
   "centroid": {
     "path": "results/stylometrics_centroid_split.json",
-    "n_segments": 10860
+    "features": [
+      "lex_density",
+      "sent_len_mean",
+      "sent_len_var",
+      "ttr",
+      "root_ttr",
+      "marker_rate"
+    ],
+    "n_segments": 10860,
+    "fingerprint": "1df4a3bce707e27d"
   },
   "heldout_features": [
     "ttr",
@@ -426,6 +435,11 @@
       "w3_6.0": "step100"
     },
     "selected_matched": false,
+    "centroid_fingerprints": {
+      "w3_0.0": null,
+      "w3_2.0": null,
+      "w3_6.0": null
+    },
     "steps": [
       {
         "tag": "step100",
@@ -675,6 +689,7 @@
         "monotone_in_omega": true
       }
     ],
-    "n_monotone": 11
+    "n_monotone": 11,
+    "stale_vs_centroid": true
   }
 }
