@@ -1,0 +1,7959 @@
+{
+  "split": "val",
+  "index_dir": "data/knn_index",
+  "rarity_sha256": "47da96ea667ee0951278d16812b3fd49e4dc9f54aaf34bfbc4562765a1977ca5",
+  "k": 8,
+  "m": 4,
+  "routes": {
+    "full": 483,
+    "partial": 724,
+    "dense": 116
+  },
+  "n_sparse_histogram": {
+    "0": 116,
+    "1": 261,
+    "2": 250,
+    "3": 213,
+    "4": 483
+  },
+  "segments": [
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.5912,
+      "n_query_terms": 7
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.5341,
+      "n_query_terms": 8
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.7452,
+      "n_query_terms": 7
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8437,
+      "n_query_terms": 6
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 5
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.6304,
+      "n_query_terms": 8
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.825,
+      "n_query_terms": 5
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.6381,
+      "n_query_terms": 8
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.5811,
+      "n_query_terms": 12
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8142,
+      "n_query_terms": 5
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.5039,
+      "n_query_terms": 12
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.848,
+      "n_query_terms": 6
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.6424,
+      "n_query_terms": 11
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.6714,
+      "n_query_terms": 9
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.5151,
+      "n_query_terms": 12
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.7383,
+      "n_query_terms": 7
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.6372,
+      "n_query_terms": 8
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.7266,
+      "n_query_terms": 7
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.5265,
+      "n_query_terms": 8
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.4139,
+      "n_query_terms": 10
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.6021,
+      "n_query_terms": 7
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.7267,
+      "n_query_terms": 7
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8095,
+      "n_query_terms": 5
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.5706,
+      "n_query_terms": 9
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8262,
+      "n_query_terms": 5
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.4741,
+      "n_query_terms": 11
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.532,
+      "n_query_terms": 8
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.7768,
+      "n_query_terms": 9
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 6
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.6915,
+      "n_query_terms": 6
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8187,
+      "n_query_terms": 5
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.6494,
+      "n_query_terms": 8
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.685,
+      "n_query_terms": 6
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8699,
+      "n_query_terms": 7
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 5
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.534,
+      "n_query_terms": 8
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.7148,
+      "n_query_terms": 7
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.7004,
+      "n_query_terms": 6
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.5028,
+      "n_query_terms": 8
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.6321,
+      "n_query_terms": 8
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.6869,
+      "n_query_terms": 9
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.5168,
+      "n_query_terms": 10
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.7356,
+      "n_query_terms": 7
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.4599,
+      "n_query_terms": 9
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.5747,
+      "n_query_terms": 9
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8224,
+      "n_query_terms": 5
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.5709,
+      "n_query_terms": 9
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.3815,
+      "n_query_terms": 13
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.6936,
+      "n_query_terms": 6
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.6106,
+      "n_query_terms": 7
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8167,
+      "n_query_terms": 5
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.6856,
+      "n_query_terms": 6
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.6943,
+      "n_query_terms": 6
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.471,
+      "n_query_terms": 15
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.7306,
+      "n_query_terms": 7
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.7047,
+      "n_query_terms": 6
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.3931,
+      "n_query_terms": 13
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.6451,
+      "n_query_terms": 11
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.7421,
+      "n_query_terms": 7
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.6818,
+      "n_query_terms": 10
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.6856,
+      "n_query_terms": 6
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 5
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.3734,
+      "n_query_terms": 11
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.6375,
+      "n_query_terms": 8
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.6524,
+      "n_query_terms": 9
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.653,
+      "n_query_terms": 8
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.6742,
+      "n_query_terms": 9
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8173,
+      "n_query_terms": 5
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 6
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8473,
+      "n_query_terms": 6
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.6913,
+      "n_query_terms": 6
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.5631,
+      "n_query_terms": 9
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.6826,
+      "n_query_terms": 6
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.5271,
+      "n_query_terms": 8
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.6271,
+      "n_query_terms": 8
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8142,
+      "n_query_terms": 5
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.7252,
+      "n_query_terms": 7
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8198,
+      "n_query_terms": 6
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.7166,
+      "n_query_terms": 7
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8439,
+      "n_query_terms": 6
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8515,
+      "n_query_terms": 6
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.861,
+      "n_query_terms": 8
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.7175,
+      "n_query_terms": 10
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8101,
+      "n_query_terms": 5
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.5919,
+      "n_query_terms": 7
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.5962,
+      "n_query_terms": 7
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.811,
+      "n_query_terms": 5
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8418,
+      "n_query_terms": 6
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8111,
+      "n_query_terms": 5
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 5
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.5166,
+      "n_query_terms": 8
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.6789,
+      "n_query_terms": 6
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 5
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.5578,
+      "n_query_terms": 9
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8646,
+      "n_query_terms": 7
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.5964,
+      "n_query_terms": 7
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 5
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8153,
+      "n_query_terms": 5
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.5934,
+      "n_query_terms": 7
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.5144,
+      "n_query_terms": 10
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.5962,
+      "n_query_terms": 7
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.852,
+      "n_query_terms": 6
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.5964,
+      "n_query_terms": 10
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.5205,
+      "n_query_terms": 12
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.5846,
+      "n_query_terms": 7
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.812,
+      "n_query_terms": 5
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.529,
+      "n_query_terms": 8
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.5971,
+      "n_query_terms": 7
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.7023,
+      "n_query_terms": 6
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.5208,
+      "n_query_terms": 12
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.5078,
+      "n_query_terms": 10
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8246,
+      "n_query_terms": 5
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.7116,
+      "n_query_terms": 10
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 6
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.828,
+      "n_query_terms": 5
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 11
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.81,
+      "n_query_terms": 5
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8188,
+      "n_query_terms": 5
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8119,
+      "n_query_terms": 5
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 5
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8317,
+      "n_query_terms": 6
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.6754,
+      "n_query_terms": 6
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.6851,
+      "n_query_terms": 6
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.4507,
+      "n_query_terms": 13
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.6604,
+      "n_query_terms": 9
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.7095,
+      "n_query_terms": 10
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8399,
+      "n_query_terms": 6
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 5
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.6478,
+      "n_query_terms": 8
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.6063,
+      "n_query_terms": 7
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.5864,
+      "n_query_terms": 7
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.5718,
+      "n_query_terms": 12
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.7857,
+      "n_query_terms": 9
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.72,
+      "n_query_terms": 7
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.6891,
+      "n_query_terms": 6
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.7448,
+      "n_query_terms": 7
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.5625,
+      "n_query_terms": 9
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8094,
+      "n_query_terms": 5
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8266,
+      "n_query_terms": 5
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8446,
+      "n_query_terms": 6
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8463,
+      "n_query_terms": 6
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8222,
+      "n_query_terms": 5
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 5
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8147,
+      "n_query_terms": 5
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 5
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.5099,
+      "n_query_terms": 10
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8235,
+      "n_query_terms": 5
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.5165,
+      "n_query_terms": 10
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.5314,
+      "n_query_terms": 12
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.5046,
+      "n_query_terms": 10
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8217,
+      "n_query_terms": 5
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 5
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8539,
+      "n_query_terms": 6
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.6808,
+      "n_query_terms": 6
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.5901,
+      "n_query_terms": 7
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.6002,
+      "n_query_terms": 10
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.5211,
+      "n_query_terms": 10
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.7294,
+      "n_query_terms": 7
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 5
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8541,
+      "n_query_terms": 6
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 8
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 5
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.6742,
+      "n_query_terms": 6
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.7001,
+      "n_query_terms": 6
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 5
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 5
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.6774,
+      "n_query_terms": 6
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8117,
+      "n_query_terms": 5
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 6
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8475,
+      "n_query_terms": 6
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.7011,
+      "n_query_terms": 6
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.479,
+      "n_query_terms": 9
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 5
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.6679,
+      "n_query_terms": 6
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.6197,
+      "n_query_terms": 10
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 5
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8195,
+      "n_query_terms": 5
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.6887,
+      "n_query_terms": 6
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8121,
+      "n_query_terms": 5
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8197,
+      "n_query_terms": 5
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 5
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 5
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8458,
+      "n_query_terms": 6
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8252,
+      "n_query_terms": 5
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.588,
+      "n_query_terms": 7
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8135,
+      "n_query_terms": 5
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.7018,
+      "n_query_terms": 6
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.4062,
+      "n_query_terms": 13
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.4685,
+      "n_query_terms": 9
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8501,
+      "n_query_terms": 6
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8264,
+      "n_query_terms": 6
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.6369,
+      "n_query_terms": 8
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.6929,
+      "n_query_terms": 6
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.6757,
+      "n_query_terms": 6
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8437,
+      "n_query_terms": 6
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.6641,
+      "n_query_terms": 9
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.5361,
+      "n_query_terms": 8
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.601,
+      "n_query_terms": 7
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.6665,
+      "n_query_terms": 9
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8228,
+      "n_query_terms": 5
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.814,
+      "n_query_terms": 5
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 5
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8226,
+      "n_query_terms": 5
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8185,
+      "n_query_terms": 5
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 5
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.7255,
+      "n_query_terms": 7
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.5202,
+      "n_query_terms": 8
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.2863,
+      "n_query_terms": 15
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.3127,
+      "n_query_terms": 19
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8512,
+      "n_query_terms": 6
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.5554,
+      "n_query_terms": 11
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8416,
+      "n_query_terms": 6
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 5
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.6802,
+      "n_query_terms": 9
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8588,
+      "n_query_terms": 7
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.427,
+      "n_query_terms": 19
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.7394,
+      "n_query_terms": 7
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.46,
+      "n_query_terms": 11
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.5926,
+      "n_query_terms": 12
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.2492,
+      "n_query_terms": 20
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.611,
+      "n_query_terms": 7
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 5
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 6
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 5
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8701,
+      "n_query_terms": 7
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.5083,
+      "n_query_terms": 10
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 5
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.3298,
+      "n_query_terms": 15
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8352,
+      "n_query_terms": 6
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.5752,
+      "n_query_terms": 9
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.5532,
+      "n_query_terms": 11
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.7226,
+      "n_query_terms": 7
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.2909,
+      "n_query_terms": 17
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.4717,
+      "n_query_terms": 9
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 5
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.4889,
+      "n_query_terms": 14
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.5866,
+      "n_query_terms": 7
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8282,
+      "n_query_terms": 5
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8462,
+      "n_query_terms": 6
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.815,
+      "n_query_terms": 5
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8095,
+      "n_query_terms": 5
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.7575,
+      "n_query_terms": 8
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.5262,
+      "n_query_terms": 8
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.4668,
+      "n_query_terms": 17
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.3882,
+      "n_query_terms": 16
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8219,
+      "n_query_terms": 5
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.7213,
+      "n_query_terms": 11
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8153,
+      "n_query_terms": 5
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8449,
+      "n_query_terms": 6
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.4761,
+      "n_query_terms": 13
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.3847,
+      "n_query_terms": 18
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.6747,
+      "n_query_terms": 9
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.5694,
+      "n_query_terms": 9
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.6763,
+      "n_query_terms": 9
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 5
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.6841,
+      "n_query_terms": 6
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.7246,
+      "n_query_terms": 7
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8143,
+      "n_query_terms": 5
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.5933,
+      "n_query_terms": 7
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.644,
+      "n_query_terms": 8
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8471,
+      "n_query_terms": 6
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.5739,
+      "n_query_terms": 14
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.6519,
+      "n_query_terms": 8
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.5382,
+      "n_query_terms": 13
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.5617,
+      "n_query_terms": 9
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.5261,
+      "n_query_terms": 19
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.7589,
+      "n_query_terms": 8
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8142,
+      "n_query_terms": 5
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 5
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.6908,
+      "n_query_terms": 9
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.5253,
+      "n_query_terms": 8
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8442,
+      "n_query_terms": 6
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.6977,
+      "n_query_terms": 6
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 5
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.3997,
+      "n_query_terms": 13
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.7735,
+      "n_query_terms": 8
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.5308,
+      "n_query_terms": 10
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8337,
+      "n_query_terms": 6
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.5999,
+      "n_query_terms": 7
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.5884,
+      "n_query_terms": 12
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 5
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.7566,
+      "n_query_terms": 8
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8057,
+      "n_query_terms": 5
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 5
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.5049,
+      "n_query_terms": 10
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8203,
+      "n_query_terms": 5
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 6
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 5
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 6
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.723,
+      "n_query_terms": 7
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.5645,
+      "n_query_terms": 9
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.5743,
+      "n_query_terms": 7
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.6782,
+      "n_query_terms": 12
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 5
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8567,
+      "n_query_terms": 7
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.5249,
+      "n_query_terms": 10
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.539,
+      "n_query_terms": 13
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.4537,
+      "n_query_terms": 11
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.4287,
+      "n_query_terms": 10
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.7365,
+      "n_query_terms": 7
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.5419,
+      "n_query_terms": 11
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.842,
+      "n_query_terms": 6
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.6874,
+      "n_query_terms": 6
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 5
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.6464,
+      "n_query_terms": 8
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.6077,
+      "n_query_terms": 7
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.6102,
+      "n_query_terms": 7
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.6698,
+      "n_query_terms": 9
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.6917,
+      "n_query_terms": 6
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.4326,
+      "n_query_terms": 14
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.3862,
+      "n_query_terms": 20
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.6585,
+      "n_query_terms": 8
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.4667,
+      "n_query_terms": 11
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8508,
+      "n_query_terms": 6
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.6862,
+      "n_query_terms": 9
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.5919,
+      "n_query_terms": 7
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8344,
+      "n_query_terms": 6
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.5069,
+      "n_query_terms": 12
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.4846,
+      "n_query_terms": 9
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8723,
+      "n_query_terms": 7
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.842,
+      "n_query_terms": 6
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.4239,
+      "n_query_terms": 10
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8197,
+      "n_query_terms": 5
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8541,
+      "n_query_terms": 6
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.5235,
+      "n_query_terms": 8
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8246,
+      "n_query_terms": 5
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 5
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8516,
+      "n_query_terms": 6
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.5959,
+      "n_query_terms": 7
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.3842,
+      "n_query_terms": 11
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 5
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8126,
+      "n_query_terms": 5
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8508,
+      "n_query_terms": 6
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.6787,
+      "n_query_terms": 9
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.5861,
+      "n_query_terms": 9
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.5301,
+      "n_query_terms": 8
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8466,
+      "n_query_terms": 6
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8458,
+      "n_query_terms": 6
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.6928,
+      "n_query_terms": 6
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.5577,
+      "n_query_terms": 11
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 7
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.5621,
+      "n_query_terms": 9
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.6816,
+      "n_query_terms": 6
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.7659,
+      "n_query_terms": 9
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8402,
+      "n_query_terms": 6
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.468,
+      "n_query_terms": 9
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.6481,
+      "n_query_terms": 8
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.6184,
+      "n_query_terms": 10
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 6
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8506,
+      "n_query_terms": 6
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 5
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 5
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 5
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 5
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 5
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 5
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 5
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.726,
+      "n_query_terms": 7
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 5
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.7425,
+      "n_query_terms": 7
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 5
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 6
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8783,
+      "n_query_terms": 7
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8065,
+      "n_query_terms": 5
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 6
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8382,
+      "n_query_terms": 6
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.527,
+      "n_query_terms": 15
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.6619,
+      "n_query_terms": 9
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 5
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8411,
+      "n_query_terms": 13
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8322,
+      "n_query_terms": 6
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 5
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 7
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.6955,
+      "n_query_terms": 6
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8327,
+      "n_query_terms": 6
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 6
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8351,
+      "n_query_terms": 6
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.5101,
+      "n_query_terms": 8
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 10
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.756,
+      "n_query_terms": 8
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 5
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 5
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 7
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 5
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8231,
+      "n_query_terms": 5
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.4728,
+      "n_query_terms": 11
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.6066,
+      "n_query_terms": 7
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 7
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 5
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 5
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.7786,
+      "n_query_terms": 9
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 6
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8458,
+      "n_query_terms": 6
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8139,
+      "n_query_terms": 5
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 0.8846,
+      "n_query_terms": 8
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 4
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 8
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "full",
+      "n_sparse": 4,
+      "coverage": 1.0,
+      "n_query_terms": 6
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 2,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 2
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    },
+    {
+      "route": "partial",
+      "n_sparse": 3,
+      "coverage": 1.0,
+      "n_query_terms": 3
+    },
+    {
+      "route": "dense",
+      "n_sparse": 0,
+      "coverage": 0.0,
+      "n_query_terms": 0
+    },
+    {
+      "route": "partial",
+      "n_sparse": 1,
+      "coverage": 1.0,
+      "n_query_terms": 1
+    }
+  ]
+}
