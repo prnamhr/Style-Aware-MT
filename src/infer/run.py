@@ -1,22 +1,6 @@
 """
 Test-set inference, provider-agnostic across the configured generator.
 
-The condition is one rung of an ablation ladder, each adding one component over
-the one before it so any register shift is attributable to that component:
-
-    zeroshot        instruction only, no exemplars
-    random_fewshot  k random exemplars (isolates "having examples at all")
-    knn_fewshot     k cosine top-k exemplars (isolates relevance-based retrieval)
-    afsp_margin     + margin/hub-penalised selection, no register rerank (lambda=0)
-    afsp_full       + target-register rerank (lambda>0) -- the full AFSP method
-
-Three further rungs load the trained LoRA adapter: `peft` on the zero-shot prompt,
-and `peft_knn` / `peft_afsp` stacking retrieval on top of it. `peft_knn` is the
-control that separates "exemplars at all" from AFSP's selection.
-
-The register glossary is a controlled prompt augmentation (see the `prompt:`
-config block), applied uniformly to every few-shot rung, not an AFSP-only rider.
-
 Usage:
     python -m src.infer.run --condition zeroshot    --config configs/openai_smoke.yaml
     python -m src.infer.run --condition knn_fewshot  --config configs/openai_smoke.yaml
@@ -27,6 +11,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import random
@@ -41,7 +26,9 @@ from src.infer.gemini_client import GeminiChatClient
 from src.infer.local_client import LocalChatClient
 from src.infer.openai_client import ChatClient
 from src.retrieval.afsp import AFSPRetriever, load_centroid
+from src.retrieval.rarity import load_irregular
 from src.retrieval.retrieve import RetrievalIndex
+from src.retrieval.sparse import SparseRetriever
 
 # Demonstration ordering is a controlled experimental flag. Exemplars reach
 ORDERINGS = ("most_similar_last", "most_similar_first", "random")
@@ -56,6 +43,7 @@ CONDITIONS = (
     "peft",
     "peft_knn",
     "peft_afsp",
+    "sparse_knn",
 )
 
 # Generated with the LoRA adapter loaded; every other rung runs the frozen base.
@@ -68,6 +56,7 @@ RETRIEVAL_CONDITIONS = (
     "afsp_full",
     "peft_knn",
     "peft_afsp",
+    "sparse_knn",
 )
 RERANK_CONDITIONS = ("afsp_full", "peft_afsp")
 
@@ -221,6 +210,25 @@ def _select_afsp(sources, cfg, retr, index, k, *, rerank):
     return retriever.select(sources, k=k)
 
 
+def _select_sparse_knn(sources, cfg, index, k):
+    """Rarity-coverage exemplars for up to ``m`` slots, cosine top-k for the rest."""
+    spa, rar = cfg.get("sparse", {}), cfg.get("rarity", {})
+    retriever = SparseRetriever(
+        index,
+        load_irregular(rar.get("out", "results/rarity_train.json")),
+        index,
+        zwnj=rar.get("zwnj", "keep"),
+        m=spa.get("m", 4),
+        redundancy=spa.get("redundancy", 0.3),
+        min_query_terms=spa.get("min_query_terms", 1),
+    )
+    selected, traces = retriever.select_with_trace(sources, k=k)
+    routes = {r: sum(t["route"] == r for t in traces) for r in ("sparse", "hybrid", "dense")}
+    n_sparse = [t["n_sparse"] for t in traces]
+    print(f"  routes: {routes}, mean rarity slots filled: {sum(n_sparse) / len(n_sparse):.2f}")
+    return selected
+
+
 def _load_configured_glossary(cfg: dict) -> list[tuple[str, str]]:
     """Load the register glossary as a controlled prompt augmentation.
 
@@ -234,6 +242,11 @@ def _load_configured_glossary(cfg: dict) -> list[tuple[str, str]]:
     if not prompt_cfg.get("word_pairs", af.get("word_pairs", False)):
         return []
     return load_glossary(prompt_cfg.get("glossary_file", af.get("glossary_file")))
+
+
+def _sha256(path: str | Path) -> str:
+    """Digest of a generation-time input file, so the sidecar pins the exact list used."""
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
 def _provenance(condition: str, cfg: dict) -> dict:
@@ -258,6 +271,16 @@ def _provenance(condition: str, cfg: dict) -> dict:
                     "path": af["centroid_file"],
                     "fingerprint": fingerprint(load_centroid(af["centroid_file"])),
                 }
+        if condition == "sparse_knn":
+            spa, rar = cfg.get("sparse", {}), cfg.get("rarity", {})
+            rarity_file = rar.get("out", "results/rarity_train.json")
+            prov["m"] = spa.get("m", 4)
+            prov["min_query_terms"] = spa.get("min_query_terms", 1)
+            prov["redundancy"] = spa.get("redundancy", 0.3)
+            prov["df_min"] = rar.get("df_min", 2)
+            prov["df_max"] = rar.get("df_max", 20)
+            prov["rarity_file"] = rarity_file
+            prov["rarity_sha256"] = _sha256(rarity_file)
     return prov
 
 
@@ -311,6 +334,10 @@ def run(condition: str, cfg: dict, out_name: str | None = None) -> None:
         elif condition in ("knn_fewshot", "peft_knn"):
             print(f"Retrieving k={k} exemplars for {len(sources)} sources ({ordering}) ...")
             selected = index.retrieve(sources, k=k)
+        elif condition == "sparse_knn":
+            m = cfg.get("sparse", {}).get("m", 4)
+            print(f"{condition}: k={k} as {m} rarity + {k - m} cosine for {len(sources)} ...")
+            selected = _select_sparse_knn(sources, cfg, index, k)
         else:  # afsp_margin | afsp_full | peft_afsp
             rerank = condition in RERANK_CONDITIONS
             print(f"{condition}: selecting k={k} for {len(sources)} sources ({ordering}) ...")

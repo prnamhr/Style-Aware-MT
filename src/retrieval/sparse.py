@@ -15,7 +15,6 @@ import numpy as np
 import scipy.sparse as sp
 import yaml
 
-from src.retrieval.afsp import AFSPRetriever, load_centroid
 from src.retrieval.rarity import load_irregular, tokenize
 from src.retrieval.retrieve import RetrievalIndex
 
@@ -43,12 +42,14 @@ class SparseRetriever:
         fallback,
         *,
         zwnj: str = "keep",
+        m: int = 4,
         redundancy: float = 0.3,
         min_query_terms: int = 4,
     ):
         self.index = index
         self.fallback = fallback
         self.zwnj = zwnj
+        self.m = int(m)
         self.redundancy = float(redundancy)
         self.min_query_terms = int(min_query_terms)
 
@@ -88,6 +89,8 @@ class SparseRetriever:
         weight = np.zeros(len(self.terms))
         weight[cols] = self.idf[cols]
         total = float(weight.sum())
+        if total <= 0:
+            return [], 0.0
 
         chosen: list[int] = []
         penalty = np.zeros(cands.size)
@@ -95,7 +98,8 @@ class SparseRetriever:
         covered = 0.0
         while len(chosen) < k and alive.any():
             cov = sub @ weight
-            gain = cov - self.redundancy * penalty
+            # Coverage is normalised so the redundancy penalty sits on the same [0, 1] scale.
+            gain = cov / total - self.redundancy * penalty
             gain[~alive] = -np.inf
             best = int(np.argmax(gain))
             # A candidate covering nothing new adds no rarity, only redundancy.
@@ -108,13 +112,13 @@ class SparseRetriever:
             chosen.append(row)
             # Full-pool dot then gather: cheaper than re-materialising E[cands] each round.
             penalty = np.maximum(penalty, (emb @ emb[row])[cands])
-        return chosen, covered / total if total else 0.0
+        return chosen, covered / total
 
     def select_with_trace(self, queries: list[str], k: int) -> tuple[list[list[dict]], list[dict]]:
         """Exemplars per query, with the routing and coverage record behind each."""
         cols_per_query = [self.query_terms(q) for q in queries]
         greedy = [
-            ([], 0.0) if len(c) < self.min_query_terms else self._greedy(c, k)
+            ([], 0.0) if len(c) < self.min_query_terms else self._greedy(c, min(self.m, k))
             for c in cols_per_query
         ]
 
@@ -189,6 +193,7 @@ def main() -> None:
     parser.add_argument("--index_dir", default=None)
     parser.add_argument("--rarity", default=None)
     parser.add_argument("--k", type=int, default=None)
+    parser.add_argument("--m", type=int, default=None, help="sparse slots; the rest fill by cosine")
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--redundancy", type=float, default=None)
     parser.add_argument("--min_query_terms", type=int, default=None)
@@ -197,9 +202,10 @@ def main() -> None:
     args = parser.parse_args()
 
     cfg = yaml.safe_load(Path(args.config).read_text(encoding="utf-8"))
-    retr, af, spa, rar = cfg["retrieval"], cfg["afsp"], cfg["sparse"], cfg["rarity"]
+    retr, spa, rar = cfg["retrieval"], cfg["sparse"], cfg["rarity"]
     index_dir = args.index_dir or retr["index_dir"]
     k = args.k or retr["k"]
+    m = args.m or spa.get("m", 4)
     redundancy = args.redundancy if args.redundancy is not None else spa.get("redundancy", 0.3)
     min_terms = args.min_query_terms or spa.get("min_query_terms", 4)
 
@@ -209,28 +215,17 @@ def main() -> None:
 
     index = RetrievalIndex(index_dir, embed_model=retr["embed_model"])
     irregular = load_irregular(args.rarity or rar.get("out", "results/rarity_train.json"))
-    dense = AFSPRetriever(
-        index,
-        load_centroid(af["centroid_file"]),
-        index_dir=index_dir,
-        beta=af.get("beta", 0.3),
-        knn_hubness=af.get("knn_hubness", 5),
-        pool_mult=af.get("pool_mult", 4),
-        lambda_style=af.get("lambda_style", 0.3),
-        style_objective=af.get("style_objective", "bandpass"),
-        style_target_sigma=af.get("style_target_sigma", 1.0),
-        style_register_direction=af.get("style_register_direction"),
-    )
     retriever = SparseRetriever(
         index,
         irregular,
-        dense,
+        index,  # the same cosine index fills whatever the rarity channel leaves
         zwnj=rar.get("zwnj", "keep"),
+        m=m,
         redundancy=redundancy,
         min_query_terms=min_terms,
     )
 
-    print(f"Selecting k={k} for {len(sources)} {args.split} sources over {index_dir} ...")
+    print(f"Selecting k={k} (m={m} sparse) for {len(sources)} {args.split} sources ...")
     selected, traces = retriever.select_with_trace(sources, k)
     print("Dense-only baseline for the redundancy comparison ...")
     baseline = index.retrieve(sources, k=k)
@@ -246,6 +241,7 @@ def main() -> None:
             "split": args.split,
             "index_dir": index_dir,
             "k": k,
+            "m": m,
             "redundancy": redundancy,
             "min_query_terms": min_terms,
             "n_irregular": len(irregular),

@@ -5,29 +5,15 @@ retrieval:
   train_file: data/splits/train.jsonl
   k: 8
 
-# Dense fallback when a query carries too few irregular terms.
-afsp:
-  beta: 0.3
-  knn_hubness: 5
-  pool_mult: 4
-  lambda_style: 0.75
-  style_objective: bandpass
-  style_target_sigma: 1.0
-  style_register_direction:
-    marker_rate: 0.514
-    lex_density: 0.355
-    root_ttr: -0.296
-    ttr: 0.098
-  centroid_file: results/stylometrics_centroid.json
-
 rarity:
-  top_frac: 0.2
-  min_df: 1                 # raise to 2+ to exclude the hapax tie block
+  df_min: 2                 # df==1 is one-off noise, not vocabulary
+  df_max: 20                # above this cosine retrieval already returns the term
   zwnj: keep
   out: results/rarity_train.json
 
 sparse:
-  min_query_terms: 4        # below this the query routes to the dense fallback
+  m: 4                      # rarity slots; the remaining k-m are cosine top-k
+  min_query_terms: 1        # below this the query routes entirely to cosine
   redundancy: 0.3           # penalty on similarity to already-selected exemplars
 
 leakage:

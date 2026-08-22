@@ -1,5 +1,5 @@
 """
-Tests for the irregular-term list: tokenization, the rarity cut, and its tie-break.
+Tests for the irregular-term list: tokenization and the document-frequency band.
 """
 
 from __future__ import annotations
@@ -37,43 +37,47 @@ def test_unknown_zwnj_mode_rejected():
         tokenize("کتاب", "fold")
 
 
-def test_rarity_cut_takes_the_rarest_terms():
-    # "کتاب" appears in every document; the others appear once each.
-    docs = [f"کتاب واژه{i}" for i in range(10)]
-    picked = irregular_terms(term_stats(docs), top_frac=0.5)
-
-    assert "کتاب" not in picked
-    assert set(picked) == {f"واژه{i}" for i in range(10)}
-
-
-def test_cut_extends_to_the_tie_boundary_rather_than_slicing_it():
-    """Half this vocabulary is hapax, so a rank cut inside the tie block would
-    return an alphabetical prefix rather than a rarity list."""
-    docs = [f"کتاب واژه{i}" for i in range(10)]
-    picked = irregular_terms(term_stats(docs), top_frac=0.1)
-
-    # 10% of 11 terms is one term, but all ten hapax terms share that IDF.
-    assert len(picked) == 10
-    assert len(set(picked.values())) == 1
+def _banded_docs() -> list[str]:
+    """25 documents placing one term at each of df 1, 2, 20, 21, and one at df 25."""
+    docs = []
+    for i in range(25):
+        toks = ["کتاب"]
+        toks += ["یک"] * (i < 1)
+        toks += ["دو"] * (i < 2)
+        toks += ["بیست"] * (i < 20)
+        toks += ["بیستویک"] * (i < 21)
+        docs.append(" ".join(toks))
+    return docs
 
 
-def test_min_df_excludes_the_hapax_tie_block():
-    docs = ["کتاب الف", "کتاب الف", "کتاب واژه"]
-    stats = term_stats(docs)
-    assert "واژه" in irregular_terms(stats, top_frac=1.0, min_df=1)
-    assert "واژه" not in irregular_terms(stats, top_frac=1.0, min_df=2)
+def test_band_excludes_both_edges():
+    picked = irregular_terms(term_stats(_banded_docs()), df_min=2, df_max=20)
+
+    assert set(picked) == {"دو", "بیست"}
 
 
-def test_tie_break_is_deterministic_under_document_shuffling():
-    """Most of the rarest 20% sits in one df==1 block, so the cut must not depend
-    on the order sklearn happened to see the documents in."""
-    docs = [f"کتاب واژه{i} نام{i}" for i in range(40)]
+def test_band_edges_are_inclusive():
+    stats = term_stats(_banded_docs())
+
+    assert set(irregular_terms(stats, df_min=1, df_max=1)) == {"یک"}
+    assert "بیستویک" in irregular_terms(stats, df_min=2, df_max=21)
+
+
+def test_inverted_band_rejected():
+    with pytest.raises(ValueError, match="df_min <= df_max"):
+        irregular_terms(term_stats(["کتاب الف"]), df_min=5, df_max=2)
+
+
+def test_selection_is_deterministic_under_document_shuffling():
+    """Terms inside the band tie in IDF at each df, so the written order must not
+    depend on the order sklearn happened to see the documents in."""
+    docs = [f"کتاب واژه{i} نام{i % 4}" for i in range(40)]
     shuffled = list(docs)
     random.Random(0).shuffle(shuffled)
 
-    a = irregular_terms(term_stats(docs), top_frac=0.2)
-    b = irregular_terms(term_stats(shuffled), top_frac=0.2)
-    assert list(a) == list(b)
+    a = irregular_terms(term_stats(docs), df_min=2, df_max=20)
+    b = irregular_terms(term_stats(shuffled), df_min=2, df_max=20)
+    assert list(a) == list(b) and a
 
 
 def test_df_histogram_buckets_cover_every_term():

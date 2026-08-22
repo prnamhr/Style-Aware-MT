@@ -90,3 +90,26 @@ def test_query_with_no_pool_match_routes_dense():
 
     assert traces[0]["route"] == "dense"
     assert traces[0]["n_query_terms"] == 3
+
+
+def test_sparse_slots_are_capped_at_m():
+    sources = ["الف", "ب", "ج", "د", "ه"]
+    retriever, _, _ = _build(
+        sources, np.eye(5), fallback_rows=(0, 1, 2, 3, 4), m=2, min_query_terms=1, redundancy=0.0
+    )
+    selected, traces = retriever.select_with_trace(["الف ب ج د ه"], k=4)
+
+    assert traces[0]["n_sparse"] == 2
+    assert traces[0]["route"] == "hybrid"
+    assert len(selected[0]) == 4  # the remaining k-m slots come from cosine top-k
+
+
+def test_query_with_no_irregular_terms_gets_k_cosine_exemplars():
+    retriever, _, _ = _build(
+        ["الف", "ب", "ج"], np.eye(3), fallback_rows=(0, 1, 2), m=4, min_query_terms=1
+    )
+    selected, traces = retriever.select_with_trace(["واژه دیگر"], k=3)
+
+    assert traces[0]["n_query_terms"] == 0
+    assert traces[0]["route"] == "dense"
+    assert len(selected[0]) == 3

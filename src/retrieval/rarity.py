@@ -71,18 +71,18 @@ def term_stats(sources: list[str], zwnj: str = "keep") -> TermStats:
     )
 
 
-def irregular_terms(stats: TermStats, top_frac: float = 0.2, min_df: int = 1) -> dict[str, float]:
-    if not 0 < top_frac <= 1:
-        raise ValueError(f"top_frac must lie in (0, 1], got {top_frac}")
-    keep = np.flatnonzero(stats.df >= min_df)
+def irregular_terms(stats: TermStats, df_min: int = 2, df_max: int = 20) -> dict[str, float]:
+    """Terms whose pool document frequency lies in the closed band.
+    """
+    if df_min < 1 or df_max < df_min:
+        raise ValueError(f"need 1 <= df_min <= df_max, got df_min={df_min}, df_max={df_max}")
+    keep = np.flatnonzero((stats.df >= df_min) & (stats.df <= df_max))
     order = sorted(keep, key=lambda i: (-stats.idf[i], stats.terms[i]))
-    n = max(1, round(top_frac * len(order)))
-    cutoff = stats.idf[order[n - 1]]
-    return {str(stats.terms[i]): float(stats.idf[i]) for i in order if stats.idf[i] >= cutoff}
+    return {str(stats.terms[i]): float(stats.idf[i]) for i in order}
 
 
 def df_histogram(df: np.ndarray) -> dict[str, int]:
-    """Bucketed document-frequency counts, for reading the shape of the tie block."""
+    """Bucketed document-frequency counts, for reading where the selected band falls."""
     buckets = {"1": 0, "2": 0, "3": 0, "4-9": 0, "10-99": 0, "100+": 0}
     for v in df:
         if v <= 3:
@@ -152,8 +152,8 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Build the irregular-term list by pool IDF.")
     parser.add_argument("--config", default="configs/sparse_retrieval.yaml")
     parser.add_argument("--train_file", default=None)
-    parser.add_argument("--top_frac", type=float, default=None)
-    parser.add_argument("--min_df", type=int, default=None)
+    parser.add_argument("--df_min", type=int, default=None)
+    parser.add_argument("--df_max", type=int, default=None)
     parser.add_argument("--zwnj", choices=ZWNJ_MODES, default=None)
     parser.add_argument("--out", default=None)
     parser.add_argument("--top", type=int, default=50, help="rows written to the review TSV")
@@ -162,35 +162,32 @@ def main() -> None:
     cfg = yaml.safe_load(Path(args.config).read_text(encoding="utf-8"))
     rar = cfg.get("rarity", {})
     train_file = Path(args.train_file or cfg["retrieval"]["train_file"])
-    top_frac = args.top_frac if args.top_frac is not None else rar.get("top_frac", 0.2)
-    min_df = args.min_df if args.min_df is not None else rar.get("min_df", 1)
+    df_min = args.df_min if args.df_min is not None else rar.get("df_min", 2)
+    df_max = args.df_max if args.df_max is not None else rar.get("df_max", 20)
     zwnj = args.zwnj or rar.get("zwnj", "keep")
     out_path = Path(args.out or rar.get("out", "results/rarity_train.json"))
 
     sources = _read_sources(train_file)
     print(f"Computing IDF over {len(sources)} pool sources (zwnj={zwnj}) ...")
     stats = term_stats(sources, zwnj=zwnj)
-    irregular = irregular_terms(stats, top_frac=top_frac, min_df=min_df)
+    irregular = irregular_terms(stats, df_min=df_min, df_max=df_max)
 
     index_of = {t: i for i, t in enumerate(stats.terms)}
     df_of = {t: int(stats.df[index_of[t]]) for t in irregular}
     sel_df = np.array(list(df_of.values()))
-    n_eligible = int((stats.df >= min_df).sum())
     payload = {
         "config": {
             "train_file": str(train_file),
-            "top_frac": top_frac,
-            "min_df": min_df,
+            "df_min": df_min,
+            "df_max": df_max,
             "zwnj": zwnj,
         },
         "n_docs": stats.n_docs,
         "n_terms": int(len(stats.terms)),
-        "n_eligible": n_eligible,
         "n_irregular": len(irregular),
-        "realized_frac": round(len(irregular) / n_eligible, 4),
-        "cutoff_idf": min(irregular.values()),
-        "cutoff_df": int(sel_df.max()),
-        "hapax_fraction": float((sel_df == 1).mean()),
+        "selected_frac": round(len(irregular) / len(stats.terms), 4),
+        "df_observed": [int(sel_df.min()), int(sel_df.max())] if sel_df.size else None,
+        "idf_range": [min(irregular.values()), max(irregular.values())] if irregular else None,
         "df_histogram": {"pool": df_histogram(stats.df), "irregular": df_histogram(sel_df)},
         "zwnj_collisions": zwnj_collisions(stats.terms),
         "terms": [[t, idf, df_of[t]] for t, idf in irregular.items()],
@@ -207,13 +204,9 @@ def main() -> None:
         ],
     )
 
-    realized = payload["realized_frac"]
-    print(f"  {len(stats.terms)} pool terms, {n_eligible} at df>={min_df} -> {len(irregular)}")
-    print(f"  requested top {top_frac:.0%}, realized {realized:.1%} (df <= {payload['cutoff_df']})")
-    if abs(realized - top_frac) > 0.25 * top_frac:
-        print("  NOTE: the rank cut fell inside an IDF tie block and extended to its edge.")
-        print("        Raise --min_df to move the cut off the hapax block.")
-    print(f"  hapax share {payload['hapax_fraction']:.1%}")
+    frac, observed = payload["selected_frac"], payload["df_observed"]
+    print(f"  {len(stats.terms)} pool terms -> {len(irregular)} in df band [{df_min}, {df_max}]")
+    print(f"  {frac:.1%} of the vocabulary, observed df {observed}")
     print(f"  df histogram (irregular): {payload['df_histogram']['irregular']}")
     collisions = payload["zwnj_collisions"]
     print(f"  ZWNJ variant collisions: {len(collisions)}", collisions[:3] or "")
