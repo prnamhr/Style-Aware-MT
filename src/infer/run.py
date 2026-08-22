@@ -28,7 +28,7 @@ from src.infer.openai_client import ChatClient
 from src.retrieval.afsp import AFSPRetriever, load_centroid
 from src.retrieval.rarity import load_irregular
 from src.retrieval.retrieve import RetrievalIndex
-from src.retrieval.sparse import SparseRetriever
+from src.retrieval.sparse import ROUTES, SparseRetriever
 
 # Demonstration ordering is a controlled experimental flag. Exemplars reach
 ORDERINGS = ("most_similar_last", "most_similar_first", "random")
@@ -223,7 +223,7 @@ def _select_sparse_knn(sources, cfg, index, k):
         min_query_terms=spa.get("min_query_terms", 1),
     )
     selected, traces = retriever.select_with_trace(sources, k=k)
-    routes = {r: sum(t["route"] == r for t in traces) for r in ("sparse", "hybrid", "dense")}
+    routes = {r: sum(t["route"] == r for t in traces) for r in ROUTES}
     n_sparse = [t["n_sparse"] for t in traces]
     print(f"  routes: {routes}, mean rarity slots filled: {sum(n_sparse) / len(n_sparse):.2f}")
     return selected
@@ -336,7 +336,7 @@ def run(condition: str, cfg: dict, out_name: str | None = None) -> None:
             selected = index.retrieve(sources, k=k)
         elif condition == "sparse_knn":
             m = cfg.get("sparse", {}).get("m", 4)
-            print(f"{condition}: k={k} as {m} rarity + {k - m} cosine for {len(sources)} ...")
+            print(f"{condition}: k={k} as up to {m} rarity + cosine for {len(sources)} ...")
             selected = _select_sparse_knn(sources, cfg, index, k)
         else:  # afsp_margin | afsp_full | peft_afsp
             rerank = condition in RERANK_CONDITIONS

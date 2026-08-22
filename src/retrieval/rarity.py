@@ -72,8 +72,7 @@ def term_stats(sources: list[str], zwnj: str = "keep") -> TermStats:
 
 
 def irregular_terms(stats: TermStats, df_min: int = 2, df_max: int = 20) -> dict[str, float]:
-    """Terms whose pool document frequency lies in the closed band.
-    """
+    """Terms whose pool document frequency lies in the closed band."""
     if df_min < 1 or df_max < df_min:
         raise ValueError(f"need 1 <= df_min <= df_max, got df_min={df_min}, df_max={df_max}")
     keep = np.flatnonzero((stats.df >= df_min) & (stats.df <= df_max))

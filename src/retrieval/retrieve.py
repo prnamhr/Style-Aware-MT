@@ -27,10 +27,13 @@ class RetrievalIndex:
             self._model = load_model(self.embed_model_name)
         return self._model
 
+    def encode(self, queries: list[str]) -> np.ndarray:
+        """L2-normalized query embeddings, for callers that score against the index themselves."""
+        return embed_queries(self._model_lazy(), queries).astype(np.float32)
+
     def retrieve(self, queries: list[str], k: int) -> list[list[dict]]:
         """Return, per query, the top-k exemplar pairs ordered most-similar first."""
-        q = embed_queries(self._model_lazy(), queries).astype(np.float32)
         # Embeddings are L2-normalized, so the dot product is cosine similarity.
-        sims = q @ self.embeddings.T  # [Q, N]
+        sims = self.encode(queries) @ self.embeddings.T  # [Q, N]
         top = np.argsort(-sims, axis=1)[:, :k]
         return [[self.pairs[i] for i in row] for row in top]

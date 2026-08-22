@@ -12,9 +12,18 @@ IRREGULAR = {t: 3.0 for t in ("الف", "ب", "ج", "د", "ه")}
 
 
 class _Index:
-    def __init__(self, sources: list[str], embeddings):
+    def __init__(self, sources: list[str], embeddings, query_embedding=None):
         self.pairs = [{"input": s, "output": f"en:{s}"} for s in sources]
         self.embeddings = np.asarray(embeddings, dtype=np.float32)
+        # Zeros leave the final cosine sort a stable no-op, so a test opts in to reordering.
+        self.query = (
+            np.zeros(self.embeddings.shape[1])
+            if query_embedding is None
+            else np.asarray(query_embedding, dtype=np.float32)
+        )
+
+    def encode(self, queries):
+        return np.tile(self.query, (len(queries), 1))
 
 
 class _Fallback:
@@ -29,8 +38,8 @@ class _Fallback:
         return [self.pairs[:k] for _ in queries]
 
 
-def _build(sources, embeddings, fallback_rows=(), **kw):
-    index = _Index(sources, embeddings)
+def _build(sources, embeddings, fallback_rows=(), query_embedding=None, **kw):
+    index = _Index(sources, embeddings, query_embedding)
     fallback = _Fallback([index.pairs[r] for r in fallback_rows])
     return SparseRetriever(index, IRREGULAR, fallback, **kw), index, fallback
 
@@ -53,7 +62,7 @@ def test_greedy_prefers_the_candidate_covering_most_rarity():
     selected, traces = retriever.select_with_trace(["الف ب ج د"], k=2)
 
     assert [p["input"] for p in selected[0]] == ["الف ب", "ج د"]
-    assert traces[0]["route"] == "sparse"
+    assert traces[0]["route"] == "full"
     assert traces[0]["coverage"] == 1.0
 
 
@@ -66,8 +75,8 @@ def test_redundancy_penalty_breaks_a_coverage_tie_toward_the_dissimilar_candidat
     flat, _, _ = _build(sources, embeddings, min_query_terms=4, redundancy=0.0)
     penalised, _, _ = _build(sources, embeddings, min_query_terms=4, redundancy=0.3)
 
-    assert flat.select_with_trace(query, k=2)[1][0]["rows"] == [0, 1]
-    assert penalised.select_with_trace(query, k=2)[1][0]["rows"] == [0, 2]
+    assert flat.select_with_trace(query, k=2)[1][0]["sparse_rows"] == [0, 1]
+    assert penalised.select_with_trace(query, k=2)[1][0]["sparse_rows"] == [0, 2]
 
 
 def test_short_coverage_fills_from_the_fallback_without_repeating():
@@ -78,7 +87,7 @@ def test_short_coverage_fills_from_the_fallback_without_repeating():
     selected, traces = retriever.select_with_trace(["الف ب ج د"], k=3)
 
     inputs = [p["input"] for p in selected[0]]
-    assert traces[0]["route"] == "hybrid"
+    assert traces[0]["route"] == "partial"
     assert traces[0]["n_sparse"] == 2
     assert len(inputs) == len(set(inputs)) == 3
     assert inputs[2] == "ه"  # row 0 was already selected, so the fill skips it
@@ -100,7 +109,7 @@ def test_sparse_slots_are_capped_at_m():
     selected, traces = retriever.select_with_trace(["الف ب ج د ه"], k=4)
 
     assert traces[0]["n_sparse"] == 2
-    assert traces[0]["route"] == "hybrid"
+    assert traces[0]["route"] == "full"
     assert len(selected[0]) == 4  # the remaining k-m slots come from cosine top-k
 
 
@@ -113,3 +122,23 @@ def test_query_with_no_irregular_terms_gets_k_cosine_exemplars():
     assert traces[0]["n_query_terms"] == 0
     assert traces[0]["route"] == "dense"
     assert len(selected[0]) == 3
+
+
+def test_final_order_is_cosine_ranked_across_both_channels():
+    # Row 2 carries no rare term but is nearest the query, so the fill outranks the rarity pick.
+    sources = ["الف", "ب", "ج د"]
+    embeddings = [[0.6, 0.8], [0.0, 1.0], [1.0, 0.0]]
+    retriever, _, _ = _build(
+        sources,
+        embeddings,
+        fallback_rows=(2, 0, 1),
+        query_embedding=[1.0, 0.0],
+        m=2,
+        min_query_terms=1,
+        redundancy=0.0,
+    )
+    selected, traces = retriever.select_with_trace(["الف ب"], k=3)
+
+    assert traces[0]["n_sparse"] == 2
+    assert traces[0]["final_rows"] == [2, 0, 1]
+    assert [p["input"] for p in selected[0]] == ["ج د", "الف", "ب"]

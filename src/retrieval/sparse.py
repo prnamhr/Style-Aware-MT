@@ -18,7 +18,8 @@ import yaml
 from src.retrieval.rarity import load_irregular, tokenize
 from src.retrieval.retrieve import RetrievalIndex
 
-ROUTES = ("sparse", "hybrid", "dense")
+# Rarity slots filled, against the m the query was eligible for.
+ROUTES = ("full", "partial", "dense")
 
 
 def _pair_key(pair: dict) -> tuple[str, str]:
@@ -44,7 +45,7 @@ class SparseRetriever:
         zwnj: str = "keep",
         m: int = 4,
         redundancy: float = 0.3,
-        min_query_terms: int = 4,
+        min_query_terms: int = 1,
     ):
         self.index = index
         self.fallback = fallback
@@ -58,7 +59,9 @@ class SparseRetriever:
         self.idf = np.array([irregular[t] for t in self.terms], dtype=np.float64)
 
         rows, cols = [], []
+        self._row_of: dict[tuple[str, str], int] = {}
         for r, pair in enumerate(index.pairs):
+            self._row_of.setdefault(_pair_key(pair), r)
             hits = {self._col[t] for t in tokenize(pair["input"], self.zwnj) if t in self._col}
             rows.extend([r] * len(hits))
             cols.extend(hits)
@@ -116,9 +119,10 @@ class SparseRetriever:
 
     def select_with_trace(self, queries: list[str], k: int) -> tuple[list[list[dict]], list[dict]]:
         """Exemplars per query, with the routing and coverage record behind each."""
+        slots = min(self.m, k)
         cols_per_query = [self.query_terms(q) for q in queries]
         greedy = [
-            ([], 0.0) if len(c) < self.min_query_terms else self._greedy(c, min(self.m, k))
+            ([], 0.0) if len(c) < self.min_query_terms else self._greedy(c, slots)
             for c in cols_per_query
         ]
 
@@ -129,24 +133,29 @@ class SparseRetriever:
             got = _fallback_select(self.fallback, [queries[i] for i in needs_fallback], 2 * k)
             filler = dict(zip(needs_fallback, got))
 
+        qemb = self.index.encode(queries)
         selected, traces = [], []
         for i, (rows, coverage) in enumerate(greedy):
-            pairs = [self.index.pairs[r] for r in rows]
-            seen = {_pair_key(p) for p in pairs}
-            n_sparse = len(pairs)
+            picked = list(rows)
+            seen = {_pair_key(self.index.pairs[r]) for r in rows}
+            n_sparse = len(picked)
             for cand in filler.get(i, []):
-                if len(pairs) >= k:
+                if len(picked) >= k:
                     break
-                if _pair_key(cand) not in seen:
-                    seen.add(_pair_key(cand))
-                    pairs.append(cand)
+                key = _pair_key(cand)
+                if key not in seen:
+                    seen.add(key)
+                    picked.append(self._row_of[key])
+            # Both arms hand order_exemplars a cosine-ranked list, so only membership differs.
+            sims = self.index.embeddings[picked] @ qemb[i]
+            final = [picked[j] for j in np.argsort(-sims, kind="stable")]
             if n_sparse == 0:
                 route = "dense"
-            elif n_sparse < k:
-                route = "hybrid"
+            elif n_sparse >= slots:
+                route = "full"
             else:
-                route = "sparse"
-            selected.append(pairs)
+                route = "partial"
+            selected.append([self.index.pairs[r] for r in final])
             traces.append(
                 {
                     "route": route,
@@ -154,7 +163,8 @@ class SparseRetriever:
                     "n_sparse": n_sparse,
                     "coverage": round(coverage, 4),
                     "query_terms": [self.terms[c] for c in cols_per_query[i]],
-                    "rows": rows,
+                    "sparse_rows": rows,
+                    "final_rows": final,
                 }
             )
         return selected, traces
@@ -204,10 +214,12 @@ def main() -> None:
     cfg = yaml.safe_load(Path(args.config).read_text(encoding="utf-8"))
     retr, spa, rar = cfg["retrieval"], cfg["sparse"], cfg["rarity"]
     index_dir = args.index_dir or retr["index_dir"]
-    k = args.k or retr["k"]
-    m = args.m or spa.get("m", 4)
+    k = args.k if args.k is not None else retr["k"]
+    m = args.m if args.m is not None else spa.get("m", 4)
     redundancy = args.redundancy if args.redundancy is not None else spa.get("redundancy", 0.3)
-    min_terms = args.min_query_terms or spa.get("min_query_terms", 4)
+    min_terms = (
+        args.min_query_terms if args.min_query_terms is not None else spa.get("min_query_terms", 1)
+    )
 
     eval_file = Path(f"data/splits/{args.split}.jsonl")
     rows = _read_jsonl(eval_file, args.limit or cfg["data"].get("limit"))
@@ -235,6 +247,7 @@ def main() -> None:
     coverage = np.array([t["coverage"] for t in routed]) if routed else np.zeros(0)
 
     n_terms = np.array([t["n_query_terms"] for t in traces])
+    filled = np.array([t["n_sparse"] for t in traces])
     eligible = {str(thr): round(float((n_terms >= thr).mean()), 4) for thr in range(1, 7)}
     payload = {
         "config": {
@@ -253,6 +266,11 @@ def main() -> None:
             "mean": round(float(n_terms.mean()), 3),
             "deciles": [int(q) for q in np.quantile(n_terms, np.arange(0, 1.1, 0.1))],
             "share_at_or_above": eligible,
+        },
+        "n_sparse": {
+            "slots": min(m, k),
+            "mean": round(float(filled.mean()), 3),
+            "histogram": {str(v): int((filled == v).sum()) for v in range(min(m, k) + 1)},
         },
         "coverage": {
             "mean": round(float(coverage.mean()), 4) if coverage.size else None,
@@ -280,6 +298,10 @@ def main() -> None:
     out_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
     print(f"  routes: {payload['route_fractions']}")
+    print(
+        f"  rarity slots filled: mean {payload['n_sparse']['mean']}, "
+        f"{payload['n_sparse']['histogram']}"
+    )
     print(f"  queries with >= n irregular terms: {eligible}")
     print(f"  mean coverage (routed): {payload['coverage']['mean']}")
     print(f"  intra-set cosine: {payload['intra_set_similarity']}")
