@@ -26,6 +26,7 @@ env/
 # Generated artifacts
 logs/
 data/knn_index/
+data/knn_index_clean/
 __pycache__/
 
 results/judge_gpt_val_batch/

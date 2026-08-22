@@ -1,0 +1,292 @@
+{
+  "config": {
+    "split": "val",
+    "index_dir": "data/knn_index",
+    "cos": 0.95,
+    "jaccard": 0.7,
+    "char_n": 4,
+    "top_m": 10
+  },
+  "n_eval_rows": 1323,
+  "n_pool_rows": 10860,
+  "n_flags": 24,
+  "n_eval_rows_flagged": 17,
+  "n_pool_rows_flagged": 22,
+  "max_cos_histogram": {
+    "0.00-0.50": 0,
+    "0.50-0.70": 0,
+    "0.70-0.80": 0,
+    "0.80-0.85": 0,
+    "0.85-0.90": 506,
+    "0.90-0.95": 816,
+    "0.95-0.97": 1,
+    "0.97-0.99": 0,
+    "0.99-1.01": 0
+  },
+  "flags": [
+    {
+      "eval_row": 1250,
+      "pool_row": 8398,
+      "cos": 0.9508,
+      "jaccard_source": 0.7195,
+      "jaccard_target": 0.2353,
+      "eval_source": "امید هست در ظلّ سدرهٴ عنایت الهی تربیت شوید و به ما اراده الله عامل گردید.",
+      "pool_source": "امید هست در ظلّ سدرهٔ عنایت الهیّه تربیت شوید و به ما اراد الله عامل گردید.",
+      "eval_target": "The hope is cherished that ye may obtain true education in the shelter of the tree of His tender mercies and act in accordance with that which God desireth.",
+      "pool_target": "It is hoped that ye will be nurtured in the shade of the lote tree of Divine Grace, and practice that which God desireth."
+    },
+    {
+      "eval_row": 1245,
+      "pool_row": 9778,
+      "cos": 0.9451,
+      "jaccard_source": 0.8319,
+      "jaccard_target": 0.8779,
+      "eval_source": "چون که هر روز را امری و هر حین را حکمی مقتضی لذا امور بوزرای بیت عدل راجع تا آنچه را مصلحت وقت دانند معمول دارند.",
+      "pool_source": "چون که هر روز را امری و هر حین را حکمتی مقتضی لذا امور به بیت عدل راجع تا آنچه را مصلحت وقت دانند معمول دارند.",
+      "eval_target": "Inasmuch as for each day there is a new problem and for every problem an expedient solution, such affairs should be referred to the Ministers of the House of Justice that they may act according to the needs and requirements of the time.",
+      "pool_target": "Inasmuch as for each day there is a new problem and for every problem an expedient solution, such affairs should be referred to the House of Justice that the members thereof may act according to the needs and requirements of the time."
+    },
+    {
+      "eval_row": 1240,
+      "pool_row": 36,
+      "cos": 0.9394,
+      "jaccard_source": 0.7059,
+      "jaccard_target": 0.6381,
+      "eval_source": "تمسّکوا بحبل الأسباب متوکّلین علی الله مسبّب الأسباب.",
+      "pool_source": "تمسّکوا بحبل الأسباب متوکلین على الله مسبّب الأسباب",
+      "eval_target": "Hold ye fast unto the cord of material means, placing your whole trust in God, the Provider of all means.",
+      "pool_target": "Hold ye fast unto the cord of means and place your trust in God, the Provider of all means"
+    },
+    {
+      "eval_row": 644,
+      "pool_row": 631,
+      "cos": 0.9331,
+      "jaccard_source": 0.7209,
+      "jaccard_target": 0.4286,
+      "eval_source": "انّک انت القویّ المقتدر العزیز المتین.",
+      "pool_source": "انّک انت المقتدر المتعالی القویّ العزیز العظیم.",
+      "eval_target": "Thou art in truth the Mighty, the Powerful, the Gracious, the Strong.",
+      "pool_target": "Thou art, in truth, the Almighty, the Most Exalted, the Most Powerful, the All Glorious, the Most Great."
+    },
+    {
+      "eval_row": 1244,
+      "pool_row": 9776,
+      "cos": 0.9301,
+      "jaccard_source": 0.7313,
+      "jaccard_target": 0.8491,
+      "eval_source": "یا حزب الله مربّی عالم عدل است چه که دارای دو رکن است مجازات و مکافات.",
+      "pool_source": "مربّی عالم عدلست چه که دارای دو رکن است مجازات و مکافات.",
+      "eval_target": "O people of God! That which traineth the world is Justice, for it is upheld by two pillars, reward and punishment.",
+      "pool_target": "That which traineth the world is Justice, for it is upheld by two pillars, reward and punishment."
+    },
+    {
+      "eval_row": 1239,
+      "pool_row": 6048,
+      "cos": 0.9298,
+      "jaccard_source": 0.5897,
+      "jaccard_target": 0.75,
+      "eval_source": "ابغض النّاس عند الله من یقعد و یطلب.",
+      "pool_source": "أبغض الناس عند الله من یقعد ویطلب.",
+      "eval_target": "The most despised of men in the sight of God are those who sit idly and beg.",
+      "pool_target": "The most despised of men in the sight of God are they who sit and beg."
+    },
+    {
+      "eval_row": 756,
+      "pool_row": 1123,
+      "cos": 0.9267,
+      "jaccard_source": 0.9459,
+      "jaccard_target": 0.4831,
+      "eval_source": "انّک انت المقتدر العزیز المهیمن القیّوم.",
+      "pool_source": "و انّک انت المقتدر المهیمن العزیز القیّوم.",
+      "eval_target": "Thou art the Powerful, the Gracious, the Help in Peril, the Self Subsisting.",
+      "pool_target": "Thou art, verily, the Almighty, the Help in Peril, the All Glorious, the Self Subsisting."
+    },
+    {
+      "eval_row": 428,
+      "pool_row": 9583,
+      "cos": 0.9251,
+      "jaccard_source": 0.8611,
+      "jaccard_target": 0.36,
+      "eval_source": "و لا یسأل عمّا یفعل و کلّ عن کلّ یسألون.",
+      "pool_source": "انّه لا یسأل عمّا یفعل و کلّ عن کلّ یسألون.",
+      "eval_target": "Nor shall He be asked of His doings, whilst all men will be asked of their every deed.",
+      "pool_target": "Verily He shall not be asked of His doings but all others shall be asked of their doings."
+    },
+    {
+      "eval_row": 1145,
+      "pool_row": 2996,
+      "cos": 0.9209,
+      "jaccard_source": 0.7308,
+      "jaccard_target": 0.7674,
+      "eval_source": "انّ ربّک لهو العلیم الحکیم.",
+      "pool_source": "انّ ربّک هو العلیم الحکیم.",
+      "eval_target": "Verily, thy Lord is the All-Knowing, the All-Wise.",
+      "pool_target": "Thy Lord, verily, is the All-Knowing, the All-Wise."
+    },
+    {
+      "eval_row": 1009,
+      "pool_row": 3486,
+      "cos": 0.9205,
+      "jaccard_source": 0.9048,
+      "jaccard_target": 0.5909,
+      "eval_source": "و الحمد لله ربّ العالمین.",
+      "pool_source": "الحمد لله ربّ العالمین!",
+      "eval_target": "All praise be to God, the Lord of the worlds!",
+      "pool_target": "Praised be God, the Lord of the worlds!"
+    },
+    {
+      "eval_row": 1299,
+      "pool_row": 6194,
+      "cos": 0.9191,
+      "jaccard_source": 0.4314,
+      "jaccard_target": 0.7476,
+      "eval_source": "انظروا ما انزلناه فی کتابی الأقدس اذا غیض بحر الوصال و قضی کتاب المبدإ فی المآل توجّهوا الی من اراده الله الّذی انشعب من هذا الأصل القدیم.",
+      "pool_source": "إذا غیض بحر الوصال وقضی کتاب المبدء فی المئال توجهوا إلى من أراده الله الذی انشعب من هذا الأصل القدیم.",
+      "eval_target": "Consider that which We have revealed in Our Most Holy Book: When the ocean of My presence hath ebbed and the Book of My Revelation is ended, turn your faces toward Him Whom God hath purposed, Who hath branched from this Ancient Root.",
+      "pool_target": "When the ocean of My presence hath ebbed and the Book of My Revelation is ended, turn your faces toward Him Whom God hath purposed, Who hath branched from this Ancient Root."
+    },
+    {
+      "eval_row": 1246,
+      "pool_row": 9783,
+      "cos": 0.9183,
+      "jaccard_source": 0.8,
+      "jaccard_target": 0.8276,
+      "eval_source": "یا اهل بها شما مشارق محبّت و مطالع عنایت الهی بوده و هستید.",
+      "pool_source": "شما مشارق محبّت و مطالع عنایت الهی بوده و هستید.",
+      "eval_target": "O people of Bahá! Ye are the dawning-places of the love of God and the daysprings of His loving-kindness.",
+      "pool_target": "Ye are the dawning-places of the love of God and the daysprings of His loving-kindness."
+    },
+    {
+      "eval_row": 1245,
+      "pool_row": 6351,
+      "cos": 0.9177,
+      "jaccard_source": 0.0483,
+      "jaccard_target": 0.8779,
+      "eval_source": "چون که هر روز را امری و هر حین را حکمی مقتضی لذا امور بوزرای بیت عدل راجع تا آنچه را مصلحت وقت دانند معمول دارند.",
+      "pool_source": "وبما أن کل یوم یقتضی أمراً وکل حین یستدعی حکمةً فلذلک ترجع الأمور إلى بیت العدل لیقرّر ما یراه موافقاً لمقتضى الوقت.",
+      "eval_target": "Inasmuch as for each day there is a new problem and for every problem an expedient solution, such affairs should be referred to the Ministers of the House of Justice that they may act according to the needs and requirements of the time.",
+      "pool_target": "Inasmuch as for each day there is a new problem and for every problem an expedient solution, such affairs should be referred to the House of Justice that the members thereof may act according to the needs and requirements of the time."
+    },
+    {
+      "eval_row": 1244,
+      "pool_row": 6350,
+      "cos": 0.9163,
+      "jaccard_source": 0.1342,
+      "jaccard_target": 0.7571,
+      "eval_source": "یا حزب الله مربّی عالم عدل است چه که دارای دو رکن است مجازات و مکافات.",
+      "pool_source": "یا حزب الله إن مربّی العالم هو العدل لأنه حائز لرکنی المجازاة والمکافاة.وهذان الرکنان هما الینبوعان لحیاة أهل العالم.",
+      "eval_target": "O people of God! That which traineth the world is Justice, for it is upheld by two pillars, reward and punishment.",
+      "pool_target": "O people of God! That which traineth the world is Justice, for it is upheld by two pillars, reward and punishment. These two pillars are the sources of life to the world."
+    },
+    {
+      "eval_row": 494,
+      "pool_row": 4763,
+      "cos": 0.9162,
+      "jaccard_source": 0.7241,
+      "jaccard_target": 0.6667,
+      "eval_source": "و نقول الحمد لله ربّ العالمین.",
+      "pool_source": "و قل الحمد لله ربّ العالمین.",
+      "eval_target": "And We say: Praise be to God, the Lord of the worlds.",
+      "pool_target": "Say: Praise be to God, the Lord of all worlds."
+    },
+    {
+      "eval_row": 370,
+      "pool_row": 10139,
+      "cos": 0.9148,
+      "jaccard_source": 0.9231,
+      "jaccard_target": 0.2154,
+      "eval_source": "و انّه هو المقتدر علی ما یشآء.",
+      "pool_source": "انّه هو المقتدر علی ما یشآء.",
+      "eval_target": "Potent is God to do what He pleaseth.",
+      "pool_target": "He is, in truth, potent to do whatsoever He willeth."
+    },
+    {
+      "eval_row": 1114,
+      "pool_row": 2887,
+      "cos": 0.9142,
+      "jaccard_source": 0.8,
+      "jaccard_target": 0.8095,
+      "eval_source": "یا ملأ الرّهبان.",
+      "pool_source": "قل یا ملأ الرّهبان!",
+      "eval_target": "O concourse of monks.",
+      "pool_target": "Say: O concourse of monks!"
+    },
+    {
+      "eval_row": 1009,
+      "pool_row": 4763,
+      "cos": 0.9134,
+      "jaccard_source": 0.8,
+      "jaccard_target": 0.6957,
+      "eval_source": "و الحمد لله ربّ العالمین.",
+      "pool_source": "و قل الحمد لله ربّ العالمین.",
+      "eval_target": "All praise be to God, the Lord of the worlds!",
+      "pool_target": "Say: Praise be to God, the Lord of all worlds."
+    },
+    {
+      "eval_row": 477,
+      "pool_row": 3205,
+      "cos": 0.9122,
+      "jaccard_source": 0.7308,
+      "jaccard_target": 0.0778,
+      "eval_source": "و حزنی ما یعقوب بثّ اقلّه",
+      "pool_source": "و حزنِی ما یعقوب بثّ اقلّه",
+      "eval_target": "Jacob's grief is but a reflection of My sorrows,",
+      "pool_target": "My grief exceedeth all the woes to which Jacob gave vent"
+    },
+    {
+      "eval_row": 1009,
+      "pool_row": 239,
+      "cos": 0.9121,
+      "jaccard_source": 0.72,
+      "jaccard_target": 0.7907,
+      "eval_source": "و الحمد لله ربّ العالمین.",
+      "pool_source": "و الحمد للّه ربّ العالمین.",
+      "eval_target": "All praise be to God, the Lord of the worlds!",
+      "pool_target": "All praise be to God, the Lord of all worlds."
+    },
+    {
+      "eval_row": 1009,
+      "pool_row": 3529,
+      "cos": 0.9107,
+      "jaccard_source": 0.9048,
+      "jaccard_target": 0.7209,
+      "eval_source": "و الحمد لله ربّ العالمین.",
+      "pool_source": "الحمد لله ربّ العالمین.",
+      "eval_target": "All praise be to God, the Lord of the worlds!",
+      "pool_target": "Praise be unto God, the Lord of the worlds."
+    },
+    {
+      "eval_row": 1145,
+      "pool_row": 4028,
+      "cos": 0.9104,
+      "jaccard_source": 0.4615,
+      "jaccard_target": 0.8158,
+      "eval_source": "انّ ربّک لهو العلیم الحکیم.",
+      "pool_source": "انّ ربّک هو العلیم",
+      "eval_target": "Verily, thy Lord is the All-Knowing, the All-Wise.",
+      "pool_target": "Verily, thy Lord is the All-Knowing."
+    },
+    {
+      "eval_row": 494,
+      "pool_row": 3486,
+      "cos": 0.9089,
+      "jaccard_source": 0.7308,
+      "jaccard_target": 0.5098,
+      "eval_source": "و نقول الحمد لله ربّ العالمین.",
+      "pool_source": "الحمد لله ربّ العالمین!",
+      "eval_target": "And We say: Praise be to God, the Lord of the worlds.",
+      "pool_target": "Praised be God, the Lord of the worlds!"
+    },
+    {
+      "eval_row": 427,
+      "pool_row": 5326,
+      "cos": 0.9085,
+      "jaccard_source": 0.8966,
+      "jaccard_target": 0.5,
+      "eval_source": "لأنّه یفعل ما یشآء و یحکم ما یرید.",
+      "pool_source": "انّه یفعل ما یشآء و یحکم ما یرید.",
+      "eval_target": "For He doeth whatsoever He willeth and ordaineth whatsoever He pleaseth.",
+      "pool_target": "He, verily, doeth what He willeth, and ordaineth that which He pleaseth."
+    }
+  ]
+}

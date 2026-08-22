@@ -72,7 +72,6 @@ def term_stats(sources: list[str], zwnj: str = "keep") -> TermStats:
 
 
 def irregular_terms(stats: TermStats, top_frac: float = 0.2, min_df: int = 1) -> dict[str, float]:
-
     if not 0 < top_frac <= 1:
         raise ValueError(f"top_frac must lie in (0, 1], got {top_frac}")
     keep = np.flatnonzero(stats.df >= min_df)
