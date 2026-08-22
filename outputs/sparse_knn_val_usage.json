@@ -1,0 +1,21 @@
+{
+  "condition": "sparse_knn",
+  "output_name": "sparse_knn",
+  "model": "Qwen/Qwen2.5-7B-Instruct",
+  "provenance": {
+    "k": 8,
+    "ordering": "most_similar_last",
+    "index_dir": "data/knn_index",
+    "m": 4,
+    "min_query_terms": 1,
+    "redundancy": 0.3,
+    "df_min": 2,
+    "df_max": 20,
+    "rarity_file": "results/rarity_train.json",
+    "rarity_sha256": "47da96ea667ee0951278d16812b3fd49e4dc9f54aaf34bfbc4562765a1977ca5"
+  },
+  "calls": 1323,
+  "prompt_tokens": 2356815,
+  "completion_tokens": 44337,
+  "cost_usd": 0.0
+}
