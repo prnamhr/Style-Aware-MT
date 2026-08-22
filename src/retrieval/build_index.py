@@ -14,7 +14,9 @@ from pathlib import Path
 import numpy as np
 import yaml
 
+from src.data.split import sha256_file
 from src.retrieval.embed import embed_passages, load_model
+from src.retrieval.leakage import load_quarantine
 
 
 def _read_jsonl(path: Path) -> list[dict]:
@@ -22,8 +24,35 @@ def _read_jsonl(path: Path) -> list[dict]:
         return [json.loads(line) for line in f if line.strip()]
 
 
-def build_index(train_file: Path, index_dir: Path, embed_model: str, batch_size: int = 32) -> None:
+def _check_not_overwriting(index_dir: Path) -> None:
+    """Refuse to turn an existing unquarantined index into a quarantined one."""
+    meta_path = index_dir / "meta.json"
+    if not meta_path.exists():
+        return
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    if not meta.get("quarantine_file"):
+        raise ValueError(
+            f"{index_dir} holds an unquarantined index; build the quarantined one into a "
+            "separate directory, e.g. --index_dir data/knn_index_clean"
+        )
+
+
+def build_index(
+    train_file: Path,
+    index_dir: Path,
+    embed_model: str,
+    batch_size: int = 32,
+    quarantine: Path | None = None,
+) -> None:
     rows = _read_jsonl(train_file)
+    dropped: list[int] = []
+    if quarantine is not None:
+        _check_not_overwriting(index_dir)
+        dropped = load_quarantine(quarantine, train_file)
+        keep = set(range(len(rows))) - set(dropped)
+        rows = [r for i, r in enumerate(rows) if i in keep]
+        print(f"Quarantine {quarantine}: dropped {len(dropped)} of {len(dropped) + len(rows)} rows")
+
     pairs = [{"input": r["input"], "output": r["output"]} for r in rows]
     passages = [p["input"] for p in pairs]
 
@@ -43,6 +72,10 @@ def build_index(train_file: Path, index_dir: Path, embed_model: str, batch_size:
         "dim": int(embeddings.shape[1]),
         "source_file": str(train_file),
     }
+    if quarantine is not None:
+        meta["quarantine_file"] = str(quarantine)
+        meta["quarantine_sha256"] = sha256_file(quarantine)
+        meta["n_quarantined"] = len(dropped)
     with (index_dir / "meta.json").open("w", encoding="utf-8") as f:
         json.dump(meta, f, ensure_ascii=False, indent=2)
 
@@ -55,6 +88,9 @@ def main() -> None:
     parser.add_argument("--train_file", default=None, help="override config train_file")
     parser.add_argument("--index_dir", default=None, help="override config index_dir")
     parser.add_argument("--batch_size", type=int, default=32)
+    parser.add_argument(
+        "--quarantine", default=None, help="pool rows to drop, from `manage.py leakage`"
+    )
     args = parser.parse_args()
 
     cfg = yaml.safe_load(Path(args.config).read_text(encoding="utf-8"))
@@ -62,7 +98,13 @@ def main() -> None:
     train_file = Path(args.train_file or retr["train_file"])
     index_dir = Path(args.index_dir or retr["index_dir"])
 
-    build_index(train_file, index_dir, retr["embed_model"], batch_size=args.batch_size)
+    build_index(
+        train_file,
+        index_dir,
+        retr["embed_model"],
+        batch_size=args.batch_size,
+        quarantine=Path(args.quarantine) if args.quarantine else None,
+    )
 
 
 if __name__ == "__main__":

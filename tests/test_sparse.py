@@ -1,0 +1,92 @@
+"""
+Tests for the sparse channel: routing, greedy coverage, and the redundancy penalty.
+"""
+
+from __future__ import annotations
+
+import numpy as np
+
+from src.retrieval.sparse import SparseRetriever
+
+IRREGULAR = {t: 3.0 for t in ("الف", "ب", "ج", "د", "ه")}
+
+
+class _Index:
+    def __init__(self, sources: list[str], embeddings):
+        self.pairs = [{"input": s, "output": f"en:{s}"} for s in sources]
+        self.embeddings = np.asarray(embeddings, dtype=np.float32)
+
+
+class _Fallback:
+    """Stands in for AFSPRetriever: returns the same ranked pairs for every query."""
+
+    def __init__(self, pairs: list[dict]):
+        self.pairs = pairs
+        self.calls: list[int] = []
+
+    def select(self, queries, k):
+        self.calls.append(k)
+        return [self.pairs[:k] for _ in queries]
+
+
+def _build(sources, embeddings, fallback_rows=(), **kw):
+    index = _Index(sources, embeddings)
+    fallback = _Fallback([index.pairs[r] for r in fallback_rows])
+    return SparseRetriever(index, IRREGULAR, fallback, **kw), index, fallback
+
+
+def test_short_query_routes_to_the_dense_fallback():
+    retriever, index, fallback = _build(
+        ["الف ب", "ج د"], np.eye(2), fallback_rows=(1, 0), min_query_terms=4
+    )
+    selected, traces = retriever.select_with_trace(["الف ب"], k=2)
+
+    assert traces[0]["route"] == "dense"
+    assert traces[0]["n_sparse"] == 0
+    assert [p["input"] for p in selected[0]] == ["ج د", "الف ب"]
+    assert fallback.calls == [4]  # asks for 2k so the de-duplicating fill has slack
+
+
+def test_greedy_prefers_the_candidate_covering_most_rarity():
+    sources = ["الف ب", "الف", "ج د"]
+    retriever, _, _ = _build(sources, np.eye(3), min_query_terms=4, redundancy=0.0)
+    selected, traces = retriever.select_with_trace(["الف ب ج د"], k=2)
+
+    assert [p["input"] for p in selected[0]] == ["الف ب", "ج د"]
+    assert traces[0]["route"] == "sparse"
+    assert traces[0]["coverage"] == 1.0
+
+
+def test_redundancy_penalty_breaks_a_coverage_tie_toward_the_dissimilar_candidate():
+    # rows 1 and 2 cover the same terms; row 1 is a near-copy of the already-chosen row 0.
+    sources = ["الف ب", "ج د", "ج د"]
+    embeddings = [[1.0, 0.0], [1.0, 0.0], [0.0, 1.0]]
+    query = ["الف ب ج د"]
+
+    flat, _, _ = _build(sources, embeddings, min_query_terms=4, redundancy=0.0)
+    penalised, _, _ = _build(sources, embeddings, min_query_terms=4, redundancy=0.3)
+
+    assert flat.select_with_trace(query, k=2)[1][0]["rows"] == [0, 1]
+    assert penalised.select_with_trace(query, k=2)[1][0]["rows"] == [0, 2]
+
+
+def test_short_coverage_fills_from_the_fallback_without_repeating():
+    sources = ["الف ب", "ج د", "ه"]
+    retriever, index, fallback = _build(
+        sources, np.eye(3), fallback_rows=(0, 2), min_query_terms=4, redundancy=0.0
+    )
+    selected, traces = retriever.select_with_trace(["الف ب ج د"], k=3)
+
+    inputs = [p["input"] for p in selected[0]]
+    assert traces[0]["route"] == "hybrid"
+    assert traces[0]["n_sparse"] == 2
+    assert len(inputs) == len(set(inputs)) == 3
+    assert inputs[2] == "ه"  # row 0 was already selected, so the fill skips it
+
+
+def test_query_with_no_pool_match_routes_dense():
+    retriever, _, _ = _build(["الف ب"], np.eye(1), fallback_rows=(0,), min_query_terms=1)
+    _, traces = retriever.select_with_trace(["ج د ه"], k=2)
+
+    assert traces[0]["route"] == "dense"
+    assert traces[0]["n_query_terms"] == 3

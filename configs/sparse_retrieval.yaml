@@ -1,0 +1,45 @@
+# Rarity-driven sparse retrieval: diagnostics only, no generator block.
+retrieval:
+  embed_model: intfloat/multilingual-e5-large-instruct
+  index_dir: data/knn_index
+  train_file: data/splits/train.jsonl
+  k: 8
+
+# Dense fallback when a query carries too few irregular terms.
+afsp:
+  beta: 0.3
+  knn_hubness: 5
+  pool_mult: 4
+  lambda_style: 0.75
+  style_objective: bandpass
+  style_target_sigma: 1.0
+  style_register_direction:
+    marker_rate: 0.514
+    lex_density: 0.355
+    root_ttr: -0.296
+    ttr: 0.098
+  centroid_file: results/stylometrics_centroid.json
+
+rarity:
+  top_frac: 0.2
+  min_df: 1                 # raise to 2+ to exclude the hapax tie block
+  zwnj: keep
+  out: results/rarity_train.json
+
+sparse:
+  min_query_terms: 4        # below this the query routes to the dense fallback
+  redundancy: 0.3           # penalty on similarity to already-selected exemplars
+
+leakage:
+  cos: 0.95
+  jaccard: 0.7
+  char_n: 4
+  top_m: 10
+  quarantine_file: data/splits/pool_quarantine.json
+
+data:
+  eval_file: data/splits/val.jsonl
+  limit: null
+
+output:
+  dir: results
