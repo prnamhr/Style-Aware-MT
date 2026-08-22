@@ -1,0 +1,28 @@
+{
+  "metric": "bleu",
+  "judge_tag": null,
+  "split": "val",
+  "conditions": [
+    "knn_fewshot",
+    "sparse_knn"
+  ],
+  "baseline": "knn_fewshot",
+  "adjacent": false,
+  "n_resamples": 10000,
+  "alpha": 0.05,
+  "seed": 42,
+  "comparisons": [
+    {
+      "a": "sparse_knn",
+      "b": "knn_fewshot",
+      "n": 1323,
+      "mean_a": 13.79650920801005,
+      "mean_b": 13.449396452195256,
+      "diff": 0.34711275581479484,
+      "ci_low": -0.08060590679168683,
+      "ci_high": 0.7749600046673115,
+      "p_value": 0.1118,
+      "significant": false
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "metric": "judge",
+  "judge_tag": "gpt",
+  "split": "val",
+  "conditions": [
+    "afsp_full",
+    "knn_fewshot"
+  ],
+  "baseline": "knn_fewshot",
+  "adjacent": false,
+  "n_resamples": 10000,
+  "alpha": 0.05,
+  "seed": 42,
+  "comparisons": [
+    {
+      "a": "afsp_full",
+      "b": "knn_fewshot",
+      "n": 1296,
+      "mean_a": 3.709104938271605,
+      "mean_b": 3.6805555555555554,
+      "diff": 0.028549382716049454,
+      "ci_low": -0.016203703703703276,
+      "ci_high": 0.07175925925925908,
+      "p_value": 0.1968,
+      "significant": false
+    }
+  ]
+}

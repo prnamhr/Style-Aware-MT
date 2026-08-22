@@ -4,21 +4,20 @@
   "transport": "batch",
   "batch_discount": 0.5,
   "conditions": [
-    "peft_afsp",
-    "peft_knn"
+    "sparse_knn"
   ],
   "limit": null,
   "priced": true,
   "session": {
-    "calls": 2646,
-    "prompt_tokens": 1084631,
-    "completion_tokens": 108323,
-    "cost_usd": 1.7346
+    "calls": 1323,
+    "prompt_tokens": 542751,
+    "completion_tokens": 55485,
+    "cost_usd": 0.8757
   },
   "cumulative": {
-    "calls": 15876,
-    "prompt_tokens": 6508885,
-    "completion_tokens": 657946,
-    "cost_usd": 10.4566
+    "calls": 17199,
+    "prompt_tokens": 7051636,
+    "completion_tokens": 713431,
+    "cost_usd": 11.3323
   }
 }

@@ -14,8 +14,8 @@
     "rarity_file": "results/rarity_train.json",
     "rarity_sha256": "47da96ea667ee0951278d16812b3fd49e4dc9f54aaf34bfbc4562765a1977ca5"
   },
-  "calls": 1323,
-  "prompt_tokens": 2356815,
-  "completion_tokens": 44337,
+  "calls": 0,
+  "prompt_tokens": 0,
+  "completion_tokens": 0,
   "cost_usd": 0.0
 }

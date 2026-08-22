@@ -1,0 +1,427 @@
+{
+  "split": "val",
+  "out_dir": "outputs",
+  "judges": {
+    "a": {
+      "tag": null,
+      "results_path": "results/judge_val.json",
+      "model": [
+        "claude-haiku-4-5"
+      ],
+      "template_sha256": [
+        "ffd6dad41acb0512"
+      ]
+    },
+    "b": {
+      "tag": "gpt",
+      "results_path": "results/judge_gpt_val.json",
+      "model": [
+        "gpt-5.6-terra"
+      ],
+      "template_sha256": [
+        "ffd6dad41acb0512"
+      ]
+    },
+    "template_verified": true
+  },
+  "bootstrap": {
+    "n_resamples": 10000,
+    "seed": 42,
+    "alpha": 0.05,
+    "paired": true,
+    "unit": "segment"
+  },
+  "evidence_class": {
+    "study_conditions": [
+      "knn_fewshot",
+      "sparse_knn"
+    ],
+    "external_reference": "commercial_haiku",
+    "note": "Descriptive. commercial_haiku is a diagnostic external reference baseline, not a condition of the study. Neither rater is a ground truth: agreement bounds how far a Phi-based claim depends on rater identity, it does not establish that either rater is correct.",
+    "self_family_caveat": "The primary rater and the commercial_haiku condition are the same model family, so that condition's primary Phi carries a self-preference risk the second rater does not share. Compare the two raters' means for commercial_haiku against their means for the study conditions before reading anything into the reference point."
+  },
+  "coverage": {
+    "knn_fewshot": {
+      "n_total": 1323,
+      "n_a": 1322,
+      "n_b": 1308,
+      "n_both": 1307
+    },
+    "sparse_knn": {
+      "n_total": 1323,
+      "n_a": 1323,
+      "n_b": 1300,
+      "n_both": 1300
+    },
+    "commercial_haiku": {
+      "n_total": 1323,
+      "n_a": 1323,
+      "n_b": 1308,
+      "n_both": 1308
+    }
+  },
+  "rater_agreement": {
+    "study_only": {
+      "conditions": [
+        "knn_fewshot",
+        "sparse_knn"
+      ],
+      "per_condition": {
+        "knn_fewshot": {
+          "n": 1307,
+          "mean_a": 2.7482785003825554,
+          "mean_b": 3.677888293802601,
+          "exact_agreement": 0.2884468247895945,
+          "adjacent_agreement": 0.774292272379495,
+          "qwk": {
+            "kappa": 0.3586886058736103,
+            "n": 1307,
+            "n_degenerate_resamples": 0,
+            "ci_low": 0.32308210510787705,
+            "ci_high": 0.39368370786056295
+          },
+          "spearman": {
+            "rho": 0.5619385094098297,
+            "ci_low": 0.5221716953267328,
+            "ci_high": 0.5999899851476868,
+            "p_value": 1.1507983224119971e-109,
+            "n": 1307,
+            "separates": true
+          },
+          "offset": {
+            "n": 1307,
+            "mean_a": 2.7482785003825554,
+            "mean_b": 3.677888293802601,
+            "diff": -0.9296097934200458,
+            "ci_low": -0.9747513389441469,
+            "ci_high": -0.8852333588370316,
+            "p_value": 0.0,
+            "significant": true
+          },
+          "label": "knn_fewshot"
+        },
+        "sparse_knn": {
+          "n": 1300,
+          "mean_a": 2.813846153846154,
+          "mean_b": 3.6984615384615385,
+          "exact_agreement": 0.3,
+          "adjacent_agreement": 0.806923076923077,
+          "qwk": {
+            "kappa": 0.36716185282863434,
+            "n": 1300,
+            "n_degenerate_resamples": 0,
+            "ci_low": 0.3290507860914341,
+            "ci_high": 0.4036242685007649
+          },
+          "spearman": {
+            "rho": 0.557170435433731,
+            "ci_low": 0.5139321140831536,
+            "ci_high": 0.5980310440734569,
+            "p_value": 6.795347872810057e-107,
+            "n": 1300,
+            "separates": true
+          },
+          "offset": {
+            "n": 1300,
+            "mean_a": 2.813846153846154,
+            "mean_b": 3.6984615384615385,
+            "diff": -0.8846153846153846,
+            "ci_low": -0.9276923076923076,
+            "ci_high": -0.8415384615384616,
+            "p_value": 0.0,
+            "significant": true
+          },
+          "label": "sparse_knn"
+        }
+      },
+      "pooled": {
+        "n": 2607,
+        "mean_a": 2.780974299961642,
+        "mean_b": 3.6881472957422323,
+        "exact_agreement": 0.2942079018028385,
+        "adjacent_agreement": 0.7905638665132336,
+        "qwk": {
+          "kappa": 0.3629572040993333,
+          "n": 2607,
+          "n_degenerate_resamples": 0,
+          "ci_low": 0.3376676861433159,
+          "ci_high": 0.38766633242119825
+        },
+        "spearman": {
+          "rho": 0.5594441656271787,
+          "ci_low": 0.5296118597161622,
+          "ci_high": 0.58742091778758,
+          "p_value": 1.2598616619640737e-214,
+          "n": 2607,
+          "separates": true
+        },
+        "offset": {
+          "n": 2607,
+          "mean_a": 2.780974299961642,
+          "mean_b": 3.6881472957422323,
+          "diff": -0.9071729957805905,
+          "ci_low": -0.9382431914077483,
+          "ci_high": -0.876486382815497,
+          "p_value": 0.0,
+          "significant": true
+        },
+        "label": "pooled"
+      }
+    },
+    "with_reference": {
+      "conditions": [
+        "knn_fewshot",
+        "sparse_knn",
+        "commercial_haiku"
+      ],
+      "per_condition": {
+        "knn_fewshot": {
+          "n": 1307,
+          "mean_a": 2.7482785003825554,
+          "mean_b": 3.677888293802601,
+          "exact_agreement": 0.2884468247895945,
+          "adjacent_agreement": 0.774292272379495,
+          "qwk": {
+            "kappa": 0.3586886058736103,
+            "n": 1307,
+            "n_degenerate_resamples": 0,
+            "ci_low": 0.32308210510787705,
+            "ci_high": 0.39368370786056295
+          },
+          "spearman": {
+            "rho": 0.5619385094098297,
+            "ci_low": 0.5221716953267328,
+            "ci_high": 0.5999899851476868,
+            "p_value": 1.1507983224119971e-109,
+            "n": 1307,
+            "separates": true
+          },
+          "offset": {
+            "n": 1307,
+            "mean_a": 2.7482785003825554,
+            "mean_b": 3.677888293802601,
+            "diff": -0.9296097934200458,
+            "ci_low": -0.9747513389441469,
+            "ci_high": -0.8852333588370316,
+            "p_value": 0.0,
+            "significant": true
+          },
+          "label": "knn_fewshot"
+        },
+        "sparse_knn": {
+          "n": 1300,
+          "mean_a": 2.813846153846154,
+          "mean_b": 3.6984615384615385,
+          "exact_agreement": 0.3,
+          "adjacent_agreement": 0.806923076923077,
+          "qwk": {
+            "kappa": 0.36716185282863434,
+            "n": 1300,
+            "n_degenerate_resamples": 0,
+            "ci_low": 0.3290507860914341,
+            "ci_high": 0.4036242685007649
+          },
+          "spearman": {
+            "rho": 0.557170435433731,
+            "ci_low": 0.5139321140831536,
+            "ci_high": 0.5980310440734569,
+            "p_value": 6.795347872810057e-107,
+            "n": 1300,
+            "separates": true
+          },
+          "offset": {
+            "n": 1300,
+            "mean_a": 2.813846153846154,
+            "mean_b": 3.6984615384615385,
+            "diff": -0.8846153846153846,
+            "ci_low": -0.9276923076923076,
+            "ci_high": -0.8415384615384616,
+            "p_value": 0.0,
+            "significant": true
+          },
+          "label": "sparse_knn"
+        },
+        "commercial_haiku": {
+          "n": 1308,
+          "mean_a": 3.3394495412844036,
+          "mean_b": 3.9808868501529053,
+          "exact_agreement": 0.42660550458715596,
+          "adjacent_agreement": 0.9143730886850153,
+          "qwk": {
+            "kappa": 0.4882501875080286,
+            "n": 1308,
+            "n_degenerate_resamples": 0,
+            "ci_low": 0.4447402692749438,
+            "ci_high": 0.5286119691994061
+          },
+          "spearman": {
+            "rho": 0.5727841985072122,
+            "ci_low": 0.5332223498838893,
+            "ci_high": 0.6096243157784911,
+            "p_value": 6.650517431344146e-115,
+            "n": 1308,
+            "separates": true
+          },
+          "offset": {
+            "n": 1308,
+            "mean_a": 3.3394495412844036,
+            "mean_b": 3.9808868501529053,
+            "diff": -0.6414373088685017,
+            "ci_low": -0.6781345565749235,
+            "ci_high": -0.6047400611620795,
+            "p_value": 0.0,
+            "significant": true
+          },
+          "label": "commercial_haiku"
+        }
+      },
+      "pooled": {
+        "n": 3915,
+        "mean_a": 2.9675606641123884,
+        "mean_b": 3.7859514687100893,
+        "exact_agreement": 0.3384418901660281,
+        "adjacent_agreement": 0.8319284802043423,
+        "qwk": {
+          "kappa": 0.4168371542283986,
+          "n": 3915,
+          "n_degenerate_resamples": 0,
+          "ci_low": 0.3951539419822872,
+          "ci_high": 0.4377811938273407
+        },
+        "spearman": {
+          "rho": 0.5909085113736259,
+          "ci_low": 0.5690439795539931,
+          "ci_high": 0.6120688824857138,
+          "p_value": 0.0,
+          "n": 3915,
+          "separates": true
+        },
+        "offset": {
+          "n": 3915,
+          "mean_a": 2.9675606641123884,
+          "mean_b": 3.7859514687100893,
+          "diff": -0.8183908045977009,
+          "ci_low": -0.8424010217113667,
+          "ci_high": -0.7943805874840355,
+          "p_value": 0.0,
+          "significant": true
+        },
+        "label": "pooled"
+      }
+    }
+  },
+  "condition_ordering": {
+    "study_only": {
+      "conditions": [
+        "knn_fewshot",
+        "sparse_knn"
+      ],
+      "n": 2,
+      "mean_a": {
+        "knn_fewshot": 2.7482785003825554,
+        "sparse_knn": 2.813846153846154
+      },
+      "mean_b": {
+        "knn_fewshot": 3.677888293802601,
+        "sparse_knn": 3.6984615384615385
+      },
+      "ranking_a": [
+        "sparse_knn",
+        "knn_fewshot"
+      ],
+      "ranking_b": [
+        "sparse_knn",
+        "knn_fewshot"
+      ],
+      "identical_ranking": true,
+      "p_floor": NaN
+    },
+    "with_reference": {
+      "conditions": [
+        "knn_fewshot",
+        "sparse_knn",
+        "commercial_haiku"
+      ],
+      "n": 3,
+      "mean_a": {
+        "knn_fewshot": 2.7482785003825554,
+        "sparse_knn": 2.813846153846154,
+        "commercial_haiku": 3.3394495412844036
+      },
+      "mean_b": {
+        "knn_fewshot": 3.677888293802601,
+        "sparse_knn": 3.6984615384615385,
+        "commercial_haiku": 3.9808868501529053
+      },
+      "ranking_a": [
+        "commercial_haiku",
+        "sparse_knn",
+        "knn_fewshot"
+      ],
+      "ranking_b": [
+        "commercial_haiku",
+        "sparse_knn",
+        "knn_fewshot"
+      ],
+      "identical_ranking": true,
+      "p_floor": 0.3333333333333333,
+      "spearman": {
+        "rho": 1.0,
+        "p_value": 0.0,
+        "n": 3
+      }
+    }
+  },
+  "contrast_replication": {
+    "family_size": 1,
+    "contrasts": {
+      "sparse_knn - knn_fewshot": {
+        "high": "sparse_knn",
+        "low": "knn_fewshot",
+        "n": 1286,
+        "judge_a": {
+          "n": 1286,
+          "mean_a": 2.818040435458787,
+          "mean_b": 2.745723172628305,
+          "diff": 0.07231726283048223,
+          "ci_low": 0.027993779160186527,
+          "ci_high": 0.1166407465007775,
+          "p_value": 0.0008,
+          "significant": true,
+          "holm_significant": true
+        },
+        "judge_b": {
+          "n": 1286,
+          "mean_a": 3.701399688958009,
+          "mean_b": 3.6749611197511665,
+          "diff": 0.026438569206842732,
+          "ci_low": -0.013219284603421144,
+          "ci_high": 0.06687402799377917,
+          "p_value": 0.1954,
+          "significant": false,
+          "holm_significant": false
+        },
+        "same_sign": true,
+        "both_separate": false,
+        "neither_separates": false,
+        "both_separate_holm": false
+      }
+    }
+  },
+  "contrast_classes": {
+    "primary": [
+      "random_fewshot - zeroshot",
+      "knn_fewshot - zeroshot",
+      "afsp_margin - zeroshot",
+      "afsp_full - zeroshot",
+      "peft - zeroshot"
+    ],
+    "secondary": [
+      "afsp_full - knn_fewshot",
+      "sparse_knn - knn_fewshot",
+      "afsp_margin - knn_fewshot",
+      "afsp_full - afsp_margin",
+      "peft - afsp_full"
+    ]
+  }
+}

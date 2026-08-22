@@ -40,6 +40,7 @@ PRIMARY_CONTRASTS = [
 ]
 SECONDARY_CONTRASTS = [
     ("afsp_full", "knn_fewshot"),
+    ("sparse_knn", "knn_fewshot"),
     ("afsp_margin", "knn_fewshot"),
     ("afsp_full", "afsp_margin"),
     ("peft", "afsp_full"),
