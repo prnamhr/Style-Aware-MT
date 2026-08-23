@@ -526,15 +526,6 @@ For exact experiment provenance, use [`docs/DEVLOG.md`](docs/DEVLOG.md).
 - [`results/judge_agreement_gpt_sparse_knn_val.json`](results/judge_agreement_gpt_sparse_knn_val.json): two-rater Sparse-KNN judge comparison
 - [`results/sparse_selection_val.json`](results/sparse_selection_val.json): Sparse-KNN routing and selection diagnostics
 
-## Current takeaway
-
-The original proposal expected reinforcement learning to provide the strongest style control. The corrected validation results support part of that expectation, but not a simple "RLSF wins everything" conclusion.
-
-PEFT gives a strong domain-adapted starting point. Retrieval improves several adequacy measures and can change perceived style. Sparse-KNN moves both corrected style-distance point estimates closer than ordinary kNN and receives a higher primary-judge score, although the second judge does not confirm that perceived-style gain. RLSF `w3=2` gives the strongest held-out register result, while the higher-pressure `w3=6` arm reaches the lowest full stylometric distance. The trajectory suggests that judge-conditioned optimization first moves the model toward the measured target register and may begin to overshoot only later.
-
-The marker-case correction is part of the research result because it changed the objective style ranking and reversed the original trajectory interpretation without changing the trained adapters or the adequacy and judge scores. The Sparse-KNN follow-up adds another useful caution: a gain seen by one judge is not enough to claim a stable improvement when the second judge does not reproduce it.
-
-The final test pass will determine which of these validation patterns generalize.
 
 ## Citation
 
