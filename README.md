@@ -25,7 +25,7 @@ Two hybrid conditions test whether retrieval still helps after PEFT:
 
 A later `sparse_knn` follow-up tests a different retrieval idea: use rare source-side terms to select part of the few-shot context, then fill the remaining prompt slots with ordinary cosine kNN.
 
-The main validation result is mixed rather than a single winner. RLSF `w3=2` gives the lowest held-out style distance, while `w3=6` gives the lowest full stylometric distance. PEFT+AFSP has the highest COMET score among the main study systems, and PEFT+KNN has the highest chrF and BLEU.
+The main validation result is mixed rather than a single winner. RLSF `w3=2` gives the lowest held-out style distance, while `w3=6` gives the lowest full stylometric distance. PEFT+AFSP has the highest COMET score among the main study systems, and PEFT+KNN has the highest chrF and BLEU. In the later Sparse-KNN follow-up, the primary judge score rises above ordinary kNN, but the second judge does not reproduce that difference.
 
 The interpretation of the RLSF results changed after a case-sensitivity bug was found in one stylometric feature. The corrected analysis shows the judge-conditioned RLSF arms moving closer to the measured target register through most of training, with possible over-stylization appearing only later in the strongest trajectory.
 
@@ -225,6 +225,7 @@ Higher is better for COMET, chrF, BLEU, `Phi_A`, and `Phi_B`. Lower is better fo
 | Zero-shot | 0.6480 | 36.42 | 10.27 | 2.546 | 3.648 | 0.4481 | 0.3417 |
 | Random few-shot | 0.6644 | 37.52 | 11.64 | 2.633 | 3.633 | 0.3162 | 0.2282 |
 | kNN few-shot | 0.6839 | 39.82 | 13.99 | 2.748 | 3.679 | 0.3659 | 0.2337 |
+| Sparse-KNN† | 0.6843 | 40.23 | 14.19 | **2.813** | 3.698 | 0.3432 | 0.2084 |
 | AFSP-margin | 0.6824 | 39.68 | 13.69 | 2.763 | 3.667 | 0.3394 | 0.2203 |
 | AFSP-full | 0.6853 | 39.99 | 14.52 | 2.791 | **3.707** | 0.3032 | 0.2111 |
 | PEFT | 0.6986 | 41.58 | 16.90 | 2.744 | 3.613 | 0.2890 | 0.1713 |
@@ -240,9 +241,9 @@ RLSF `w3=2` has the lowest corrected held-out distance, at 0.1264, compared with
 
 RLSF `w3=6` has the lowest corrected full stylometric distance, at 0.2704. Because this is the high-pressure diagnostic arm, I treat it mainly as evidence about how strong style optimization changes the model rather than as a replacement for the selected moderate arm.
 
-PEFT+AFSP has the highest COMET score among the main study conditions. PEFT+KNN has the highest chrF and BLEU. The two PEFT retrieval hybrids are close under both LLM judges.
+PEFT+AFSP has the highest COMET score among the main study conditions. PEFT+KNN has the highest chrF and BLEU. Sparse-KNN has the highest `Phi_A` mean in the table at 2.813, but its `Phi_B` gain over ordinary kNN is not statistically resolved. The two PEFT retrieval hybrids are also close under both LLM judges.
 
-The main result is therefore a trade-off: the method that looks best under semantic and reference-overlap metrics is not necessarily the one closest to the measured register.
+The main result is therefore a trade-off: the method that looks best under semantic and reference-overlap metrics is not necessarily the one closest to the measured register, and a judge gain is not treated as stable when the second rater does not reproduce it.
 
 ## RLSF trajectory
 
@@ -289,10 +290,10 @@ The AFSP case-fix rerun provides a useful robustness check. Correcting the centr
 
 Sparse-KNN is compared with ordinary kNN as a secondary validation experiment.
 
-| Condition | COMET | chrF | BLEU | Phi_A | Phi_B | Full style dist. |
-|---|---:|---:|---:|---:|---:|---:|
-| kNN few-shot | 0.6839 | 39.82 | 13.99 | 2.748 | 3.679 | 0.3659 |
-| Sparse-KNN | 0.6843 | 40.23 | 14.19 | **2.813** | **3.698** | **0.3432** |
+| Condition | COMET | chrF | BLEU | Phi_A | Phi_B | Full style dist. | Held-out dist. |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| kNN few-shot | 0.6839 | 39.82 | 13.99 | 2.748 | 3.679 | 0.3659 | 0.2337 |
+| Sparse-KNN | 0.6843 | 40.23 | 14.19 | **2.813** | **3.698** | **0.3432** | **0.2084** |
 
 The COMET, chrF, BLEU, and full-stylometric differences do not separate in paired validation tests. The primary judge favors Sparse-KNN over ordinary kNN by about +0.066 (`p = 0.0042`), while the second judge gives a smaller +0.024 difference with an interval crossing zero (`p = 0.2488`).
 
@@ -529,7 +530,7 @@ For exact experiment provenance, use [`docs/DEVLOG.md`](docs/DEVLOG.md).
 
 The original proposal expected reinforcement learning to provide the strongest style control. The corrected validation results support part of that expectation, but not a simple "RLSF wins everything" conclusion.
 
-PEFT gives a strong domain-adapted starting point. Retrieval improves several adequacy measures and can change perceived style. RLSF `w3=2` gives the strongest held-out register result, while the higher-pressure `w3=6` arm reaches the lowest full stylometric distance. The trajectory suggests that judge-conditioned optimization first moves the model toward the measured target register and may begin to overshoot only later.
+PEFT gives a strong domain-adapted starting point. Retrieval improves several adequacy measures and can change perceived style. Sparse-KNN moves both corrected style-distance point estimates closer than ordinary kNN and receives a higher primary-judge score, although the second judge does not confirm that perceived-style gain. RLSF `w3=2` gives the strongest held-out register result, while the higher-pressure `w3=6` arm reaches the lowest full stylometric distance. The trajectory suggests that judge-conditioned optimization first moves the model toward the measured target register and may begin to overshoot only later.
 
 The marker-case correction is part of the research result because it changed the objective style ranking and reversed the original trajectory interpretation without changing the trained adapters or the adequacy and judge scores. The Sparse-KNN follow-up adds another useful caution: a gain seen by one judge is not enough to claim a stable improvement when the second judge does not reproduce it.
 
