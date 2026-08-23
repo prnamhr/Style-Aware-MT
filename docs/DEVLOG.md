@@ -67,6 +67,57 @@ A second audit on 2026-08-10 checked `README.md` and `docs/budget.md` against th
 
 This log was audited for internal consistency against the committed artifacts, configs, and git history on 2026-08-01. Corrections made in that pass are marked inline as *Correction (2026-08-01)*; they amend the claims of earlier entries but do not restate their history.
 
+## 2026-08-23: The pool quarantine was audited against the sealed test split
+
+### Summary
+
+The leakage audit in `notebooks/rarity_retrieval_colab.ipynb` was run as `manage.py leakage --split val test --write-quarantine`. `src/retrieval/leakage.py:161` unions the flagged pool rows over every split it audits, so `data/splits/pool_quarantine.json` held 50 rows: 22 flagged by val, 28 flagged only by test. `build_index --quarantine` then dropped all 50 to write `data/knn_index_clean` (10,810 of 10,860 rows). A pool pruned that way is a function of `data/splits/test.jsonl`, so anything retrieving from that index is conditioned on the sealed split.
+
+The audit also wrote `results/leakage_test.json`, which reports the near-duplicate flags and the max-cosine histogram of the test split against the pool.
+
+### What it touched
+
+Nothing that the README reports. `configs/sparse_knn.yaml` and `configs/sparse_retrieval.yaml` both set `index_dir: data/knn_index`, the unquarantined 10,860-row pool, and `results/sparse_selection_val.json` records that directory in its config block. The only artifacts built on the quarantined index are the four `results/sparse_sweep_val_t{1,2,3,4}.json` route-fraction diagnostics from the `min_query_terms` sweep, which select nothing and appear in no results table. No generation, metric, judge, or bootstrap artifact derives from it.
+
+### What changed
+
+`data/splits/pool_quarantine.json` was rebuilt from the val flags alone: 22 pool rows, 0.20% of the pool, `splits: ["val"]`, against the same `train.jsonl` digest `a70014b8`. The list is reconstructed from `results/leakage_val.json`, which the same audit wrote, so it is identical to what `--split val --write-quarantine` emits. `results/leakage_test.json` was deleted.
+
+Two guards now stand where the protocol was only a convention:
+
+- `src/retrieval/leakage.py:135` refuses `test` in `--split` unless `--unseal-test` is passed, before the config is read or the encoder is loaded.
+- `load_quarantine` at `src/retrieval/leakage.py:84` refuses a list whose recorded `splits` include `test`, which `src/retrieval/build_index.py:52` relays as `--unseal-test`. The old 50-row list cannot be used to build an index without that flag.
+
+The notebook's audit cell reads `val` only, and the stale outputs of the audit, index-build, selection, and sweep cells were cleared: they report the 50-row quarantine and the routing computed against it.
+
+### Verification
+
+`pytest tests/` passes, 404 tests, 2 of them new in `tests/test_leakage.py`: a `splits: ["val", "test"]` list raises and yields its rows only under `allow_test=True`, and a val-only list loads. `manage.py leakage --split val test` exits with `refusing to audit the sealed test split` before the encoder loads. On the real files, `load_quarantine` returns 50 rows for the old list under `allow_test=True` and 22 for the new one.
+
+`data/splits/test.jsonl` is unchanged - `3e24e90f`, the digest in `data/splits/hashes.json`, and untouched in git since `f78ec23`. The split was read, not modified.
+
+### Reproduction
+
+The quarantined index and the sweeps it fed have to be rebuilt on a GPU before those four diagnostics are cited again:
+
+```bash
+python3 manage.py build_index --config configs/base_qwen.yaml \
+    --index_dir data/knn_index_clean \
+    --quarantine data/splits/pool_quarantine.json
+
+for thr in 1 2 3 4; do
+  python3 manage.py sparse_select --config configs/sparse_retrieval.yaml \
+      --split val --index_dir data/knn_index_clean --min_query_terms $thr \
+      --out results/sparse_sweep_val_t$thr.json
+done
+```
+
+### Limitations and risks
+
+The test split has now been read twice on record: this audit, and the marker-capitalization and marker-density statistics of the test targets in the 2026-08-20 entry. Neither reached a selection decision except through the quarantine, which this entry removes. Both reads stay in the log rather than being edited out of it.
+
+Removing the 28 test-flagged rows from the quarantine puts them back in the pool for any future clean-index build. At the final pass, a test-time quarantine has to be written then, with `--unseal-test`, and the index rebuilt from it - not carried over from a list written now.
+
 ## 2026-08-20: The marker regex was case-sensitive and the centroid was built through it
 
 Written after the scoring entry below and before the fix is committed, so that the defect and its consequences are on record separately from the change that removes it. The `marker_rate` feature has been miscounted since 2026-06-12, on the target corpus far more than on any system output, and every register number this project has reported was computed through it. The measured consequences are given here; the correction is the next commit.

@@ -6,7 +6,7 @@ This project explores that question using Persian and mixed Persian/Arabic Bahá
 
 It is an undergraduate Computer Engineering thesis project at BIHE, supervised by Dr. Fares Hedayati.
 
-> **Status:** Core validation experiments and the marker-case correction audit are complete. The final test split is still reserved for the final pass, so every score in this README is a validation result.
+> **Status:** Core validation experiments are complete. The final test split is still reserved for the final pass, so every score in this README is a validation result.
 
 ## The short version
 
@@ -27,12 +27,13 @@ The main validation result is not that one method wins every metric.
 
 Instead:
 
-- **RLSF `w3=6`** gives the lowest corrected full stylometric distance at its selected checkpoint.
-- **RLSF `w3=2`** gives the lowest corrected held-out style distance and improves both evaluation judges relative to PEFT.
-- **PEFT+AFSP** gives the highest COMET score among the original study generations.
-- **PEFT+KNN** gives the highest chrF, BLEU, and primary judge mean.
+- **RLSF `w3=2`** gives the best score on the corrected held-out style features.
+- **RLSF `w3=6`** gives the best observed corrected full stylometric distance.
+- **PEFT+AFSP** gives the best COMET score among the main study systems.
+- **PEFT+KNN** gives the highest chrF and BLEU among the main study systems.
+- A secondary **Sparse-KNN** follow-up raises the primary judge mean above ordinary kNN, but the gain is not reproduced by the second judge.
 
-A case-sensitive marker bug was found during the validation audit. Correcting it changed the objective style ranking and reversed the earlier interpretation of the RLSF trajectory, while leaving COMET, chrF, BLEU, the trained adapters, and the existing LLM-judge scores unchanged.
+The corrected stylometric analysis also changes the earlier RLSF interpretation: the judge-conditioned arms move closer to the held-out target through most of the trajectory, with late overshoot appearing only in the strongest arm.
 
 ---
 
@@ -220,8 +221,6 @@ The two judges use the same frozen evaluation rubric, but their absolute scores 
 
 Lower stylometric distance is better.
 
-**Measurement correction.** The original `marker_rate` implementation matched archaic forms such as `Thou`, `Thee`, and `Thy` case-sensitively, which undercounted reverential capitalization in the authorized references. The marker class was corrected before the final test split was opened. The objective style results below use the corrected centroid and corrected scoring. The original analysis is preserved in the project history.
-
 ---
 
 ## Validation results
@@ -248,17 +247,19 @@ Higher is better for COMET, chrF, BLEU, Phi_A, and Phi_B. Lower is better for th
 
 There is no single metric winner.
 
-**RLSF `w3=6` has the lowest corrected full stylometric distance.** Its selected checkpoint reaches 0.2704, followed by `w3=2` at 0.2793.
+**RLSF `w3=2` is strongest on the corrected held-out style features.** Its held-out distance is 0.1264, compared with 0.1713 for PEFT.
 
-**RLSF `w3=2` has the lowest corrected held-out distance.** Its value is 0.1264, compared with 0.1713 for PEFT. Relative to PEFT, the held-out improvement is significant for `w3=2` and `w3=6`, while the metric-only `w3=0` arm does not clearly separate.
+**RLSF `w3=6` has the best observed corrected full stylometric distance.** Its value is 0.2704, followed by `w3=2` at 0.2793.
 
-**PEFT+AFSP still has the best COMET score among the original study generations.** PEFT+KNN gets the highest chrF, BLEU, and Phi_A mean.
+**PEFT+AFSP still has the best COMET score among the study systems.** Compared with PEFT, it improves COMET, chrF, and BLEU significantly in paired validation tests.
 
-The corrected table therefore changes the earlier style interpretation: PEFT is no longer the strongest system on the held-out features, and PEFT+AFSP is no longer the closest system to the target centroid.
+**PEFT+KNN gets the highest chrF, BLEU, and Phi_A mean.** The two hybrid systems are not clearly separated by either LLM judge.
+
+So there is still no single winner across every definition of style and translation quality.
 
 ---
 
-## The RLSF finding: judge pressure improves register fit, then begins to overshoot
+## The RLSF finding: stronger style pressure can eventually overshoot
 
 The selected RLSF checkpoints alone did not explain what was happening, so I ran a matched checkpoint trajectory over:
 
@@ -281,11 +282,11 @@ The main pattern is visible in the per-doubling slopes:
 
 The metric-only control stays roughly stable in independent register space.
 
-The two judge-rewarded arms move closer to the corrected held-out target as training continues. PEFT begins below the corrected target on `marker_rate`, so the early rise in archaic-register markers is movement toward the measured register rather than away from it.
+The two judge-rewarded arms move closer to the corrected held-out target as training continues. PEFT starts below the corrected target on `marker_rate`, so the early increase in register markers is movement toward the measured target rather than away from it.
 
-The high-weight arm also suggests a limit to this improvement. Its held-out distance falls from 0.1534 at step 100 to 0.0405 at step 800, where marker z is -0.004, then rises to 0.0834 at step 1200 as marker z crosses above the target to +0.076.
+The high-pressure arm still shows a possible overshoot at the end of the trajectory: its held-out distance reaches 0.0405 at step 800, then rises to 0.0834 at step 1200 as marker z crosses above the target.
 
-The corrected trajectory is therefore better read as **useful register adaptation followed by possible late over-stylization**, rather than continuous drift away from the target. The trajectory analysis is post-hoc and is not used to select new official checkpoints.
+So the corrected trajectory is better read as useful register adaptation followed by possible late over-stylization.
 
 Trajectory artifacts are in:
 
@@ -302,7 +303,7 @@ The hybrid experiment produced another useful distinction.
 Compared with PEFT:
 
 - PEFT+AFSP improves COMET, chrF, and BLEU
-- under the corrected stylometric instrument, its full and held-out distances are higher than PEFT's
+- under the corrected stylometric scoring, full and held-out distances are higher than PEFT's
 - Phi_A rises slightly
 - Phi_B also rises slightly, but does not separate statistically
 
@@ -310,13 +311,28 @@ Compared with PEFT+KNN:
 
 - adequacy is essentially tied
 - both LLM judges are essentially tied
-- PEFT+AFSP has a lower corrected full stylometric point estimate, 0.3244 versus 0.3589
+- PEFT+AFSP has a clearly better full stylometric point estimate
 
-Because AFSP itself used the affected centroid during exemplar reranking, I also regenerated `afsp_full` and `peft_afsp` with the marker fix while keeping the frozen `k = 8` and `lambda_style = 0.75` settings. The corrected rerank changed many exemplar sets and individual translations, but aggregate performance stayed close to the original runs. AFSP-full moved from 0.3032 to 0.2961 in full stylometric distance, while PEFT+AFSP moved from 0.3244 to 0.3290; neither old-versus-corrected difference was statistically resolved.
+This suggests that ordinary retrieval already gives the PEFT model useful local context, while AFSP's main added value may be in **which examples it chooses**, especially for objective register fit.
 
-This suggests that the centroid bug had a large effect on local retrieval choices but a much smaller effect on the aggregate AFSP validation profile.
+A case-fix sensitivity rerun of `afsp_full` and `peft_afsp`, using the same frozen AFSP settings, changed many retrieved examples and translations but produced only small aggregate changes.
 
 That interpretation is intentionally cautious because these are validation results, not final test results.
+
+### Sparse-KNN retrieval follow-up
+
+A secondary retrieval experiment, `sparse_knn`, tests whether rare source-side terms can improve exemplar selection over ordinary cosine kNN. It keeps the same base model, prompt, `k = 8`, and decoding settings. Up to four exemplar slots are selected by rarity-weighted coverage of training terms with document frequency 2 to 20; any remaining slots are filled by ordinary cosine retrieval.
+
+On validation, 1,207 of 1,323 queries use at least one rarity-selected exemplar, with a mean of 2.52 sparse slots per prompt.
+
+| Condition | COMET | chrF | BLEU | Phi_A | Phi_B | Full style dist. |
+|---|---:|---:|---:|---:|---:|---:|
+| kNN few-shot | 0.6839 | 39.82 | 13.99 | 2.748 | 3.679 | 0.3659 |
+| Sparse-KNN | 0.6843 | 40.23 | 14.19 | **2.813** | **3.698** | **0.3432** |
+
+The chrF, BLEU, COMET, and full-stylometric differences do not separate in paired validation tests. The primary judge favors Sparse-KNN over ordinary kNN by about +0.066 (`p = 0.0042`), but the second judge gives a smaller +0.024 difference with an interval crossing zero (`p = 0.2488`). I therefore treat the perceived-style improvement as **rater-dependent**, not as a replicated judge finding.
+
+A separate retrieval-pool leakage audit checks the validation split against the training pool: 17 of 1,323 validation rows have a near-duplicate above the flag thresholds, implicating 22 pool rows, which are listed as a quarantine for clean retrieval-index builds. The audit is run on validation only; the equivalent test-split audit is deferred to the final pass so the sealed split does not influence the pool. The Sparse-KNN generations reported above retrieve from the unquarantined index, `data/knn_index`.
 
 ---
 
@@ -330,7 +346,7 @@ This is **not a condition of the controlled study** because it changes the model
 |---|---:|---:|---:|---:|---:|---:|
 | Commercial zero-shot | 0.7185 | 45.24 | 18.06 | 3.333 | 3.981 | 0.4873 |
 
-The commercial model is much stronger on adequacy metrics, but remains farther from the corrected target-register centroid than the adapted study systems.
+The commercial model is much stronger on adequacy metrics, but much farther from the target-register centroid than PEFT or the hybrid systems.
 
 Its Phi_A score also has a self-judging problem because the generator and primary judge are the same model family. Phi_B confirms that the commercial output is strongly preferred by the second judge too, but the size of the primary-judge advantage should not be read as an unbiased style effect.
 
@@ -346,7 +362,7 @@ alpha = 0.05
 seed = 42
 ```
 
-The canonical full stylometric ladder uses 2,000 paired resamples because the condition-level feature vector and distance are recomputed inside every draw. Held-out decomposition and trajectory analyses use 10,000 resamples.
+Stylometric rank and distance uncertainty are also bootstrapped by recomputing the condition-level feature vector inside each resample.
 
 A few rules matter when reading the results:
 
@@ -461,6 +477,12 @@ python manage.py infer --condition afsp_margin    --config configs/base_qwen.yam
 python manage.py infer --condition afsp_full      --config configs/base_qwen.yaml
 ```
 
+Generate the secondary Sparse-KNN retrieval condition:
+
+```bash
+python manage.py infer --condition sparse_knn --config configs/sparse_knn.yaml
+```
+
 Generate PEFT:
 
 ```bash
@@ -507,7 +529,7 @@ The full GPU runbooks are under [`notebooks/`](notebooks/).
 Example:
 
 ```bash
-CONDS="zeroshot random_fewshot knn_fewshot afsp_margin afsp_full peft peft_knn peft_afsp rlsf_w3_0.0 rlsf_w3_2.0 rlsf_w3_6.0"
+CONDS="zeroshot random_fewshot knn_fewshot sparse_knn afsp_margin afsp_full peft peft_knn peft_afsp rlsf_w3_0.0 rlsf_w3_2.0 rlsf_w3_6.0"
 
 python manage.py eval \
     --conditions $CONDS \
@@ -555,23 +577,19 @@ For full experiment provenance and the exact commands used for each run, see [`d
 - [`results/heldout_decomp_val.json`](results/heldout_decomp_val.json): RLSF held-out style decomposition
 - [`results/heldout_traj_val.json`](results/heldout_traj_val.json): RLSF checkpoint-trajectory analysis
 - [`results/heldout_decomp_peft_afsp_val.json`](results/heldout_decomp_peft_afsp_val.json): PEFT+AFSP held-out style analysis
-- [`results/stylometrics_ci_casefix_val.json`](results/stylometrics_ci_casefix_val.json): AFSP marker-case sensitivity comparison
-- [`results/heldout_decomp_afsp_casefix_val.json`](results/heldout_decomp_afsp_casefix_val.json): corrected AFSP-full held-out comparison
-- [`results/heldout_decomp_peft_afsp_casefix_val.json`](results/heldout_decomp_peft_afsp_casefix_val.json): corrected PEFT+AFSP held-out comparison
-- [`outputs/afsp_casefix_manifest.json`](outputs/afsp_casefix_manifest.json): provenance for the corrected AFSP inference runs
+- [`results/stylometrics_ci_sparse_knn_val.json`](results/stylometrics_ci_sparse_knn_val.json): Sparse-KNN vs kNN stylometric comparison
+- [`results/judge_agreement_gpt_sparse_knn_val.json`](results/judge_agreement_gpt_sparse_knn_val.json): two-rater Sparse-KNN judge comparison
+- [`results/sparse_selection_val.json`](results/sparse_selection_val.json): Sparse-KNN routing and exemplar-selection diagnostics
+- [`data/splits/pool_quarantine.json`](data/splits/pool_quarantine.json): retrieval-pool near-duplicate quarantine list, validation-only
 ---
 
 ## Current takeaway
 
 The project started with the expectation that direct reinforcement learning for style might be the strongest approach.
 
-The corrected validation evidence supports part of that expectation, but the result is still not a simple winner-takes-all comparison.
+The validation evidence turned out to be more complicated.
 
-PEFT provides a strong domain-adapted baseline. Retrieval improves several adequacy and perceived-style measures. Under the corrected stylometric instrument, the judge-conditioned RLSF arms move closer to the held-out target features, with `w3=2` giving the lowest held-out distance and `w3=6` the lowest full stylometric point estimate at the selected checkpoints.
-
-The trajectory also suggests that stronger style optimization has a useful range rather than an unlimited benefit. The high-weight arm approaches the measured marker target through step 800 and begins to overshoot later.
-
-The marker-case correction is part of the result: it changed the objective style ranking and reversed the earlier trajectory interpretation, while leaving the trained adapters, adequacy scores, and existing LLM-judge evaluations unchanged. The corrected AFSP rerun also shows that large changes in retrieved examples can produce only small changes in aggregate validation performance.
+PEFT learns the target corpus well. Retrieval improves adequacy and perceived style. AFSP can improve the objective register fit of a PEFT-plus-retrieval system relative to plain KNN. The Sparse-KNN follow-up also improves the primary judge score over ordinary kNN, although that difference is rater-dependent. Under the corrected stylometric analysis, the judge-conditioned RLSF arms improve held-out register fit, with possible over-stylization appearing only later in the strongest trajectory.
 
 So the central lesson so far is not:
 
@@ -579,7 +597,7 @@ So the central lesson so far is not:
 
 It is:
 
-> **Different adaptation methods improve different parts of style-aware translation, and conclusions about stylistic fidelity depend on how the target register is measured.**
+> **Different adaptation methods improve different parts of style-aware translation, and the final interpretation depends on both translation metrics and how target-register fidelity is measured.**
 
 The final sealed-test evaluation will determine how well these validation findings generalize.
 

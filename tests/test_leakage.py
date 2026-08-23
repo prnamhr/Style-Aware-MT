@@ -9,6 +9,7 @@ import json
 import numpy as np
 import pytest
 
+from src.data.split import sha256_file
 from src.retrieval.build_index import _check_not_overwriting
 from src.retrieval.leakage import audit, char_ngrams, jaccard, load_quarantine
 
@@ -103,3 +104,29 @@ def test_rebuilding_a_quarantined_index_in_place_is_allowed(tmp_path):
     )
 
     _check_not_overwriting(tmp_path)
+
+
+def _quarantine(tmp_path, splits):
+    train = tmp_path / "train.jsonl"
+    train.write_text('{"input": "a", "output": "b"}\n', encoding="utf-8")
+    q = tmp_path / "pool_quarantine.json"
+    q.write_text(
+        json.dumps({"train_sha256": sha256_file(train), "splits": splits, "pool_rows": [3]}),
+        encoding="utf-8",
+    )
+    return q, train
+
+
+def test_quarantine_audited_on_test_is_rejected(tmp_path):
+    q, train = _quarantine(tmp_path, ["val", "test"])
+
+    with pytest.raises(ValueError, match="sealed test split"):
+        load_quarantine(q, train)
+
+    assert load_quarantine(q, train, allow_test=True) == [3]
+
+
+def test_val_only_quarantine_is_accepted(tmp_path):
+    q, train = _quarantine(tmp_path, ["val"])
+
+    assert load_quarantine(q, train) == [3]

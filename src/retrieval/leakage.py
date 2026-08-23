@@ -81,9 +81,17 @@ def audit(
     return flags, max_cos
 
 
-def load_quarantine(path: str | Path, train_file: str | Path) -> list[int]:
+def load_quarantine(
+    path: str | Path, train_file: str | Path, *, allow_test: bool = False
+) -> list[int]:
     """Read a quarantine list, refusing one written against a different pool."""
     payload = json.loads(Path(path).read_text(encoding="utf-8"))
+    if "test" in payload.get("splits", []) and not allow_test:
+        raise ValueError(
+            f"quarantine list {path} was audited against the sealed test split "
+            f"({payload['splits']}); a val-time pool must not be pruned with test "
+            "near-duplicates. Re-run: python manage.py leakage --split val --write-quarantine"
+        )
     actual = sha256_file(Path(train_file))
     if payload.get("train_sha256") != actual:
         raise ValueError(
@@ -117,7 +125,18 @@ def main() -> None:
     parser.add_argument("--top_m", type=int, default=None)
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--write-quarantine", action="store_true")
+    parser.add_argument(
+        "--unseal-test",
+        action="store_true",
+        help="permit auditing data/splits/test.jsonl; only at the final test pass",
+    )
     args = parser.parse_args()
+
+    if "test" in args.split and not args.unseal_test:
+        raise SystemExit(
+            "refusing to audit the sealed test split; drop it from --split, or pass "
+            "--unseal-test at the final pass"
+        )
 
     cfg = yaml.safe_load(Path(args.config).read_text(encoding="utf-8"))
     retr, leak = cfg["retrieval"], cfg.get("leakage", {})

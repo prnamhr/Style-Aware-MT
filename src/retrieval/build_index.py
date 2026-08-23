@@ -43,12 +43,13 @@ def build_index(
     embed_model: str,
     batch_size: int = 32,
     quarantine: Path | None = None,
+    unseal_test: bool = False,
 ) -> None:
     rows = _read_jsonl(train_file)
     dropped: list[int] = []
     if quarantine is not None:
         _check_not_overwriting(index_dir)
-        dropped = load_quarantine(quarantine, train_file)
+        dropped = load_quarantine(quarantine, train_file, allow_test=unseal_test)
         keep = set(range(len(rows))) - set(dropped)
         rows = [r for i, r in enumerate(rows) if i in keep]
         print(f"Quarantine {quarantine}: dropped {len(dropped)} of {len(dropped) + len(rows)} rows")
@@ -91,6 +92,11 @@ def main() -> None:
     parser.add_argument(
         "--quarantine", default=None, help="pool rows to drop, from `manage.py leakage`"
     )
+    parser.add_argument(
+        "--unseal-test",
+        action="store_true",
+        help="accept a quarantine audited on test; only at the final test pass",
+    )
     args = parser.parse_args()
 
     cfg = yaml.safe_load(Path(args.config).read_text(encoding="utf-8"))
@@ -104,6 +110,7 @@ def main() -> None:
         retr["embed_model"],
         batch_size=args.batch_size,
         quarantine=Path(args.quarantine) if args.quarantine else None,
+        unseal_test=args.unseal_test,
     )
 
 
