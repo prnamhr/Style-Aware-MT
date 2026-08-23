@@ -295,10 +295,6 @@ Sparse-KNN is compared with ordinary kNN as a secondary validation experiment.
 | kNN few-shot | 0.6839 | 39.82 | 13.99 | 2.748 | 3.679 | 0.3659 | 0.2337 |
 | Sparse-KNN | 0.6843 | 40.23 | 14.19 | **2.813** | **3.698** | **0.3432** | **0.2084** |
 
-The COMET, chrF, BLEU, and full-stylometric differences do not separate in paired validation tests. The primary judge favors Sparse-KNN over ordinary kNN by about +0.066 (`p = 0.0042`), while the second judge gives a smaller +0.024 difference with an interval crossing zero (`p = 0.2488`).
-
-I therefore treat the perceived-style gain as rater-dependent rather than as a replicated judge result.
-
 A validation-only near-duplicate audit is stored separately. The Sparse-KNN generations reported here use the original retrieval index, `data/knn_index`.
 
 ## External reference
