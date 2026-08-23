@@ -120,7 +120,6 @@ The selected PEFT checkpoint is also used to initialize RLSF.
 
 ### RLSF
 
-The proposal originally planned PPO. The final implementation uses **GRPO**.
 
 For a generated translation `y`, the training reward is:
 
