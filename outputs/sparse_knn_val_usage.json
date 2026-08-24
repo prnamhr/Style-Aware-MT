@@ -7,15 +7,13 @@
     "ordering": "most_similar_last",
     "index_dir": "data/knn_index",
     "m": 4,
-    "min_query_terms": 1,
-    "redundancy": 0.3,
-    "df_min": 2,
-    "df_max": 20,
+    "min_df": 30,
+    "freeze_n": 500,
     "rarity_file": "results/rarity_train.json",
-    "rarity_sha256": "47da96ea667ee0951278d16812b3fd49e4dc9f54aaf34bfbc4562765a1977ca5"
+    "rarity_sha256": "3f6132961d85fe52ad4090d098a263eb4e84c796630db6dd4471bd1d583d8ee3"
   },
-  "calls": 0,
-  "prompt_tokens": 0,
-  "completion_tokens": 0,
+  "calls": 1323,
+  "prompt_tokens": 2682704,
+  "completion_tokens": 43701,
   "cost_usd": 0.0
 }
