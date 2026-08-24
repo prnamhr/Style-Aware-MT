@@ -6,17 +6,13 @@ retrieval:
   k: 8
 
 rarity:
-  min_df: 30                # below this a term is one-off noise, not vocabulary
-  max_df: 500               # above this it is ordinary vocabulary, carried by every register
+  min_df: 30                # df floor; below it a term is too rare to be carried by a query
   freeze_n: 500             # the list is a fixed size, so its df range is an outcome
-  rank: surprisal           # character unusualness; IDF inside the band is near-flat
   zwnj: keep
   out: results/rarity_train.json
 
 sparse:
-  m: 4                      # rarity slots; the remaining k-m are cosine top-k
-  min_query_terms: 1        # below this the query routes entirely to cosine
-  redundancy: 0.3           # penalty on similarity to already-selected exemplars
+  m: 4                      # rare slots, one exemplar each; the remaining k-m are cosine top-k
 
 leakage:
   cos: 0.95

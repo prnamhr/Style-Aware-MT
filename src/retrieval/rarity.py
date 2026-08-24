@@ -1,5 +1,5 @@
 """
-Character-unusualness over the retrieval pool: the "irregular" (rare) source-term list.
+Document frequency over the training pool: the frozen rare source-term list.
 
 Usage:
     python -m src.retrieval.rarity --config configs/sparse_retrieval.yaml
@@ -9,9 +9,7 @@ from __future__ import annotations
 
 import argparse
 import json
-import math
 import re
-from collections import defaultdict
 from functools import partial
 from pathlib import Path
 from typing import NamedTuple
@@ -19,17 +17,13 @@ from typing import NamedTuple
 import numpy as np
 import scipy.sparse as sp
 import yaml
-from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
+from sklearn.feature_extraction.text import CountVectorizer
 
 from src.data.preprocess import ARABIC_SCRIPT_RE
 from src.data.split import ARABIC_DIACRITICS
 
 ZWNJ = "‌"
 ZWNJ_MODES = ("keep", "strip", "split")
-RANKS = ("surprisal", "idf")
-
-PAD, END = "^", "$"
-SMOOTHING = 0.5
 
 _DIACRITIC_RE = re.compile(f"[{ARABIC_DIACRITICS}]")
 # A token is a run of word characters, optionally joined across ZWNJ.
@@ -54,100 +48,48 @@ def tokenize(text: str, zwnj: str = "keep") -> list[str]:
     return [t for t in _TOKEN_RE.findall(text) if ARABIC_SCRIPT_RE.search(t) and not t.isdigit()]
 
 
-def char_surprisal(terms, tf, n: int = 4) -> np.ndarray:
-    """Mean per-character negative log-probability of each term under a character n-gram model."""
-    if n < 2:
-        raise ValueError(f"need n >= 2, got {n}")
-    terms = [str(t) for t in terms]
-    weights = np.asarray(tf, dtype=np.float64)
-    if weights.shape != (len(terms),):
-        raise ValueError(f"tf must have one weight per term, got {weights.shape}")
-
-    pad = PAD * (n - 1)
-    context: defaultdict[str, float] = defaultdict(float)
-    ngram: defaultdict[tuple[str, str], float] = defaultdict(float)
-    alphabet: set[str] = {END}
-    for term, w in zip(terms, weights):
-        s = pad + term + END
-        alphabet.update(term)
-        for i in range(n - 1, len(s)):
-            ctx = s[i - n + 1 : i]
-            context[ctx] += w
-            ngram[(ctx, s[i])] += w
-
-    denom = SMOOTHING * len(alphabet)
-    out = np.empty(len(terms), dtype=np.float64)
-    for j, term in enumerate(terms):
-        s = pad + term + END
-        total = 0.0
-        for i in range(n - 1, len(s)):
-            ctx = s[i - n + 1 : i]
-            p = (ngram.get((ctx, s[i]), 0.0) + SMOOTHING) / (context.get(ctx, 0.0) + denom)
-            total -= math.log(p)
-        out[j] = total / (len(s) - n + 1)
-    return out
-
-
 class TermStats(NamedTuple):
     terms: np.ndarray
-    idf: np.ndarray
     df: np.ndarray
     tf: np.ndarray
-    surprisal: np.ndarray
     postings: sp.csc_matrix
     n_docs: int
 
 
-def term_stats(sources: list[str], zwnj: str = "keep", char_n: int = 4) -> TermStats:
-    """Frequency, smoothed IDF and character surprisal of every term in the pool."""
+def term_stats(sources: list[str], zwnj: str = "keep") -> TermStats:
+    """Document and total frequency of every term in the training pool."""
     vec = CountVectorizer(analyzer=partial(tokenize, zwnj=zwnj))
     counts = vec.fit_transform(sources)
     binary = counts.copy()
     binary.data = np.ones_like(binary.data)
-    # TfidfTransformer derives its own document frequency, so the raw counts are fine here.
-    idf = TfidfTransformer(use_idf=True, smooth_idf=True).fit(counts).idf_
-    terms = vec.get_feature_names_out()
-    tf = np.asarray(counts.sum(axis=0)).ravel()
     return TermStats(
-        terms=terms,
-        idf=idf,
+        terms=vec.get_feature_names_out(),
         df=np.asarray(binary.sum(axis=0)).ravel(),
-        tf=tf,
-        surprisal=char_surprisal(terms, tf, n=char_n),
+        tf=np.asarray(counts.sum(axis=0)).ravel(),
         postings=binary.tocsc(),
         n_docs=counts.shape[0],
     )
 
 
-def eligible_terms(stats: TermStats, min_df: int, max_df: int | None) -> np.ndarray:
-    """Indices of the terms whose pool document frequency lies in the closed band."""
+def rarity_key(stats: TermStats, i: int) -> tuple[int, int, str]:
+    """Sort key ranking term ``i`` from rarest to least rare.
+
+    Document frequency is the score. Total frequency separates terms that occur in
+    the same number of sentences, and the term string makes the rest deterministic:
+    df alone leaves thousands of terms tied.
+    """
+    return (int(stats.df[i]), int(stats.tf[i]), str(stats.terms[i]))
+
+
+def frozen_terms(stats: TermStats, min_df: int = 1, freeze_n: int = 500) -> dict[str, int]:
+    """The ``freeze_n`` rarest pool terms, as ``{term: rank}`` with rank 0 the rarest."""
     if min_df < 1:
         raise ValueError(f"need min_df >= 1, got {min_df}")
-    if max_df is not None and max_df < min_df:
-        raise ValueError(f"need max_df >= min_df, got max_df={max_df}, min_df={min_df}")
-    keep = stats.df >= min_df
-    if max_df is not None:
-        keep &= stats.df <= max_df
-    return np.flatnonzero(keep)
-
-
-def frozen_terms(
-    stats: TermStats,
-    min_df: int = 2,
-    max_df: int | None = None,
-    freeze_n: int = 500,
-    rank: str = "surprisal",
-) -> dict[str, float]:
-    """The freeze_n most unusual terms inside the df band"""
     if freeze_n < 1:
         raise ValueError(f"need freeze_n >= 1, got {freeze_n}")
-    if rank not in RANKS:
-        raise ValueError(f"rank must be one of {RANKS}, got {rank!r}")
-    score = stats.surprisal if rank == "surprisal" else stats.idf
-    eligible = eligible_terms(stats, min_df, max_df)
-    # The term string is a determinism guard against exact score ties, not a ranking key.
-    order = sorted(eligible, key=lambda i: (-score[i], stats.terms[i]))[:freeze_n]
-    return {str(stats.terms[i]): float(stats.idf[i]) for i in order}
+    eligible = np.flatnonzero(stats.df >= min_df)
+    order = sorted(eligible, key=partial(rarity_key, stats))[:freeze_n]
+    return {str(stats.terms[i]): rank for rank, i in enumerate(order)}
 
 
 def df_histogram(df: np.ndarray) -> dict[str, int]:
@@ -165,8 +107,8 @@ def df_histogram(df: np.ndarray) -> dict[str, int]:
     return buckets
 
 
-def load_irregular(path: str | Path) -> dict[str, float]:
-    """Load a written rarity list back as ``{term: idf}``."""
+def load_irregular(path: str | Path) -> dict[str, int]:
+    """Load a written rarity list back as ``{term: rank}``, rarest first."""
     p = Path(path)
     if not p.exists():
         raise FileNotFoundError(
@@ -174,7 +116,7 @@ def load_irregular(path: str | Path) -> dict[str, float]:
             "    python manage.py rarity --config configs/sparse_retrieval.yaml"
         )
     payload = json.loads(p.read_text(encoding="utf-8"))
-    return {term: float(idf) for term, idf, *_rest in payload["terms"]}
+    return {str(term): rank for rank, (term, *_rest) in enumerate(payload["terms"])}
 
 
 def _read_sources(path: Path) -> list[str]:
@@ -200,20 +142,18 @@ def zwnj_collisions(terms) -> list[tuple[str, str]]:
     )
 
 
-def _write_top_tsv(path: Path, rows: list[tuple[int, str, float, float, int, str]]) -> None:
-    lines = ["rank\tterm\tsurprisal\tidf\tdf\texample"]
-    lines += [f"{r}\t{t}\t{s:.4f}\t{idf:.4f}\t{df}\t{ex}" for r, t, s, idf, df, ex in rows]
+def _write_top_tsv(path: Path, rows: list[tuple[int, str, int, int, str]]) -> None:
+    lines = ["rank\tterm\tdf\ttf\texample"]
+    lines += [f"{r}\t{t}\t{df}\t{tf}\t{ex}" for r, t, df, tf, ex in rows]
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Freeze the most unusual pool terms in a df band.")
+    parser = argparse.ArgumentParser(description="Freeze the rarest training-pool terms.")
     parser.add_argument("--config", default="configs/sparse_retrieval.yaml")
     parser.add_argument("--train_file", default=None)
-    parser.add_argument("--min_df", type=int, default=None)
-    parser.add_argument("--max_df", type=int, default=None, help="0 lifts the ceiling")
+    parser.add_argument("--min_df", type=int, default=None, help="floor on document frequency")
     parser.add_argument("--freeze_n", type=int, default=None, help="size of the frozen list")
-    parser.add_argument("--rank", choices=RANKS, default=None)
     parser.add_argument("--zwnj", choices=ZWNJ_MODES, default=None)
     parser.add_argument("--out", default=None)
     parser.add_argument("--top", type=int, default=50, help="rows written to the review TSV")
@@ -222,44 +162,36 @@ def main() -> None:
     cfg = yaml.safe_load(Path(args.config).read_text(encoding="utf-8"))
     rar = cfg.get("rarity", {})
     train_file = Path(args.train_file or cfg["retrieval"]["train_file"])
-    min_df = args.min_df if args.min_df is not None else rar.get("min_df", 2)
-    max_df = args.max_df if args.max_df is not None else rar.get("max_df")
-    max_df = None if max_df in (0, None) else int(max_df)
+    min_df = args.min_df if args.min_df is not None else rar.get("min_df", 1)
     freeze_n = args.freeze_n if args.freeze_n is not None else rar.get("freeze_n", 500)
-    rank = args.rank or rar.get("rank", "surprisal")
     zwnj = args.zwnj or rar.get("zwnj", "keep")
     out_path = Path(args.out or rar.get("out", "results/rarity_train.json"))
 
     sources = _read_sources(train_file)
-    print(f"Scoring {len(sources)} pool sources (zwnj={zwnj}, rank={rank}) ...")
+    print(f"Counting term frequencies over {len(sources)} training sources (zwnj={zwnj}) ...")
     stats = term_stats(sources, zwnj=zwnj)
-    frozen = frozen_terms(stats, min_df=min_df, max_df=max_df, freeze_n=freeze_n, rank=rank)
+    frozen = frozen_terms(stats, min_df=min_df, freeze_n=freeze_n)
 
     index_of = {t: i for i, t in enumerate(stats.terms)}
     df_of = {t: int(stats.df[index_of[t]]) for t in frozen}
-    sur_of = {t: float(stats.surprisal[index_of[t]]) for t in frozen}
+    tf_of = {t: int(stats.tf[index_of[t]]) for t in frozen}
     sel_df = np.array(list(df_of.values()))
-    sel_sur = np.array(list(sur_of.values()))
     payload = {
         "config": {
             "train_file": str(train_file),
             "min_df": min_df,
-            "max_df": max_df,
             "freeze_n": freeze_n,
-            "rank": rank,
             "zwnj": zwnj,
         },
         "n_docs": stats.n_docs,
         "n_terms": int(len(stats.terms)),
-        "n_eligible": int(len(eligible_terms(stats, min_df, max_df))),
+        "n_eligible": int((stats.df >= min_df).sum()),
         "n_frozen": len(frozen),
         "selected_frac": round(len(frozen) / len(stats.terms), 4),
         "df_observed": [int(sel_df.min()), int(sel_df.max())] if sel_df.size else None,
-        "idf_range": [min(frozen.values()), max(frozen.values())] if frozen else None,
-        "surprisal_range": [float(sel_sur.min()), float(sel_sur.max())] if sel_sur.size else None,
         "df_histogram": {"pool": df_histogram(stats.df), "frozen": df_histogram(sel_df)},
         "zwnj_collisions": zwnj_collisions(stats.terms),
-        "terms": [[t, idf, df_of[t], sur_of[t]] for t, idf in frozen.items()],
+        "terms": [[t, df_of[t], tf_of[t]] for t in frozen],
     }
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -268,19 +200,17 @@ def main() -> None:
     _write_top_tsv(
         tsv_path,
         [
-            (r, t, sur_of[t], frozen[t], df_of[t], _example_doc(stats, index_of[t], sources))
-            for r, t in enumerate(list(frozen)[: args.top], start=1)
+            (rank, t, df_of[t], tf_of[t], _example_doc(stats, index_of[t], sources))
+            for t, rank in list(frozen.items())[: args.top]
         ],
     )
 
-    ceiling = max_df if max_df is not None else "inf"
+    frac, observed = payload["selected_frac"], payload["df_observed"]
     print(
-        f"  {len(stats.terms)} pool terms, {payload['n_eligible']} in df [{min_df}, {ceiling}] "
+        f"  {len(stats.terms)} pool terms, {payload['n_eligible']} at df >= {min_df} "
         f"-> {len(frozen)} frozen (requested {freeze_n})"
     )
-    frac, observed = payload["selected_frac"], payload["df_observed"]
     print(f"  {frac:.1%} of the vocabulary, realized df {observed}")
-    print(f"  idf {payload['idf_range']}, surprisal {payload['surprisal_range']}")
     print(f"  df histogram (frozen): {payload['df_histogram']['frozen']}")
     collisions = payload["zwnj_collisions"]
     print(f"  ZWNJ variant collisions: {len(collisions)}", collisions[:3] or "")

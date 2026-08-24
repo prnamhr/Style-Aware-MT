@@ -24,16 +24,12 @@ retrieval:
 
 rarity:
   min_df: 30
-  max_df: 500
   freeze_n: 500
-  rank: surprisal
   zwnj: keep
   out: results/rarity_train.json
 
 sparse:
   m: 4
-  min_query_terms: 1
-  redundancy: 0.3
 
 data:
   eval_file: data/splits/val.jsonl

@@ -67,6 +67,51 @@ A second audit on 2026-08-10 checked `README.md` and `docs/budget.md` against th
 
 This log was audited for internal consistency against the committed artifacts, configs, and git history on 2026-08-01. Corrections made in that pass are marked inline as *Correction (2026-08-01)*; they amend the claims of earlier entries but do not restate their history.
 
+## 2026-08-24: The sparse condition reduced to one exemplar per rare query word
+
+### Summary
+
+Greedy rarity-weighted coverage, the redundancy penalty, the `max_df` ceiling and the surprisal ranking were removed from the `sparse_knn` condition. The condition is now: freeze the 500 rarest training words by document frequency, take the four rarest of them a query carries, retrieve the nearest training example for each, and fill the remaining prompt slots with ordinary kNN. The rebuild has NOT been run; the results row below is empty.
+
+### What changed
+
+- `src/retrieval/rarity.py:83` ranks the vocabulary by document frequency, ascending, breaking ties on total frequency and then on the token string. `char_surprisal`, the `max_df` ceiling, the `rank` switch and the IDF computation are gone, and the payload carries `[term, df, tf]` per term in rank order.
+- `src/retrieval/rarity.py:110` `load_irregular` now returns `{term: rank}` from the written order rather than `{term: idf}`. Rank is what the channel sorts by, so the list file is the ranking.
+- `src/retrieval/sparse.py:83` `_nearest_per_term` walks the targeted terms rarest first and takes, for each, the pool row carrying it with the highest cosine to the query that no earlier term has taken. `_greedy`, the redundancy penalty and `min_query_terms` are gone.
+- The trace records `n_knn` and `served_terms` in place of `coverage`; a targeted term is unserved only when every pool row carrying it is already in the prompt.
+- `configs/sparse_retrieval.yaml` and `configs/sparse_knn.yaml` reduce to `min_df: 30`, `freeze_n: 500`, `zwnj: keep` and `sparse.m: 4`. `src/infer/run.py:275` records `m`, `min_df` and `freeze_n`.
+
+### Rationale
+
+Greedy coverage was the reason the previous list looked dead. It maximises rarity weight covered per exemplar, so one exemplar carrying three of a query's rare terms ends the search and the other three slots fall to cosine kNN. The diagnostic recorded 3.021 targeted terms per query and 1.559 filled slots: the channel was working as specified and the specification was wrong. One exemplar per term makes the slot count equal the match count, so the 33.7% of val queries carrying four rare words become full-dose prompts instead of 1.06%.
+
+The `max_df` ceiling is redundant under a df ranking. Taking the 500 rarest terms above a floor caps document frequency wherever the 500th term happens to sit, so the ceiling is an outcome rather than a parameter. The floor is not redundant: it is the only thing standing between the list and the 11,668 terms at df 1, which appear in one training sentence each and which no val query carried. It is kept at 30 on the sweep evidence recorded in the entry below.
+
+Ranking by df rather than by character surprisal costs little here. Only 695 terms sit at df >= 30, so a 500-term freeze keeps most of the band whatever orders it, and df is the quantity the condition is about.
+
+### Verification
+
+`tests/test_rarity.py` covers the df ranking and both tie-breaks, the floor, the exact list size, and the reload path from the written file. `tests/test_sparse.py` covers one exemplar per term at the nearest pool row, no training example used twice, terms served rarest first, a term absent from the pool leaving its slot to the fill, the cap at `m`, and the slot arithmetic 0-4 rare + the rest kNN = 8. `pytest tests/test_rarity.py tests/test_sparse.py` passes, 31 tests. `ruff check` and `ruff format --check` pass. `manage.py rarity` and a full selection pass were exercised on a synthetic 300-document pool outside the repository, which is not a pipeline run.
+
+### Result
+
+[accurate information needed] — the rebuild has not been run. The gate in `notebooks/rarity_retrieval_colab.ipynb` is unchanged: proceed only if the share of queries filling all four rare slots clears 30%.
+
+### Reproduction
+
+```
+python manage.py rarity --config configs/sparse_retrieval.yaml
+python manage.py sparse_select --config configs/sparse_retrieval.yaml --split val --index_dir data/knn_index_clean
+```
+
+### Limitations and risks
+
+The condition no longer controls exemplar redundancy. The redundancy penalty was what kept the rarity picks from being near-copies of each other; with one exemplar per term, two rare terms that co-occur in the pool can return two similar examples. `results/sparse_selection_val.json` still reports intra-set cosine against the dense baseline, which is now the only check on that.
+
+A word is served by the training example nearest the query among those carrying it, which is a cosine choice, not a register choice. Nothing verifies that the retrieved example uses the rare word in the same sense.
+
+Every artifact under `results/` built before this change describes either the IDF-ranked list or the surprisal-ranked one under greedy coverage, and `README.md` still reports the df 2 to 20 list. None is updated by this change.
+
 ## 2026-08-24: The frozen rarity list was ranked by character surprisal inside a df band
 
 ### Summary
@@ -95,7 +140,9 @@ Rarity as IDF also measures the wrong thing here. A term appearing twice in the 
 
 ### Result
 
-[accurate information needed] — the rebuild has not been run. `notebooks/rarity_retrieval_colab.ipynb` carries the go/no-go: the val diagnostic proceeds only if the share of queries filling all four rarity slots clears 30%, against 0.0% on the IDF-ranked list.
+The list was rebuilt and the val diagnostic run after this entry was first written; the numbers below replace the gap it left. The band admitted 695 of 22,789 pool terms and the frozen 500 realized df [30, 490], IDF 4.10 to 6.86. On val the list is carried: 3.021 listed terms per query against 0.07 under the IDF ranking, 88.5% of queries carrying at least one against 6.4%, and 33.7% carrying four or more.
+
+The go/no-go failed anyway. Only 1.06% of queries filled all four rarity slots, against the 30% gate, because greedy coverage stops as soon as the chosen exemplars cover the targeted terms: mean slots filled was 1.559 while mean targeted terms was 3.021. The list was not the binding constraint; the selection rule was. The band sweep in the same session put the alternatives at mean listed terms per query of 0.147 for `[2, inf]`, 0.921 for `[10, 1000]`, 3.021 for `[30, 500]` and 2.892 for `[50, 300]`, which is the evidence behind the df floor kept by the 2026-08-24 entry above.
 
 ### Reproduction
 

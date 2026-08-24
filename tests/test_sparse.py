@@ -1,21 +1,23 @@
 """
-Tests for the sparse channel: routing, the query-term cap, greedy coverage, and redundancy.
+Tests for the sparse channel: the rare-term cap, one exemplar per term, and the kNN fill.
 """
 
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 from src.retrieval.sparse import SparseRetriever
 
-IRREGULAR = {t: 3.0 for t in ("الف", "ب", "ج", "د", "ه")}
+# term -> rarity rank, rarest first.
+IRREGULAR = {t: r for r, t in enumerate(("الف", "ب", "ج", "د", "ه"))}
 
 
 class _Index:
     def __init__(self, sources: list[str], embeddings, query_embedding=None):
         self.pairs = [{"input": s, "output": f"en:{s}"} for s in sources]
         self.embeddings = np.asarray(embeddings, dtype=np.float32)
-        # Zeros leave the final cosine sort a stable no-op, so a test opts in to reordering.
+        # Zeros leave every cosine tied, so a test opts in to a similarity ordering.
         self.query = (
             np.zeros(self.embeddings.shape[1])
             if query_embedding is None
@@ -27,7 +29,7 @@ class _Index:
 
 
 class _Fallback:
-    """Stands in for AFSPRetriever: returns the same ranked pairs for every query."""
+    """Stands in for the dense retriever: returns the same ranked pairs for every query."""
 
     def __init__(self, pairs: list[dict]):
         self.pairs = pairs
@@ -44,133 +46,119 @@ def _build(sources, embeddings, fallback_rows=(), query_embedding=None, **kw):
     return SparseRetriever(index, IRREGULAR, fallback, **kw), index, fallback
 
 
-def test_short_query_routes_to_the_dense_fallback():
-    retriever, index, fallback = _build(
-        ["الف ب", "ج د"], np.eye(2), fallback_rows=(1, 0), min_query_terms=4
-    )
-    selected, traces = retriever.select_with_trace(["الف ب"], k=2)
-
-    assert traces[0]["route"] == "dense"
-    assert traces[0]["n_sparse"] == 0
-    assert [p["input"] for p in selected[0]] == ["ج د", "الف ب"]
-    assert fallback.calls == [4]  # asks for 2k so the de-duplicating fill has slack
-
-
-def test_greedy_prefers_the_candidate_covering_most_rarity():
-    sources = ["الف ب", "الف", "ج د"]
-    retriever, _, _ = _build(sources, np.eye(3), min_query_terms=4, redundancy=0.0)
-    selected, traces = retriever.select_with_trace(["الف ب ج د"], k=2)
-
-    assert [p["input"] for p in selected[0]] == ["الف ب", "ج د"]
-    assert traces[0]["route"] == "full"
-    assert traces[0]["coverage"] == 1.0
-
-
-def test_redundancy_penalty_breaks_a_coverage_tie_toward_the_dissimilar_candidate():
-    # rows 1 and 2 cover the same terms; row 1 is a near-copy of the already-chosen row 0.
-    sources = ["الف ب", "ج د", "ج د"]
-    embeddings = [[1.0, 0.0], [1.0, 0.0], [0.0, 1.0]]
-    query = ["الف ب ج د"]
-
-    flat, _, _ = _build(sources, embeddings, min_query_terms=4, redundancy=0.0)
-    penalised, _, _ = _build(sources, embeddings, min_query_terms=4, redundancy=0.3)
-
-    assert flat.select_with_trace(query, k=2)[1][0]["sparse_rows"] == [0, 1]
-    assert penalised.select_with_trace(query, k=2)[1][0]["sparse_rows"] == [0, 2]
-
-
-def test_short_coverage_fills_from_the_fallback_without_repeating():
-    sources = ["الف ب", "ج د", "ه"]
-    retriever, index, fallback = _build(
-        sources, np.eye(3), fallback_rows=(0, 2), min_query_terms=4, redundancy=0.0
-    )
-    selected, traces = retriever.select_with_trace(["الف ب ج د"], k=3)
-
-    inputs = [p["input"] for p in selected[0]]
-    assert traces[0]["route"] == "partial"
-    assert traces[0]["n_sparse"] == 2
-    assert len(inputs) == len(set(inputs)) == 3
-    assert inputs[2] == "ه"  # row 0 was already selected, so the fill skips it
-
-
-def test_query_with_no_pool_match_routes_dense():
-    retriever, _, _ = _build(["الف ب"], np.eye(1), fallback_rows=(0,), min_query_terms=1)
-    _, traces = retriever.select_with_trace(["ج د ه"], k=2)
-
-    assert traces[0]["route"] == "dense"
-    assert traces[0]["n_query_terms"] == 3
-
-
-def test_sparse_slots_are_capped_at_m():
-    sources = ["الف", "ب", "ج", "د", "ه"]
-    retriever, _, _ = _build(
-        sources, np.eye(5), fallback_rows=(0, 1, 2, 3, 4), m=2, min_query_terms=1, redundancy=0.0
-    )
-    selected, traces = retriever.select_with_trace(["الف ب ج د ه"], k=4)
-
-    assert traces[0]["n_sparse"] == 2
-    assert traces[0]["route"] == "full"
-    assert len(selected[0]) == 4  # the remaining k-m slots come from cosine top-k
-
-
-def test_query_with_no_irregular_terms_gets_k_cosine_exemplars():
-    retriever, _, _ = _build(
-        ["الف", "ب", "ج"], np.eye(3), fallback_rows=(0, 1, 2), m=4, min_query_terms=1
-    )
+def test_query_with_no_rare_term_gets_k_cosine_exemplars():
+    retriever, _, fallback = _build(["الف", "ب", "ج"], np.eye(3), fallback_rows=(0, 1, 2))
     selected, traces = retriever.select_with_trace(["واژه دیگر"], k=3)
 
     assert traces[0]["n_query_terms"] == 0
     assert traces[0]["route"] == "dense"
     assert len(selected[0]) == 3
+    assert fallback.calls == [6]  # k + slots, so the de-duplicating fill has slack
 
 
-def test_query_terms_are_capped_at_m_and_keep_the_rarest():
-    # Five rare terms, four slots: the greedy is asked to cover only the four rarest.
-    graded = {"الف": 9.0, "ب": 8.0, "ج": 7.0, "د": 6.0, "ه": 5.0}
+def test_each_rare_term_takes_its_most_similar_training_example():
+    # "الف" sits in rows 0 and 2; row 2 is the one aligned with the query.
+    sources = ["الف", "ب", "الف"]
+    embeddings = [[0.0, 1.0], [0.0, 1.0], [1.0, 0.0]]
+    retriever, _, _ = _build(sources, embeddings, query_embedding=[1.0, 0.0], m=1)
+
+    _, traces = retriever.select_with_trace(["الف"], k=1)
+
+    assert traces[0]["sparse_rows"] == [2]
+
+
+def test_a_training_example_is_not_used_twice():
+    # Row 0 carries both terms. It answers "الف", so "ب" has to fall to its next best row.
+    sources = ["الف ب", "ب", "ج"]
+    retriever, _, _ = _build(sources, np.eye(3), m=2)
+
+    _, traces = retriever.select_with_trace(["الف ب"], k=2)
+
+    assert traces[0]["sparse_rows"] == [0, 1]
+    assert traces[0]["served_terms"] == ["الف", "ب"]
+
+
+def test_a_term_with_no_pool_example_leaves_its_slot_to_the_fill():
+    # "الف" is on the list but absent from the pool, so only "ج" is served.
+    sources = ["ج", "واژه"]
+    retriever, _, _ = _build(sources, np.eye(2), fallback_rows=(1, 0), m=2)
+
+    selected, traces = retriever.select_with_trace(["الف ج"], k=2)
+
+    assert traces[0]["n_targeted"] == 2
+    assert traces[0]["n_sparse"] == 1
+    assert traces[0]["served_terms"] == ["ج"]
+    assert len(selected[0]) == 2
+
+
+def test_the_targeted_terms_are_the_m_rarest_the_query_carries():
     index = _Index(["الف", "ب", "ج", "د", "ه"], np.eye(5))
-    retriever = SparseRetriever(
-        index, graded, _Fallback([]), m=4, min_query_terms=1, redundancy=0.0
-    )
-    cols = retriever.query_terms("الف ب ج د ه")
+    retriever = SparseRetriever(index, IRREGULAR, _Fallback([]), m=4)
+
+    cols = retriever.query_terms("ه د ج ب الف")
     targeted = retriever.targeted_terms(cols)
 
     assert len(cols) == 5
-    assert [retriever.terms[c] for c in targeted] == sorted(["الف", "ب", "ج", "د"])
-
-    _, traces = retriever.select_with_trace(["الف ب ج د ه"], k=4)
-    # "ه" is the least rare, so it is dropped and its exemplar is never a rarity pick.
-    assert traces[0]["n_query_terms"] == 5 and traces[0]["n_targeted"] == 4
-    assert traces[0]["targeted_terms"] == sorted(["الف", "ب", "ج", "د"])
-    assert traces[0]["coverage"] == 1.0
-    assert [index.pairs[r]["input"] for r in sorted(traces[0]["sparse_rows"])] == [
-        "الف",
-        "ب",
-        "ج",
-        "د",
-    ]
+    # "ه" is the least rare of the five, so it is the one dropped.
+    assert [retriever.terms[c] for c in targeted] == ["الف", "ب", "ج", "د"]
 
 
-def test_the_cap_ties_break_deterministically_on_the_term():
-    # All five tie in IDF, so only the alphabetical secondary key decides the four kept.
-    index = _Index(["الف"], np.eye(1))
-    retriever = SparseRetriever(index, IRREGULAR, _Fallback([]), m=4, min_query_terms=1)
-    targeted = retriever.targeted_terms(retriever.query_terms("الف ب ج د ه"))
+def test_the_rarest_term_is_served_first():
+    """Rows 0 and 1 both carry the rarer term and the less rare one, so whichever term
+    is served first takes the better row. Rank order, not query order, decides."""
+    sources = ["ب الف", "الف ب"]
+    retriever, _, _ = _build(sources, np.eye(2), m=2)
 
-    assert [retriever.terms[c] for c in targeted] == sorted(["الف", "ب", "ج", "د"])
+    _, traces = retriever.select_with_trace(["ب الف"], k=2)
+
+    assert traces[0]["served_terms"] == ["الف", "ب"]
+    assert traces[0]["sparse_rows"] == [0, 1]
+
+
+@pytest.mark.parametrize(("n_matches", "expected_rare"), [(0, 0), (1, 1), (2, 2), (3, 3), (5, 4)])
+def test_the_prompt_holds_k_exemplars_however_many_rare_terms_matched(n_matches, expected_rare):
+    rare_rows = ["الف", "ب", "ج", "د", "ه"]
+    sources = rare_rows + [f"واژه{i}" for i in range(7)]
+    retriever, _, _ = _build(sources, np.eye(12), fallback_rows=tuple(range(5, 12)) + (0, 1, 2, 3))
+
+    query = " ".join(rare_rows[:n_matches])
+    selected, traces = retriever.select_with_trace([query], k=8)
+
+    inputs = [p["input"] for p in selected[0]]
+    assert traces[0]["n_sparse"] == expected_rare
+    assert traces[0]["n_knn"] == 8 - expected_rare
+    assert len(inputs) == len(set(inputs)) == 8
+
+
+def test_the_fill_does_not_repeat_a_rare_pick():
+    sources = ["الف ب", "ج د", "ه"]
+    retriever, _, _ = _build(sources, np.eye(3), fallback_rows=(0, 2), m=2)
+
+    selected, traces = retriever.select_with_trace(["الف ج"], k=3)
+
+    inputs = [p["input"] for p in selected[0]]
+    assert traces[0]["route"] == "full"
+    assert traces[0]["n_sparse"] == 2
+    assert len(inputs) == len(set(inputs)) == 3
+    assert "ه" in inputs  # row 0 was already a rare pick, so the fill skips it
+
+
+def test_route_labels_follow_the_filled_slots():
+    sources = ["الف", "ب", "ج", "د", "ه"]
+    retriever, _, _ = _build(sources, np.eye(5), fallback_rows=(0, 1, 2, 3, 4), m=2)
+
+    _, traces = retriever.select_with_trace(["الف ب ج", "الف", "واژه"], k=4)
+
+    assert [t["route"] for t in traces] == ["full", "partial", "dense"]
+    assert [t["n_sparse"] for t in traces] == [2, 1, 0]
 
 
 def test_final_order_is_cosine_ranked_across_both_channels():
-    # Row 2 carries no rare term but is nearest the query, so the fill outranks the rarity pick.
+    # Row 2 carries no rare term but is nearest the query, so the fill outranks the rare pick.
     sources = ["الف", "ب", "ج د"]
     embeddings = [[0.6, 0.8], [0.0, 1.0], [1.0, 0.0]]
     retriever, _, _ = _build(
-        sources,
-        embeddings,
-        fallback_rows=(2, 0, 1),
-        query_embedding=[1.0, 0.0],
-        m=2,
-        min_query_terms=1,
-        redundancy=0.0,
+        sources, embeddings, fallback_rows=(2, 0, 1), query_embedding=[1.0, 0.0], m=2
     )
     selected, traces = retriever.select_with_trace(["الف ب"], k=3)
 

@@ -211,7 +211,7 @@ def _select_afsp(sources, cfg, retr, index, k, *, rerank):
 
 
 def _select_sparse_knn(sources, cfg, index, k):
-    """Rarity-coverage exemplars for up to ``m`` slots, cosine top-k for the rest."""
+    """One nearest exemplar per rare query term for up to ``m`` slots, cosine top-k for the rest."""
     spa, rar = cfg.get("sparse", {}), cfg.get("rarity", {})
     retriever = SparseRetriever(
         index,
@@ -219,13 +219,11 @@ def _select_sparse_knn(sources, cfg, index, k):
         index,
         zwnj=rar.get("zwnj", "keep"),
         m=spa.get("m", 4),
-        redundancy=spa.get("redundancy", 0.3),
-        min_query_terms=spa.get("min_query_terms", 1),
     )
     selected, traces = retriever.select_with_trace(sources, k=k)
     routes = {r: sum(t["route"] == r for t in traces) for r in ROUTES}
     n_sparse = [t["n_sparse"] for t in traces]
-    print(f"  routes: {routes}, mean rarity slots filled: {sum(n_sparse) / len(n_sparse):.2f}")
+    print(f"  routes: {routes}, mean rare slots filled: {sum(n_sparse) / len(n_sparse):.2f}")
     return selected
 
 
@@ -275,12 +273,8 @@ def _provenance(condition: str, cfg: dict) -> dict:
             spa, rar = cfg.get("sparse", {}), cfg.get("rarity", {})
             rarity_file = rar.get("out", "results/rarity_train.json")
             prov["m"] = spa.get("m", 4)
-            prov["min_query_terms"] = spa.get("min_query_terms", 1)
-            prov["redundancy"] = spa.get("redundancy", 0.3)
-            prov["min_df"] = rar.get("min_df", 2)
-            prov["max_df"] = rar.get("max_df")
+            prov["min_df"] = rar.get("min_df", 1)
             prov["freeze_n"] = rar.get("freeze_n", 500)
-            prov["rank"] = rar.get("rank", "surprisal")
             prov["rarity_file"] = rarity_file
             prov["rarity_sha256"] = _sha256(rarity_file)
     return prov
