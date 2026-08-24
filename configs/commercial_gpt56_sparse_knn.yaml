@@ -1,0 +1,49 @@
+# COMMERCIAL REFERENCE BASELINE -- gpt-5.6-sol on the sparse_knn condition.
+#
+# Every selection block below is copied from configs/sparse_knn.yaml, so the only
+# difference from the Qwen arm is the generator. Run twice against this config:
+#   --condition knn_fewshot --out-name gpt56_knn_fewshot   (the matched contrast)
+#   --condition sparse_knn                                  (the arm)
+
+# Generation (OpenAI chat-completions API)
+generator:
+  provider: openai
+  model: gpt-5.6-sol
+  max_tokens: 1024
+  reasoning_effort: none    # no thinking, so the contrast is selection and not deliberation
+  temperature: null
+  seed: 42
+  pricing: [4.00, 20.00]
+
+# Prompting
+prompt:
+  style_instruction_file: prompts/style_instruction.txt
+  ordering: most_similar_last
+  ordering_seed: 42
+  word_pairs: true
+  glossary_file: prompts/register_glossary.tsv
+
+retrieval:
+  embed_model: intfloat/multilingual-e5-large-instruct
+  index_dir: data/knn_index
+  train_file: data/splits/train.jsonl
+  k: 8
+
+rarity:
+  min_df: 30
+  freeze_n: 500
+  zwnj: keep
+  out: results/rarity_train.json
+
+sparse:
+  m: 4
+
+# Data
+data:
+  eval_file: data/splits/val.jsonl
+  limit: null
+
+# Output
+output:
+  dir: outputs
+  name: gpt56_sparse_knn
