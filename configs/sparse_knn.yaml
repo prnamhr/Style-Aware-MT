@@ -23,8 +23,10 @@ retrieval:
   k: 8
 
 rarity:
-  min_df: 2
+  min_df: 30
+  max_df: 500
   freeze_n: 500
+  rank: surprisal
   zwnj: keep
   out: results/rarity_train.json
 

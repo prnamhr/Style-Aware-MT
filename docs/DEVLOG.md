@@ -67,6 +67,51 @@ A second audit on 2026-08-10 checked `README.md` and `docs/budget.md` against th
 
 This log was audited for internal consistency against the committed artifacts, configs, and git history on 2026-08-01. Corrections made in that pass are marked inline as *Correction (2026-08-01)*; they amend the claims of earlier entries but do not restate their history.
 
+## 2026-08-24: The frozen rarity list was ranked by character surprisal inside a df band
+
+### Summary
+
+The frozen 500-term rarity list was an alphabetical accident, and the sparse channel it fed almost never fired. `results/rarity_train.json` records the evidence: every selected term sits at df 2 and all 500 share one IDF value, 9.194. The list was re-specified as the 500 most character-unusual terms inside a document-frequency band. The rebuild and the val diagnostic have NOT been run; the results rows below are empty.
+
+### What changed
+
+- `src/retrieval/rarity.py:57` `char_surprisal` scores each term as the mean per-character negative log-probability under a character 4-gram model fit to the pool vocabulary, each type weighted by its token frequency, with `^^^word$` padding and add-0.5 smoothing over the observed alphabet. No external lexicon or frequency list enters the score.
+- `src/retrieval/rarity.py:107` `term_stats` now keeps raw counts, so it carries `tf` and `surprisal` alongside `df` and `idf`. The postings matrix stays binary.
+- `src/retrieval/rarity.py:140` `frozen_terms` filters to `min_df <= df <= max_df` and takes the `freeze_n` highest-surprisal terms. The term string remains as a tie-break, now a determinism guard rather than the operative key.
+- `configs/sparse_retrieval.yaml` and `configs/sparse_knn.yaml` set `min_df: 30`, `max_df: 500`, `freeze_n: 500`, `rank: surprisal`.
+- `src/infer/run.py:280` provenance records `max_df` and `rank` with the other rarity settings.
+- The review TSV is now the head of the list in rank order (`{stem}_top{n}.tsv`) with a surprisal column, replacing the seeded sample. `review_sample` is gone: it existed because an IDF sort of a tied tail had no meaningful head.
+- `src/retrieval/sparse.py` is unchanged. `targeted_terms` still takes the m highest-IDF matches per query; the df band is what gives it IDF spread to rank with.
+
+### Rationale
+
+`smooth_idf` IDF over a 10,860-document pool is a function of df alone, and the tail is dominated by ties: 11,668 of 22,789 terms sit at df 1 and 3,669 at df 2. Sorting the df >= 2 vocabulary by IDF therefore ranks 3,669 terms equally, and the truncation to 500 was decided entirely by the alphabetical tie-break. What that selected was the head of the Persian collation order, not marked vocabulary.
+
+Rarity as IDF also measures the wrong thing here. A term appearing twice in the pool is usually a segmentation artifact or a proper name, not scriptural register. Character surprisal separates the two directly: a word whose character sequence is improbable under the corpus's own orthography is marked, and one assembled from frequent sequences is not. The df band then keeps the score honest at both ends, dropping one-off noise below `min_df` and the vocabulary every register carries above `max_df`.
+
+### Verification
+
+`tests/test_rarity.py` covers the surprisal score (an off-pattern term outranks the dominant pattern; the ranking follows `tf` rather than type counts; the score is a per-character mean), the closed df band, the exact list size, strictly falling surprisal with nothing eligible passed over, and determinism under document shuffling. `pytest tests/test_rarity.py tests/test_sparse.py` passes, 29 tests. `ruff check` and `ruff format --check` pass. `manage.py rarity` was exercised end to end on a synthetic 400-document pool outside the repository, which is not a pipeline run: the real list was not rebuilt.
+
+### Result
+
+[accurate information needed] — the rebuild has not been run. `notebooks/rarity_retrieval_colab.ipynb` carries the go/no-go: the val diagnostic proceeds only if the share of queries filling all four rarity slots clears 30%, against 0.0% on the IDF-ranked list.
+
+### Reproduction
+
+```
+python manage.py rarity --config configs/sparse_retrieval.yaml
+python manage.py sparse_select --config configs/sparse_retrieval.yaml --split val --index_dir data/knn_index_clean
+```
+
+### Limitations and risks
+
+The df band is narrow relative to the pool: `results/rarity_train.json` records 2,113 terms at df 10-99 and 173 at df 100+, so `[30, 500]` may admit not much more than the 500 the list keeps, leaving the surprisal rank little to select over. The notebook sweeps the band for this reason.
+
+A character n-gram model fit to the pool scores loanwords and Arabic-origin forms as unusual, which is the intended signal, but it also scores any residual segmentation error as unusual for the same reason. The rank-ordered TSV is the check on that, and it is a manual one.
+
+Every number in `README.md` about the sparse arm, and every artifact under `results/` built on the old list, describes the IDF-ranked 500. They are not updated by this change.
+
 ## 2026-08-23: The pool quarantine was audited against the sealed test split
 
 ### Summary

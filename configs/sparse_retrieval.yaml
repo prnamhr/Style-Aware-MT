@@ -6,8 +6,10 @@ retrieval:
   k: 8
 
 rarity:
-  min_df: 2                 # df==1 is one-off noise, not vocabulary
+  min_df: 30                # below this a term is one-off noise, not vocabulary
+  max_df: 500               # above this it is ordinary vocabulary, carried by every register
   freeze_n: 500             # the list is a fixed size, so its df range is an outcome
+  rank: surprisal           # character unusualness; IDF inside the band is near-flat
   zwnj: keep
   out: results/rarity_train.json
 

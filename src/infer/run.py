@@ -278,7 +278,9 @@ def _provenance(condition: str, cfg: dict) -> dict:
             prov["min_query_terms"] = spa.get("min_query_terms", 1)
             prov["redundancy"] = spa.get("redundancy", 0.3)
             prov["min_df"] = rar.get("min_df", 2)
+            prov["max_df"] = rar.get("max_df")
             prov["freeze_n"] = rar.get("freeze_n", 500)
+            prov["rank"] = rar.get("rank", "surprisal")
             prov["rarity_file"] = rarity_file
             prov["rarity_sha256"] = _sha256(rarity_file)
     return prov
