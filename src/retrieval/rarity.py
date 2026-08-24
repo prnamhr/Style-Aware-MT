@@ -71,17 +71,19 @@ def term_stats(sources: list[str], zwnj: str = "keep") -> TermStats:
     )
 
 
-def irregular_terms(stats: TermStats, df_min: int = 2, df_max: int = 20) -> dict[str, float]:
+def frozen_terms(stats: TermStats, min_df: int = 2, freeze_n: int = 500) -> dict[str, float]:
     """Terms whose pool document frequency lies in the closed band."""
-    if df_min < 1 or df_max < df_min:
-        raise ValueError(f"need 1 <= df_min <= df_max, got df_min={df_min}, df_max={df_max}")
-    keep = np.flatnonzero((stats.df >= df_min) & (stats.df <= df_max))
-    order = sorted(keep, key=lambda i: (-stats.idf[i], stats.terms[i]))
+    if min_df < 1:
+        raise ValueError(f"need min_df >= 1, got {min_df}")
+    if freeze_n < 1:
+        raise ValueError(f"need freeze_n >= 1, got {freeze_n}")
+    eligible = np.flatnonzero(stats.df >= min_df)
+    order = sorted(eligible, key=lambda i: (-stats.idf[i], stats.terms[i]))[:freeze_n]
     return {str(stats.terms[i]): float(stats.idf[i]) for i in order}
 
 
 def df_histogram(df: np.ndarray) -> dict[str, int]:
-    """Bucketed document-frequency counts, for reading where the selected band falls."""
+    """Bucketed document-frequency counts, for reading where the frozen list falls."""
     buckets = {"1": 0, "2": 0, "3": 0, "4-9": 0, "10-99": 0, "100+": 0}
     for v in df:
         if v <= 3:
@@ -148,11 +150,11 @@ def _write_top_tsv(path: Path, rows: list[tuple[str, float, int, str]]) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Build the irregular-term list by pool IDF.")
+    parser = argparse.ArgumentParser(description="Freeze the rarest pool terms by IDF.")
     parser.add_argument("--config", default="configs/sparse_retrieval.yaml")
     parser.add_argument("--train_file", default=None)
-    parser.add_argument("--df_min", type=int, default=None)
-    parser.add_argument("--df_max", type=int, default=None)
+    parser.add_argument("--min_df", type=int, default=None)
+    parser.add_argument("--freeze_n", type=int, default=None, help="size of the frozen list")
     parser.add_argument("--zwnj", choices=ZWNJ_MODES, default=None)
     parser.add_argument("--out", default=None)
     parser.add_argument("--top", type=int, default=50, help="rows written to the review TSV")
@@ -161,35 +163,36 @@ def main() -> None:
     cfg = yaml.safe_load(Path(args.config).read_text(encoding="utf-8"))
     rar = cfg.get("rarity", {})
     train_file = Path(args.train_file or cfg["retrieval"]["train_file"])
-    df_min = args.df_min if args.df_min is not None else rar.get("df_min", 2)
-    df_max = args.df_max if args.df_max is not None else rar.get("df_max", 20)
+    min_df = args.min_df if args.min_df is not None else rar.get("min_df", 2)
+    freeze_n = args.freeze_n if args.freeze_n is not None else rar.get("freeze_n", 500)
     zwnj = args.zwnj or rar.get("zwnj", "keep")
     out_path = Path(args.out or rar.get("out", "results/rarity_train.json"))
 
     sources = _read_sources(train_file)
     print(f"Computing IDF over {len(sources)} pool sources (zwnj={zwnj}) ...")
     stats = term_stats(sources, zwnj=zwnj)
-    irregular = irregular_terms(stats, df_min=df_min, df_max=df_max)
+    frozen = frozen_terms(stats, min_df=min_df, freeze_n=freeze_n)
 
     index_of = {t: i for i, t in enumerate(stats.terms)}
-    df_of = {t: int(stats.df[index_of[t]]) for t in irregular}
+    df_of = {t: int(stats.df[index_of[t]]) for t in frozen}
     sel_df = np.array(list(df_of.values()))
     payload = {
         "config": {
             "train_file": str(train_file),
-            "df_min": df_min,
-            "df_max": df_max,
+            "min_df": min_df,
+            "freeze_n": freeze_n,
             "zwnj": zwnj,
         },
         "n_docs": stats.n_docs,
         "n_terms": int(len(stats.terms)),
-        "n_irregular": len(irregular),
-        "selected_frac": round(len(irregular) / len(stats.terms), 4),
+        "n_eligible": int((stats.df >= min_df).sum()),
+        "n_frozen": len(frozen),
+        "selected_frac": round(len(frozen) / len(stats.terms), 4),
         "df_observed": [int(sel_df.min()), int(sel_df.max())] if sel_df.size else None,
-        "idf_range": [min(irregular.values()), max(irregular.values())] if irregular else None,
-        "df_histogram": {"pool": df_histogram(stats.df), "irregular": df_histogram(sel_df)},
+        "idf_range": [min(frozen.values()), max(frozen.values())] if frozen else None,
+        "df_histogram": {"pool": df_histogram(stats.df), "frozen": df_histogram(sel_df)},
         "zwnj_collisions": zwnj_collisions(stats.terms),
-        "terms": [[t, idf, df_of[t]] for t, idf in irregular.items()],
+        "terms": [[t, idf, df_of[t]] for t, idf in frozen.items()],
     }
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -198,15 +201,18 @@ def main() -> None:
     _write_top_tsv(
         tsv_path,
         [
-            (t, irregular[t], df_of[t], _example_doc(stats, index_of[t], sources))
-            for t in review_sample(irregular, df_of, args.top)
+            (t, frozen[t], df_of[t], _example_doc(stats, index_of[t], sources))
+            for t in review_sample(frozen, df_of, args.top)
         ],
     )
 
     frac, observed = payload["selected_frac"], payload["df_observed"]
-    print(f"  {len(stats.terms)} pool terms -> {len(irregular)} in df band [{df_min}, {df_max}]")
-    print(f"  {frac:.1%} of the vocabulary, observed df {observed}")
-    print(f"  df histogram (irregular): {payload['df_histogram']['irregular']}")
+    print(
+        f"  {len(stats.terms)} pool terms, {payload['n_eligible']} at df >= {min_df} "
+        f"-> {len(frozen)} frozen (requested {freeze_n})"
+    )
+    print(f"  {frac:.1%} of the vocabulary, realized df {observed}")
+    print(f"  df histogram (frozen): {payload['df_histogram']['frozen']}")
     collisions = payload["zwnj_collisions"]
     print(f"  ZWNJ variant collisions: {len(collisions)}", collisions[:3] or "")
     print(f"Wrote {out_path} and {tsv_path}")

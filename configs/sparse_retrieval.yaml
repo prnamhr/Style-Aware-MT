@@ -6,8 +6,8 @@ retrieval:
   k: 8
 
 rarity:
-  df_min: 2                 # df==1 is one-off noise, not vocabulary
-  df_max: 20                # above this cosine retrieval already returns the term
+  min_df: 2                 # df==1 is one-off noise, not vocabulary
+  freeze_n: 500             # the list is a fixed size, so its df range is an outcome
   zwnj: keep
   out: results/rarity_train.json
 

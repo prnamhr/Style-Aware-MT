@@ -1,5 +1,5 @@
 """
-Tests for the sparse channel: routing, greedy coverage, and the redundancy penalty.
+Tests for the sparse channel: routing, the query-term cap, greedy coverage, and redundancy.
 """
 
 from __future__ import annotations
@@ -122,6 +122,41 @@ def test_query_with_no_irregular_terms_gets_k_cosine_exemplars():
     assert traces[0]["n_query_terms"] == 0
     assert traces[0]["route"] == "dense"
     assert len(selected[0]) == 3
+
+
+def test_query_terms_are_capped_at_m_and_keep_the_rarest():
+    # Five rare terms, four slots: the greedy is asked to cover only the four rarest.
+    graded = {"الف": 9.0, "ب": 8.0, "ج": 7.0, "د": 6.0, "ه": 5.0}
+    index = _Index(["الف", "ب", "ج", "د", "ه"], np.eye(5))
+    retriever = SparseRetriever(
+        index, graded, _Fallback([]), m=4, min_query_terms=1, redundancy=0.0
+    )
+    cols = retriever.query_terms("الف ب ج د ه")
+    targeted = retriever.targeted_terms(cols)
+
+    assert len(cols) == 5
+    assert [retriever.terms[c] for c in targeted] == sorted(["الف", "ب", "ج", "د"])
+
+    _, traces = retriever.select_with_trace(["الف ب ج د ه"], k=4)
+    # "ه" is the least rare, so it is dropped and its exemplar is never a rarity pick.
+    assert traces[0]["n_query_terms"] == 5 and traces[0]["n_targeted"] == 4
+    assert traces[0]["targeted_terms"] == sorted(["الف", "ب", "ج", "د"])
+    assert traces[0]["coverage"] == 1.0
+    assert [index.pairs[r]["input"] for r in sorted(traces[0]["sparse_rows"])] == [
+        "الف",
+        "ب",
+        "ج",
+        "د",
+    ]
+
+
+def test_the_cap_ties_break_deterministically_on_the_term():
+    # All five tie in IDF, so only the alphabetical secondary key decides the four kept.
+    index = _Index(["الف"], np.eye(1))
+    retriever = SparseRetriever(index, IRREGULAR, _Fallback([]), m=4, min_query_terms=1)
+    targeted = retriever.targeted_terms(retriever.query_terms("الف ب ج د ه"))
+
+    assert [retriever.terms[c] for c in targeted] == sorted(["الف", "ب", "ج", "د"])
 
 
 def test_final_order_is_cosine_ranked_across_both_channels():

@@ -76,6 +76,11 @@ class SparseRetriever:
         seen = {self._col[t] for t in tokenize(query, self.zwnj) if t in self._col}
         return sorted(seen)
 
+    def targeted_terms(self, cols: list[int]) -> list[int]:
+        """The terms the greedy is actually asked to cover."""
+        ranked = sorted(cols, key=lambda c: (-self.idf[c], self.terms[c]))
+        return sorted(ranked[: self.m])
+
     def _candidates(self, cols: list[int]) -> np.ndarray:
         m = self._by_term
         parts = [m.indices[m.indptr[c] : m.indptr[c + 1]] for c in cols]
@@ -121,9 +126,10 @@ class SparseRetriever:
         """Exemplars per query, with the routing and coverage record behind each."""
         slots = min(self.m, k)
         cols_per_query = [self.query_terms(q) for q in queries]
+        targeted = [self.targeted_terms(c) for c in cols_per_query]
         greedy = [
-            ([], 0.0) if len(c) < self.min_query_terms else self._greedy(c, slots)
-            for c in cols_per_query
+            ([], 0.0) if len(c) < self.min_query_terms else self._greedy(t, slots)
+            for c, t in zip(cols_per_query, targeted)
         ]
 
         # One batched fallback call covers both the routed-dense and short-fill cases.
@@ -160,9 +166,11 @@ class SparseRetriever:
                 {
                     "route": route,
                     "n_query_terms": len(cols_per_query[i]),
+                    "n_targeted": len(targeted[i]),
                     "n_sparse": n_sparse,
                     "coverage": round(coverage, 4),
                     "query_terms": [self.terms[c] for c in cols_per_query[i]],
+                    "targeted_terms": [self.terms[c] for c in targeted[i]],
                     "sparse_rows": rows,
                     "final_rows": final,
                 }
@@ -257,7 +265,7 @@ def main() -> None:
             "m": m,
             "redundancy": redundancy,
             "min_query_terms": min_terms,
-            "n_irregular": len(irregular),
+            "n_frozen": len(irregular),
         },
         "n_queries": len(sources),
         "routes": routes,
