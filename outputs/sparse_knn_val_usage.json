@@ -10,10 +10,10 @@
     "min_df": 40,
     "freeze_n": 500,
     "rarity_file": "results/rarity_train.json",
-    "rarity_sha256": "3f6132961d85fe52ad4090d098a263eb4e84c796630db6dd4471bd1d583d8ee3"
+    "rarity_sha256": "8fa5b0b2c0dbf3441254c1ce6ad6a0a91a50fd90583a18f1991f5fa263ca8d49"
   },
-  "calls": 0,
-  "prompt_tokens": 0,
-  "completion_tokens": 0,
+  "calls": 1285,
+  "prompt_tokens": 2598656,
+  "completion_tokens": 41843,
   "cost_usd": 0.0
 }
