@@ -6,7 +6,7 @@ retrieval:
   k: 8
 
 rarity:
-  min_df: 30                # df floor; below it a term is too rare to be carried by a query
+  min_df: 40                # df floor; below it a term is too rare to be carried by a query
   freeze_n: 500             # the list is a fixed size, so its df range is an outcome
   zwnj: keep
   out: results/rarity_train.json
