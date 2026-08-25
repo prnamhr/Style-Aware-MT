@@ -25,7 +25,7 @@ Two hybrid conditions test whether retrieval still helps after PEFT:
 
 A later `sparse_knn` follow-up tests a different retrieval idea: use rare source-side terms to select part of the few-shot context, then fill the remaining prompt slots with ordinary cosine kNN.
 
-The main validation result is mixed rather than a single winner. RLSF `w3=2` gives the lowest held-out style distance, while `w3=6` gives the lowest full stylometric distance. PEFT+AFSP has the highest COMET score among the main study systems, and PEFT+KNN has the highest chrF and BLEU.
+The main validation result is mixed rather than a single winner. RLSF `w3=2` gives the lowest held-out style distance, while `w3=6` gives the lowest full stylometric distance. PEFT+AFSP has the highest COMET score among the main study systems, PEFT+KNN has the highest chrF and BLEU, and Sparse-KNN has the highest `Phi_A` point estimate.
 
 The interpretation of the RLSF results changed after a case-sensitivity bug was found in one stylometric feature. The corrected analysis shows the judge-conditioned RLSF arms moving closer to the measured target register through most of training, with possible over-stylization appearing only later in the strongest trajectory.
 
@@ -214,7 +214,7 @@ The feature was corrected to make the archaic marker class case-insensitive whil
 
 This correction changes the objective style distances and the interpretation of the RLSF trajectory. It does not change the trained PEFT or RLSF adapters, the generated translations for conditions that do not use the stylometric centroid during retrieval, COMET, chrF, BLEU, or the existing LLM-judge scores.
 
-AFSP is different because `afsp_full` uses the target-register centroid during exemplar reranking. For that reason, `afsp_full` and `peft_afsp` were also regenerated as case-fix sensitivity runs with the same frozen AFSP settings. Those reruns changed many retrieved examples and individual translations, but their aggregate validation results stayed close to the original runs.
+AFSP is different because `afsp_full` uses the target-register centroid during exemplar reranking. For that reason, `afsp_full_casefix` and `peft_afsp_casefix` were generated as sensitivity-only diagnostics with the same frozen AFSP settings; they are not main study conditions. Those reruns changed many retrieved examples and individual translations, but their aggregate validation results stayed close to the original runs.
 
 ## Validation results
 
@@ -227,14 +227,14 @@ Higher is better for COMET, chrF, BLEU, `Phi_A`, and `Phi_B`. Lower is better fo
 | Zero-shot | 0.6480 | 36.42 | 10.27 | 2.546 | 3.648 | 0.4481 | 0.3417 |
 | Random few-shot | 0.6644 | 37.52 | 11.64 | 2.633 | 3.633 | 0.3162 | 0.2282 |
 | kNN few-shot | 0.6839 | 39.82 | 13.99 | 2.748 | 3.679 | 0.3659 | 0.2337 |
-| Sparse-KNN | 0.6846 | 40.08 | 14.31 | pending | pending | 0.3750 | 0.2404 |
+| Sparse-KNN | 0.6846 | 40.08 | 14.31 | **2.813** | 3.698 | 0.3750 | 0.2404 |
 | AFSP-margin | 0.6824 | 39.68 | 13.69 | 2.763 | 3.667 | 0.3394 | 0.2203 |
 | AFSP-full | 0.6853 | 39.99 | 14.52 | 2.791 | **3.707** | 0.3032 | 0.2111 |
 | PEFT | 0.6986 | 41.58 | 16.90 | 2.744 | 3.613 | 0.2890 | 0.1713 |
 | RLSF `w3=0`, step 200 | 0.7007 | 41.85 | 17.01 | 2.769 | 3.598 | 0.2857 | 0.1626 |
 | RLSF `w3=2`, step 200 | 0.7007 | 42.04 | 17.00 | 2.791 | 3.653 | 0.2793 | **0.1264** |
 | RLSF `w3=6`, step 100 | 0.6993 | 42.08 | 17.13 | 2.742 | 3.636 | **0.2704** | 0.1423 |
-| PEFT+KNN | 0.7015 | **42.40** | **17.98** | **2.802** | 3.662 | 0.3589 | 0.2874 |
+| PEFT+KNN | 0.7015 | **42.40** | **17.98** | 2.802 | 3.662 | 0.3589 | 0.2874 |
 | PEFT+AFSP | **0.7033** | 42.12 | 17.77 | 2.795 | 3.637 | 0.3244 | 0.2620 |
 
 There is no single metric winner.
@@ -243,7 +243,7 @@ RLSF `w3=2` has the lowest corrected held-out distance, at 0.1264, compared with
 
 RLSF `w3=6` has the lowest corrected full stylometric distance, at 0.2704. Because this is the high-pressure diagnostic arm, I treat it mainly as evidence about how strong style optimization changes the model rather than as a replacement for the selected moderate arm.
 
-PEFT+AFSP has the highest COMET score among the main study conditions. PEFT+KNN has the highest chrF and BLEU. For the current Sparse-KNN run, COMET is 0.6846, chrF is 40.08, and BLEU is 14.31; none of its paired adequacy differences from ordinary kNN is statistically resolved. Its full stylometric distance is 0.3750, compared with 0.3659 for ordinary kNN. The two PEFT retrieval hybrids are also close under both LLM judges.
+PEFT+AFSP has the highest COMET score among the main study conditions. PEFT+KNN has the highest chrF and BLEU. Sparse-KNN has the highest `Phi_A` point estimate at 2.813, while AFSP-full remains highest on `Phi_B` at 3.707. For the current Sparse-KNN run, COMET is 0.6846, chrF is 40.08, and BLEU is 14.31; none of its paired adequacy differences from ordinary kNN is statistically resolved. Its full stylometric distance is 0.3750, compared with 0.3659 for ordinary kNN. The two PEFT retrieval hybrids are also close under both LLM judges.
 
 The main result is therefore a trade-off, the method that looks best under semantic and reference-overlap metrics is not necessarily the one closest to the measured register.
 
@@ -286,22 +286,20 @@ Compared with PEFT, PEFT+AFSP improves COMET, chrF, and BLEU, but its corrected 
 
 Compared with PEFT+KNN, the two hybrid systems are close on adequacy and perceived register. PEFT+AFSP has the lower full stylometric distance, 0.3244 versus 0.3589.
 
-The AFSP case-fix rerun provides a useful robustness check. Correcting the centroid changed many retrieved examples and many individual translations, but the aggregate validation profile stayed close to the original. That suggests AFSP is sensitive at the example-selection level without producing an equally large shift in corpus-level performance.
+The `afsp_full_casefix` and `peft_afsp_casefix` runs are sensitivity-only robustness checks, not main study conditions. Correcting the centroid changed many retrieved examples and many individual translations, but the aggregate validation profile stayed close to the original. That suggests AFSP is sensitive at the example-selection level without producing an equally large shift in corpus-level performance.
 
 
 ## External reference
 
-For context, `claude-haiku-4-5` is also evaluated zero-shot on the same validation corpus.
-
-This is not part of the controlled study because it changes the model family and compute budget.
+For context, `claude-haiku-4-5` is also evaluated zero-shot on the same validation corpus. `gpt56_sparse_knn` is retained as a generator-family diagnostic using the frozen Sparse-KNN retrieval configuration.
 
 | Condition | COMET | chrF | BLEU | Phi_A | Phi_B | Full style dist. |
 |---|---:|---:|---:|---:|---:|---:|
 | Commercial zero-shot | 0.7185 | 45.24 | 18.06 | 3.333 | 3.981 | 0.4873 |
+| GPT-5.6 + Sparse-KNN | 0.7480 | 50.29 | 24.16 | 3.625 | — | 0.2455 |
 
-The commercial model is stronger on adequacy metrics and both judge means, but farther from the corrected target-register centroid than the adapted open-source systems.
 
-Its `Phi_A` score has an additional caveat because the generator and the primary judge use the same model family. `Phi_B` gives a cross-family comparison, but the size of the `Phi_A` advantage should not be read as an independent style effect.
+The commercial zero-shot model's `Phi_A` score has an additional caveat because the generator and the primary judge use the same model family. `Phi_B` gives a cross-family comparison for that row, but the size of the `Phi_A` advantage should not be read as an independent style effect.
 
 ## Statistical reporting
 

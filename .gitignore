@@ -35,3 +35,9 @@ results/judge_gpt_val_batch/
 models/
 
 .venv-comet/
+
+# Colab transfer residue
+/.cache/huggingface/
+/*.zip
+/*.tar.gz
+/outputs/*_old.jsonl

@@ -67,11 +67,19 @@ A second audit on 2026-08-10 checked `README.md` and `docs/budget.md` against th
 
 This log was audited for internal consistency against the committed artifacts, configs, and git history on 2026-08-01. Corrections made in that pass are marked inline as *Correction (2026-08-01)*; they amend the claims of earlier entries but do not restate their history.
 
+## 2026-08-25: Orphan-condition status and repository cleanup
+
+### Summary
+
+The result inventory was reconciled with the thesis-facing README. `afsp_full_casefix` and `peft_afsp_casefix` are retained as sensitivity-only robustness diagnostics and are now named explicitly in `README.md`; they are not main study conditions. `gpt56_sparse_knn` and its matched-generation companion `gpt56_knn_fewshot` are cut from thesis results: they change the generator family, and the matched kNN companion does not have the complete scoring needed for a controlled retrieval comparison. Their existing files are retained only as audit artifacts and support no thesis claim.
+
+Repository cleanup removed the local Hugging Face cache and the stale `outputs/sparse_knn_val_old.jsonl`. The requested transfer archives were not present in the supplied tree. `.gitignore` now blocks Hugging Face cache directories, transfer archives, and `*_old.jsonl` output residue.
+
 ## 2026-08-24: The sparse condition reduced to one exemplar per rare query word
 
 ### Summary
 
-Greedy rarity-weighted coverage, the redundancy penalty, the `max_df` ceiling and the surprisal ranking were removed from the `sparse_knn` condition. The condition is now: freeze the 500 rarest training words by document frequency, take the four rarest of them a query carries, retrieve the nearest training example for each, and fill the remaining prompt slots with ordinary kNN. The rebuild has NOT been run; the results row below is empty.
+Greedy rarity-weighted coverage, the redundancy penalty, the `max_df` ceiling and the surprisal ranking were removed from the `sparse_knn` condition. The condition is now: freeze the 500 rarest training words by document frequency, take the four rarest of them a query carries, retrieve the nearest training example for each, and fill the remaining prompt slots with ordinary kNN. The rebuild and validation selection pass have now been completed with the current `min_df: 40` configuration.
 
 ### What changed
 
@@ -79,29 +87,29 @@ Greedy rarity-weighted coverage, the redundancy penalty, the `max_df` ceiling an
 - `src/retrieval/rarity.py:110` `load_irregular` now returns `{term: rank}` from the written order rather than `{term: idf}`. Rank is what the channel sorts by, so the list file is the ranking.
 - `src/retrieval/sparse.py:83` `_nearest_per_term` walks the targeted terms rarest first and takes, for each, the pool row carrying it with the highest cosine to the query that no earlier term has taken. `_greedy`, the redundancy penalty and `min_query_terms` are gone.
 - The trace records `n_knn` and `served_terms` in place of `coverage`; a targeted term is unserved only when every pool row carrying it is already in the prompt.
-- `configs/sparse_retrieval.yaml` and `configs/sparse_knn.yaml` reduce to `min_df: 30`, `freeze_n: 500`, `zwnj: keep` and `sparse.m: 4`. `src/infer/run.py:275` records `m`, `min_df` and `freeze_n`.
+- `configs/sparse_retrieval.yaml` and `configs/sparse_knn.yaml` reduce to `min_df: 40`, `freeze_n: 500`, `zwnj: keep` and `sparse.m: 4`. `src/infer/run.py:275` records `m`, `min_df` and `freeze_n`.
 
 ### Rationale
 
 Greedy coverage was the reason the previous list looked dead. It maximises rarity weight covered per exemplar, so one exemplar carrying three of a query's rare terms ends the search and the other three slots fall to cosine kNN. The diagnostic recorded 3.021 targeted terms per query and 1.559 filled slots: the channel was working as specified and the specification was wrong. One exemplar per term makes the slot count equal the match count, so the 33.7% of val queries carrying four rare words become full-dose prompts instead of 1.06%.
 
-The `max_df` ceiling is redundant under a df ranking. Taking the 500 rarest terms above a floor caps document frequency wherever the 500th term happens to sit, so the ceiling is an outcome rather than a parameter. The floor is not redundant: it is the only thing standing between the list and the 11,668 terms at df 1, which appear in one training sentence each and which no val query carried. It is kept at 30 on the sweep evidence recorded in the entry below.
+The `max_df` ceiling is redundant under a df ranking. Taking the 500 rarest terms above a floor caps document frequency wherever the 500th term happens to sit, so the ceiling is an outcome rather than a parameter. The floor is not redundant: it is the only thing standing between the list and the 11,668 terms at df 1, which appear in one training sentence each and which no val query carried. The earlier band sweep recorded below showed that the useful coverage regime begins around df 30-50; the finalized configuration uses `min_df: 40`, leaving 525 eligible terms from which the frozen 500 are selected.
 
-Ranking by df rather than by character surprisal costs little here. Only 695 terms sit at df >= 30, so a 500-term freeze keeps most of the band whatever orders it, and df is the quantity the condition is about.
+Ranking by df rather than by character surprisal costs little here. Under the finalized `min_df: 40` run, 525 terms are eligible and 500 are frozen, so the list still keeps almost the whole eligible band; df is the quantity the condition is about.
 
 ### Verification
 
-`tests/test_rarity.py` covers the df ranking and both tie-breaks, the floor, the exact list size, and the reload path from the written file. `tests/test_sparse.py` covers one exemplar per term at the nearest pool row, no training example used twice, terms served rarest first, a term absent from the pool leaving its slot to the fill, the cap at `m`, and the slot arithmetic 0-4 rare + the rest kNN = 8. `pytest tests/test_rarity.py tests/test_sparse.py` passes, 31 tests. `ruff check` and `ruff format --check` pass. `manage.py rarity` and a full selection pass were exercised on a synthetic 300-document pool outside the repository, which is not a pipeline run.
+`tests/test_rarity.py` covers the df ranking and both tie-breaks, the floor, the exact list size, and the reload path from the written file. `tests/test_sparse.py` covers one exemplar per term at the nearest pool row, no training example used twice, terms served rarest first, a term absent from the pool leaving its slot to the fill, the cap at `m`, and the slot arithmetic 0-4 rare + the rest kNN = 8. `pytest tests/test_rarity.py tests/test_sparse.py` passes, 31 tests. `ruff check` and `ruff format --check` pass. The completed real rebuild is recorded in `results/rarity_train.json`, and the validation selection pass is recorded in `results/sparse_selection_val.json`.
 
 ### Result
 
-[accurate information needed] — the rebuild has not been run. The gate in `notebooks/rarity_retrieval_colab.ipynb` is unchanged: proceed only if the share of queries filling all four rare slots clears 30%.
+The gate is passed. `results/rarity_train.json` records 500 frozen terms from 525 eligible terms at `min_df: 40`, with realized df range [40, 410]. `results/sparse_selection_val.json` records 563 full-route queries, 639 partial-route queries, and 121 dense-only queries over 1,323 validation segments: 42.55% fill all four rare slots, above the 30% gate. Mean sparse slots per prompt are 2.646, all targeted terms are served, and mean intra-set cosine is 0.8975 versus 0.9001 for the dense baseline.
 
 ### Reproduction
 
 ```
 python manage.py rarity --config configs/sparse_retrieval.yaml
-python manage.py sparse_select --config configs/sparse_retrieval.yaml --split val --index_dir data/knn_index_clean
+python manage.py sparse_select --config configs/sparse_retrieval.yaml --split val --index_dir data/knn_index
 ```
 
 ### Limitations and risks
@@ -110,20 +118,20 @@ The condition no longer controls exemplar redundancy. The redundancy penalty was
 
 A word is served by the training example nearest the query among those carrying it, which is a cosine choice, not a register choice. Nothing verifies that the retrieved example uses the rare word in the same sense.
 
-Every artifact under `results/` built before this change describes either the IDF-ranked list or the surprisal-ranked one under greedy coverage, and `README.md` still reports the df 2 to 20 list. None is updated by this change.
+Artifacts built before this change remain historical records of the IDF-ranked or surprisal-ranked variants. The current sparse results are the `min_df: 40` one-exemplar-per-term artifacts named above and reported in `README.md`.
 
 ## 2026-08-24: The frozen rarity list was ranked by character surprisal inside a df band
 
 ### Summary
 
-The frozen 500-term rarity list was an alphabetical accident, and the sparse channel it fed almost never fired. `results/rarity_train.json` records the evidence: every selected term sits at df 2 and all 500 share one IDF value, 9.194. The list was re-specified as the 500 most character-unusual terms inside a document-frequency band. The rebuild and the val diagnostic have NOT been run; the results rows below are empty.
+The frozen 500-term rarity list was an alphabetical accident, and the sparse channel it fed almost never fired. The pre-fix artifact recorded every selected term at df 2 with one shared IDF value, 9.194. The list was therefore re-specified as the 500 most character-unusual terms inside a document-frequency band. That intermediate rebuild and validation diagnostic were subsequently completed; the final sparse condition above now supersedes this design with df ranking and `min_df: 40`.
 
 ### What changed
 
 - `src/retrieval/rarity.py:57` `char_surprisal` scores each term as the mean per-character negative log-probability under a character 4-gram model fit to the pool vocabulary, each type weighted by its token frequency, with `^^^word$` padding and add-0.5 smoothing over the observed alphabet. No external lexicon or frequency list enters the score.
 - `src/retrieval/rarity.py:107` `term_stats` now keeps raw counts, so it carries `tf` and `surprisal` alongside `df` and `idf`. The postings matrix stays binary.
 - `src/retrieval/rarity.py:140` `frozen_terms` filters to `min_df <= df <= max_df` and takes the `freeze_n` highest-surprisal terms. The term string remains as a tie-break, now a determinism guard rather than the operative key.
-- `configs/sparse_retrieval.yaml` and `configs/sparse_knn.yaml` set `min_df: 30`, `max_df: 500`, `freeze_n: 500`, `rank: surprisal`.
+- This intermediate version used a bounded df band and surprisal ranking. The current `configs/sparse_retrieval.yaml` and `configs/sparse_knn.yaml` that supersede it use `min_df: 40`, `freeze_n: 500`, and no `max_df` or `rank` setting.
 - `src/infer/run.py:280` provenance records `max_df` and `rank` with the other rarity settings.
 - The review TSV is now the head of the list in rank order (`{stem}_top{n}.tsv`) with a surprisal column, replacing the seeded sample. `review_sample` is gone: it existed because an IDF sort of a tied tail had no meaningful head.
 - `src/retrieval/sparse.py` is unchanged. `targeted_terms` still takes the m highest-IDF matches per query; the df band is what gives it IDF spread to rank with.
@@ -136,19 +144,19 @@ Rarity as IDF also measures the wrong thing here. A term appearing twice in the 
 
 ### Verification
 
-`tests/test_rarity.py` covers the surprisal score (an off-pattern term outranks the dominant pattern; the ranking follows `tf` rather than type counts; the score is a per-character mean), the closed df band, the exact list size, strictly falling surprisal with nothing eligible passed over, and determinism under document shuffling. `pytest tests/test_rarity.py tests/test_sparse.py` passes, 29 tests. `ruff check` and `ruff format --check` pass. `manage.py rarity` was exercised end to end on a synthetic 400-document pool outside the repository, which is not a pipeline run: the real list was not rebuilt.
+`tests/test_rarity.py` covers the surprisal score (an off-pattern term outranks the dominant pattern; the ranking follows `tf` rather than type counts; the score is a per-character mean), the closed df band, the exact list size, strictly falling surprisal with nothing eligible passed over, and determinism under document shuffling. `pytest tests/test_rarity.py tests/test_sparse.py` passes, 29 tests. `ruff check` and `ruff format --check` pass. `manage.py rarity` was first exercised end to end on a synthetic 400-document pool outside the repository. The intermediate real rebuild and validation diagnostic were completed later, as recorded in the Result below.
 
 ### Result
 
-The list was rebuilt and the val diagnostic run after this entry was first written; the numbers below replace the gap it left. The band admitted 695 of 22,789 pool terms and the frozen 500 realized df [30, 490], IDF 4.10 to 6.86. On val the list is carried: 3.021 listed terms per query against 0.07 under the IDF ranking, 88.5% of queries carrying at least one against 6.4%, and 33.7% carrying four or more.
+The intermediate list was rebuilt and the validation diagnostic run after this entry was first written. The `[30, 500]` band admitted 695 of 22,789 pool terms and the frozen 500 realized df [30, 490], IDF 4.10 to 6.86. On validation it produced 3.021 listed terms per query against 0.07 under the original IDF ranking, 88.5% of queries carrying at least one against 6.4%, and 33.7% carrying four or more. These are retained as band-sweep evidence, not as the final sparse configuration.
 
-The go/no-go failed anyway. Only 1.06% of queries filled all four rarity slots, against the 30% gate, because greedy coverage stops as soon as the chosen exemplars cover the targeted terms: mean slots filled was 1.559 while mean targeted terms was 3.021. The list was not the binding constraint; the selection rule was. The band sweep in the same session put the alternatives at mean listed terms per query of 0.147 for `[2, inf]`, 0.921 for `[10, 1000]`, 3.021 for `[30, 500]` and 2.892 for `[50, 300]`, which is the evidence behind the df floor kept by the 2026-08-24 entry above.
+The go/no-go failed for this intermediate selector. Only 1.06% of queries filled all four rarity slots, against the 30% gate, because greedy coverage stops as soon as the chosen exemplars cover the targeted terms: mean slots filled was 1.559 while mean targeted terms was 3.021. The list was not the binding constraint; the selection rule was. The band sweep in the same session put the alternatives at mean listed terms per query of 0.147 for `[2, inf]`, 0.921 for `[10, 1000]`, 3.021 for `[30, 500]` and 2.892 for `[50, 300]`. That evidence is retained as the reason to keep the final df floor in this range; the current run uses `min_df: 40`, and after the one-exemplar-per-term change `results/sparse_selection_val.json` clears the gate at 42.55% full-route queries.
 
 ### Reproduction
 
 ```
 python manage.py rarity --config configs/sparse_retrieval.yaml
-python manage.py sparse_select --config configs/sparse_retrieval.yaml --split val --index_dir data/knn_index_clean
+python manage.py sparse_select --config configs/sparse_retrieval.yaml --split val --index_dir data/knn_index
 ```
 
 ### Limitations and risks
@@ -157,7 +165,7 @@ The df band is narrow relative to the pool: `results/rarity_train.json` records 
 
 A character n-gram model fit to the pool scores loanwords and Arabic-origin forms as unusual, which is the intended signal, but it also scores any residual segmentation error as unusual for the same reason. The rank-ordered TSV is the check on that, and it is a manual one.
 
-Every number in `README.md` about the sparse arm, and every artifact under `results/` built on the old list, describes the IDF-ranked 500. They are not updated by this change.
+The intermediate artifacts in this entry remain historical. `README.md` and the current sparse artifacts now describe the finalized `min_df: 40`, df-ranked, one-exemplar-per-term condition.
 
 ## 2026-08-23: The pool quarantine was audited against the sealed test split
 
