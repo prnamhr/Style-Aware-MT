@@ -10,6 +10,7 @@ import yaml
 
 from src.eval._io import load_condition
 from src.eval.quick import score as quick_score
+from src.eval.register_direction import configured_direction
 from src.eval.stylometrics import (
     aggregate,
     centroid_provenance,
@@ -70,9 +71,10 @@ def generate_cells(cfg: dict, cells: list[tuple[int, float]], *, overwrite: bool
     retr = cfg["retrieval"]
     af = cfg.get("afsp", {})
     index = RetrievalIndex(retr["index_dir"], embed_model=retr["embed_model"])
+    retriever_centroid = load_centroid(af["centroid_file"])
     retriever = AFSPRetriever(
         index,
-        load_centroid(af["centroid_file"]),  # loaded so lambda>0 cells can rerank
+        retriever_centroid,  # loaded so lambda>0 cells can rerank
         index_dir=retr["index_dir"],
         beta=af.get("beta", 0.3),
         knn_hubness=af.get("knn_hubness", 5),
@@ -80,7 +82,7 @@ def generate_cells(cfg: dict, cells: list[tuple[int, float]], *, overwrite: bool
         lambda_style=0.0,
         style_objective=af.get("style_objective", "bandpass"),
         style_target_sigma=af.get("style_target_sigma", 1.0),
-        style_register_direction=af.get("style_register_direction"),
+        style_register_direction=configured_direction(af, retriever_centroid),
     )
 
     sweep_dir = _sweep_dir(cfg)
@@ -256,7 +258,7 @@ def _register_fit_fn(cfg: dict, centroid: dict | None):
         return None
 
     af = cfg.get("afsp", {})
-    direction = _resolve_direction(af.get("style_register_direction"), centroid)
+    direction = _resolve_direction(configured_direction(af, centroid), centroid)
     target_sigma = float(af.get("select_target_sigma", 0.5))
     return lambda agg_mean: round(
         register_band_distance(agg_mean, centroid, target_sigma, direction), 4

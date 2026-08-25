@@ -216,6 +216,8 @@ This correction changes the objective style distances and the interpretation of 
 
 AFSP is different because `afsp_full` uses the target-register centroid during exemplar reranking. For that reason, `afsp_full_casefix` and `peft_afsp_casefix` were generated as sensitivity-only diagnostics with the same frozen AFSP settings; they are not main study conditions. Those reruns changed many retrieved examples and individual translations, but their aggregate validation results stayed close to the original runs.
 
+The AFSP register direction is no longer hard-coded in the configs. `python manage.py register_direction` derives it from the corrected training-target centroid and writes `results/register_direction.json`, which all seven AFSP/PEFT selection configs now read. The corrected coefficients are `marker_rate = 0.414116`, `lex_density = 0.321723`, `root_ttr = -0.273426`, and `ttr = 0.047505`. Against the former hard-coded vector, the direction has cosine similarity 0.9962, a 4.996 degree angle, no sign flips, and a maximum absolute normalized-weight-share shift of 0.0326. Under the comparison thresholds fixed in the derivation script, this is **near-identical**, not materially or very different. An offline re-score of the 19 already-generated AFSP sweep outputs changed `register_fit` by at most 0.00939 and kept the frozen recommendation at `k = 8`, `lambda_style = 0.75`. The direction correction therefore does not trigger a new `afsp_full` generation run. This conclusion is limited to the direction component; the marker-rate/centroid correction itself still changed retrieval choices in the earlier case-fix sensitivity runs.
+
 ## Validation results
 
 All main rows below use the same 1,323-segment validation split and locked greedy decoding.
@@ -291,13 +293,14 @@ The `afsp_full_casefix` and `peft_afsp_casefix` runs are sensitivity-only robust
 
 ## External reference
 
-For context, `claude-haiku-4-5` is also evaluated zero-shot on the same validation corpus. `gpt56_sparse_knn` is retained as a generator-family diagnostic using the frozen Sparse-KNN retrieval configuration.
+For context, `claude-haiku-4-5` is also evaluated zero-shot on the same validation corpus. `gpt56_sparse_knn` is retained as a generator-family diagnostic using the frozen Sparse-KNN retrieval configuration. Neither is part of the controlled study because each changes the model family and compute budget.
 
 | Condition | COMET | chrF | BLEU | Phi_A | Phi_B | Full style dist. |
 |---|---:|---:|---:|---:|---:|---:|
 | Commercial zero-shot | 0.7185 | 45.24 | 18.06 | 3.333 | 3.981 | 0.4873 |
 | GPT-5.6 + Sparse-KNN | 0.7480 | 50.29 | 24.16 | 3.625 | — | 0.2455 |
 
+The GPT-5.6 Sparse-KNN row is descriptive only. Its matched `gpt56_knn_fewshot` generation has not been fully scored, so this row cannot isolate the effect of sparse retrieval from the change in generator.
 
 The commercial zero-shot model's `Phi_A` score has an additional caveat because the generator and the primary judge use the same model family. `Phi_B` gives a cross-family comparison for that row, but the size of the `Phi_A` advantage should not be read as an independent style effect.
 

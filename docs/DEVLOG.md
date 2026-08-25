@@ -67,11 +67,69 @@ A second audit on 2026-08-10 checked `README.md` and `docs/budget.md` against th
 
 This log was audited for internal consistency against the committed artifacts, configs, and git history on 2026-08-01. Corrections made in that pass are marked inline as *Correction (2026-08-01)*; they amend the claims of earlier entries but do not restate their history.
 
+## 2026-08-25: Register direction derived from the corrected centroid
+
+### Summary
+
+The signed register direction used by AFSP and the PEFT proxy selector is now derived rather than copied across configs. `src/eval/register_direction.py` computes the four coefficients from the current training targets and the corrected `results/stylometrics_centroid.json`, `manage.py register_direction` exposes the derivation, and `results/register_direction.json` is the single artifact consumed by all seven configs that previously carried the four numbers inline.
+
+### Derivation
+
+For each of the 10,860 non-empty training targets, the script computes the four centroid features with the current stylometric extractor, z-scores them against the committed training-target centroid, and takes the Euclidean norm of that per-segment z-vector. Each direction coefficient is then the Pearson correlation between that distance and the corresponding feature z-score. Before fitting, the script rebuilds the centroid statistics from the same targets and refuses to continue if the means or standard deviations differ from the committed centroid. This makes a stale centroid or a later feature-definition change fail loudly instead of silently changing the direction.
+
+The same construction reproduces the former hard-coded coefficients to three decimals when the pre-2026-08-20 case-sensitive archaic-marker regex is substituted: `lex_density 0.355`, `ttr 0.098`, `root_ttr -0.296`, and `marker_rate 0.514`. That closes the provenance gap noted in the 2026-07-18 audit: the values were correlation coefficients from the old centroid geometry, not an unexplained normalized loading vector.
+
+With the corrected case-insensitive archaic marker calculation, the derived direction is:
+
+```text
+lex_density  +0.3217233193
+ttr          +0.0475045503
+root_ttr     -0.2734255957
+marker_rate  +0.4141160886
+```
+
+### Predeclared comparison rule
+
+The comparison thresholds are constants in `src/eval/register_direction.py` and are written into the result artifact. They are defined on the geometry the band-pass objective actually uses. Because `register_band_distance` divides by the total absolute direction weight, a common scale change cancels; sign changes, vector rotation, and changes in each feature's share of total absolute weight are the relevant quantities.
+
+- **Near-identical:** no sign flips, cosine similarity at least 0.98, and maximum absolute normalized-weight-share shift below 0.05.
+- **Very different:** any sign flip, cosine similarity below 0.90, or maximum normalized-weight-share shift at least 0.15. This is the precommitted trigger for regenerating `afsp_full`.
+- **Materially different:** anything between those two regions.
+
+### Result
+
+The corrected direction is **near-identical** to the historical one under that rule. Cosine similarity is 0.996200, the angle is 4.996 degrees, there are no sign flips, and the largest normalized-weight-share movement is 0.032640. `marker_rate` remains the largest absolute weight, but its share falls from 0.40697 to 0.39187; `ttr` has the largest share change, falling by 0.03264. The raw coefficient shift is larger, especially for `marker_rate` (0.514 to 0.414), but common-scale movement is not preserved by the normalized band-pass distance and therefore is not used as the rerun gate.
+
+As an additional offline check, the 19 already-generated AFSP sweep outputs were rescored under the corrected direction while holding their translations, chrF values, centroid, and `select_target_sigma = 0.5` fixed. The maximum absolute change in `register_fit` was 0.009390, and the recommendation remained `k = 8`, `lambda_style = 0.75`. This is a re-score of existing outputs, not a rerun of exemplar selection or generation.
+
+Decision: the direction correction does **not** trigger a new `afsp_full` generation. The marker-rate case fix did reach AFSP through the corrected centroid itself, as the existing case-fix sensitivity runs show, but it did not materially rotate or reweight the signed direction. The defect's remaining blast radius through the direction coefficients is therefore small.
+
+### What changed
+
+- Added `src/eval/register_direction.py` and registered `python manage.py register_direction`.
+- Added `results/register_direction.json` with the derivation provenance, corrected coefficients, predeclared comparison thresholds, comparison result, and offline AFSP sweep re-score.
+- Replaced the inline `style_register_direction` mapping in `base_qwen.yaml`, `afsp_sweep.yaml`, `qwen_smoke.yaml`, `peft_sweep.yaml`, `peft_anchor_e3.yaml`, `peft_smoke.yaml`, and `peft_afsp.yaml` with `style_register_direction_file: results/register_direction.json`.
+- Updated the AFSP inference/sweep and metric-agreement loaders to read the generated artifact. Inline mappings remain accepted only for historical configs and unit tests.
+- Added `tests/test_register_direction.py` to pin reproducibility of the derived artifact, the one-artifact config wiring, the very-different rerun trigger, and the three-decimal recovery of the legacy vector under the pre-case-fix marker regex.
+
+### Reproduction
+
+```bash
+python manage.py register_direction
+python manage.py register_direction --no-sweep-impact
+```
+
+The first command derives the direction and, when the committed AFSP sweep outputs are present, includes the offline selection-objective re-score in the same artifact. The second derives only the direction and vector comparison.
+
+### Limitations and risks
+
+The derivation identifies the direction through correlation with distance from the training-target centroid. It is a corpus-derived operational definition, not a causal estimate of which features create perceived register. The AFSP sweep impact check rescored already-generated translations; it does not prove that every query would retrieve the same exemplars under the corrected direction. The predeclared gate says a fresh `afsp_full` run is required only for a very-different direction, and that gate was not crossed.
+
 ## 2026-08-25: Orphan-condition status and repository cleanup
 
 ### Summary
 
-The result inventory was reconciled with the thesis-facing README. `afsp_full_casefix` and `peft_afsp_casefix` are retained as sensitivity-only robustness diagnostics and are now named explicitly in `README.md`; they are not main study conditions. `gpt56_sparse_knn` and its matched-generation companion `gpt56_knn_fewshot` are cut from thesis results: they change the generator family, and the matched kNN companion does not have the complete scoring needed for a controlled retrieval comparison. Their existing files are retained only as audit artifacts and support no thesis claim.
+The result inventory was reconciled with the thesis-facing README. `afsp_full_casefix` and `peft_afsp_casefix` are retained as sensitivity-only robustness diagnostics and are now named explicitly in `README.md`; they are not main study conditions. `gpt56_sparse_knn` is retained in the README as an external generator-family diagnostic with its available validation metrics (COMET, chrF, BLEU, `Phi_A`, and full stylometric distance). Its matched-generation companion `gpt56_knn_fewshot` is cut from thesis results because it does not have the complete scoring needed for a controlled retrieval comparison. The GPT-5.6 Sparse-KNN row is therefore descriptive only and is not used to claim a sparse-retrieval effect.
 
 Repository cleanup removed the local Hugging Face cache and the stale `outputs/sparse_knn_val_old.jsonl`. The requested transfer archives were not present in the supplied tree. `.gitignore` now blocks Hugging Face cache directories, transfer archives, and `*_old.jsonl` output residue.
 

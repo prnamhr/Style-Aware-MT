@@ -20,6 +20,7 @@ from pathlib import Path
 import yaml
 
 from src.eval._io import read_completed_jsonl
+from src.eval.register_direction import configured_direction
 from src.eval.stylometrics import fingerprint
 from src.infer.anthropic_client import AnthropicChatClient
 from src.infer.gemini_client import GeminiChatClient
@@ -131,11 +132,6 @@ def build_zeroshot_user(source: str) -> str:
 
 
 def load_glossary(path: str | Path | None) -> list[tuple[str, str]]:
-    """Read tab-separated ``source_term<TAB>target_term`` register pairs.
-
-    Blank lines and lines beginning with ``#`` are ignored. A missing or unset
-    path returns an empty glossary, which disables word-level weighting.
-    """
     if not path:
         return []
     p = Path(path)
@@ -195,9 +191,10 @@ def _select_afsp(sources, cfg, retr, index, k, *, rerank):
     """AFSP exemplar selection."""
 
     af = cfg.get("afsp", {})
+    centroid = load_centroid(af["centroid_file"]) if rerank else None
     retriever = AFSPRetriever(
         index,
-        load_centroid(af["centroid_file"]) if rerank else None,
+        centroid,
         index_dir=retr["index_dir"],
         beta=af.get("beta", 0.3),
         knn_hubness=af.get("knn_hubness", 5),
@@ -205,7 +202,7 @@ def _select_afsp(sources, cfg, retr, index, k, *, rerank):
         lambda_style=af.get("lambda_style", 0.3) if rerank else 0.0,
         style_objective=af.get("style_objective", "bandpass"),
         style_target_sigma=af.get("style_target_sigma", 1.0),
-        style_register_direction=af.get("style_register_direction"),
+        style_register_direction=configured_direction(af, centroid) if rerank else None,
     )
     return retriever.select(sources, k=k)
 

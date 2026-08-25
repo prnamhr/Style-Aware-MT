@@ -1,0 +1,105 @@
+{
+  "schema_version": 1,
+  "method": "pearson_feature_correlation_with_standardized_centroid_distance",
+  "derivation": {
+    "train_file": "data/splits/train.jsonl",
+    "target_field": "output",
+    "n_segments": 10860,
+    "features": [
+      "lex_density",
+      "ttr",
+      "root_ttr",
+      "marker_rate"
+    ],
+    "distance": "euclidean_norm_of_per_segment_z_scores_against_train_target_centroid",
+    "coefficient": "pearson_r(distance, feature_z_score)"
+  },
+  "centroid": {
+    "path": "results/stylometrics_centroid.json",
+    "fingerprint": "fd5aec8d69454b02"
+  },
+  "direction": {
+    "lex_density": 0.32172331929003295,
+    "ttr": 0.04750455027682748,
+    "root_ttr": -0.2734255957359488,
+    "marker_rate": 0.41411608855835425
+  },
+  "legacy_hard_coded_direction": {
+    "marker_rate": 0.514,
+    "lex_density": 0.355,
+    "root_ttr": -0.296,
+    "ttr": 0.098
+  },
+  "comparison_to_legacy": {
+    "thresholds_predeclared": {
+      "near_identical": {
+        "cosine_similarity_min": 0.98,
+        "max_abs_weight_share_delta_lt": 0.05,
+        "requires_no_sign_flips": true
+      },
+      "very_different": {
+        "cosine_similarity_lt": 0.9,
+        "max_abs_weight_share_delta_gte": 0.15,
+        "or_any_sign_flip": true
+      },
+      "materially_different": "all remaining cases",
+      "rerun_afsp_full_if": "very_different"
+    },
+    "cosine_similarity": 0.9962003382647484,
+    "angle_degrees": 4.996290804205061,
+    "l2_delta": 0.11892656311597456,
+    "max_abs_coefficient_delta": 0.09988391144164577,
+    "max_abs_weight_share_delta": 0.032640421835733624,
+    "sign_flips": [],
+    "coefficient_delta": {
+      "lex_density": -0.03327668070996703,
+      "ttr": -0.05049544972317253,
+      "root_ttr": 0.022574404264051162,
+      "marker_rate": -0.09988391144164577
+    },
+    "legacy_abs_weight_share": {
+      "lex_density": 0.28107680126682505,
+      "ttr": 0.07759303246239115,
+      "root_ttr": 0.23436262866191607,
+      "marker_rate": 0.40696753760886784
+    },
+    "corrected_abs_weight_share": {
+      "lex_density": 0.3044403750226706,
+      "ttr": 0.04495261062665752,
+      "root_ttr": 0.2587372003072213,
+      "marker_rate": 0.3918698140434504
+    },
+    "weight_share_delta": {
+      "lex_density": 0.023363573755845524,
+      "ttr": -0.032640421835733624,
+      "root_ttr": 0.024374571645305237,
+      "marker_rate": -0.015097723565417442
+    },
+    "classification": "near_identical",
+    "rerun_afsp_full": false
+  },
+  "afsp_sweep_objective_impact": {
+    "scope": "offline re-score of already-generated AFSP sweep translations; this does not re-run exemplar selection or translation generation",
+    "source_results": "results/afsp_sweep_val.json",
+    "source_outputs": "outputs/sweep",
+    "n_cells_rescored": 19,
+    "select_target_sigma": 0.5,
+    "adequacy_margin": 1.0,
+    "legacy_recommendation": {
+      "tag": "afsp_k8_l0.75",
+      "k": 8,
+      "lambda": 0.75,
+      "chrF": 39.99,
+      "register_fit": 1.1196865032513663
+    },
+    "corrected_recommendation": {
+      "tag": "afsp_k8_l0.75",
+      "k": 8,
+      "lambda": 0.75,
+      "chrF": 39.99,
+      "register_fit": 1.1163536231439775
+    },
+    "recommendation_changed": false,
+    "max_abs_register_fit_delta": 0.009389947597762127
+  }
+}

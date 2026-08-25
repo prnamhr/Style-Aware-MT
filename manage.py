@@ -42,6 +42,7 @@ COMMANDS = {
     "bootstrap": "src.eval.bootstrap",
     "fertility": "src.eval.fertility",
     "stylometrics": "src.eval.stylometrics",
+    "register_direction": "src.eval.register_direction",
     "stylometrics_ci": "src.eval.stylometrics_ci",
     "metric_agreement": "src.eval.metric_agreement",
     "peft_register": "src.eval.peft_register",

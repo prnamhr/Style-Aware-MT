@@ -12,13 +12,16 @@ from scipy import stats
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.eval.metric_agreement import (  # noqa: E402
+    _common_keep,
     _load_register_params,
     _segment_register,
     condition_level,
     holm_bonferroni,
     permutation_p_floor,
+    rater_comparison,
     segment_level,
     spearman_ci,
+    spearman_diff_ci,
     spearman_draws,
 )
 from src.eval.peft_register import _assert_pairable, _feature_matrix, _judge_mean  # noqa: E402
@@ -326,3 +329,98 @@ if __name__ == "__main__":
         t()
         print(f"ok  {t.__name__}")
     print(f"\n{len(tests)} checks passed")
+
+
+def test_diff_ci_delta_matches_the_two_point_estimates() -> None:
+    xa, xb, y = _phi_like(11), _phi_like(12), _phi_like(13)
+    got = spearman_diff_ci(xa, y, xb, y, n_resamples=200, seed=42, alpha=0.05)
+    assert math.isclose(got["rho_a"], stats.spearmanr(xa, y).statistic, rel_tol=1e-12)
+    assert math.isclose(got["rho_b"], stats.spearmanr(xb, y).statistic, rel_tol=1e-12)
+    assert math.isclose(got["delta"], got["rho_a"] - got["rho_b"], rel_tol=1e-12)
+
+
+def test_diff_ci_of_a_rater_against_itself_is_exactly_zero() -> None:
+    # The shared resample must cancel; independent bootstraps would leave noise here.
+    x, y = _phi_like(21), _phi_like(22)
+    got = spearman_diff_ci(x, y, x, y, n_resamples=200, seed=42, alpha=0.05)
+    assert got["delta"] == 0.0
+    assert got["ci_low"] == 0.0 and got["ci_high"] == 0.0
+    assert not got["separates"]
+
+
+def test_diff_ci_separates_when_one_rater_tracks_the_target_and_the_other_does_not() -> None:
+    rng = np.random.default_rng(7)
+    y = rng.normal(size=400)
+    xa = y + rng.normal(scale=0.3, size=400)  # tracks y
+    xb = rng.normal(size=400)  # does not
+    got = spearman_diff_ci(xa, y, xb, y, n_resamples=400, seed=42, alpha=0.05)
+    assert got["separates"]
+    assert got["ci_low"] > 0
+
+
+def test_diff_ci_rejects_unaligned_series() -> None:
+    x = _phi_like(1, n=10)
+    try:
+        spearman_diff_ci(x, x, x, _phi_like(2, n=9), n_resamples=10, seed=1, alpha=0.05)
+    except ValueError as e:
+        assert "aligned" in str(e)
+    else:
+        raise AssertionError("expected unaligned series to raise")
+
+
+def _write_judge(d: Path, cond: str, scores: list) -> None:
+    d.mkdir(parents=True, exist_ok=True)
+    (d / f"{cond}.jsonl").write_text(
+        "\n".join(json.dumps({"input": f"s{i}", "score": v}) for i, v in enumerate(scores)) + "\n",
+        encoding="utf-8",
+    )
+
+
+def test_common_keep_is_the_intersection_of_parseable_scores() -> None:
+    root = Path(tempfile.mkdtemp())
+    a, b = root / "a", root / "b"
+    _write_judge(a, "cond", [1, None, 3, 4])
+    _write_judge(b, "cond", [2, 2, None, 5])
+    assert _common_keep(["cond"], {"phi_a": a, "phi_b": b}) == {"cond": [0, 3]}
+
+
+def test_common_keep_stops_at_the_shorter_rater() -> None:
+    root = Path(tempfile.mkdtemp())
+    a, b = root / "a", root / "b"
+    _write_judge(a, "cond", [1, 2, 3])
+    _write_judge(b, "cond", [1, 2])
+    assert _common_keep(["cond"], {"phi_a": a, "phi_b": b}) == {"cond": [0, 1]}
+
+
+def test_rater_comparison_needs_two_raters() -> None:
+    got = rater_comparison(
+        {"phi_a": {"x": _fake_loaded(30, 1)}}, ["x"], n_resamples=50, seed=42, alpha=0.05
+    )
+    assert got["pairs"] == {}
+
+
+def test_rater_comparison_reports_a_delta_per_target_with_holm() -> None:
+    paired = {
+        "phi_a": {"x": _fake_loaded(60, 1), "y": _fake_loaded(60, 2)},
+        "phi_b": {"x": _fake_loaded(60, 3), "y": _fake_loaded(60, 4)},
+    }
+    got = rater_comparison(paired, ["x", "y"], n_resamples=100, seed=42, alpha=0.05)
+    pair = got["pairs"]["phi_a~phi_b"]
+    assert got["n_pooled"] == 120
+    assert set(pair["correlation_deltas"]) == {"band_dist", "centroid_dist", "marker_rate", "comet"}
+    for rec in pair["correlation_deltas"].values():
+        assert "holm_significant" in rec
+        assert math.isclose(rec["delta"], rec["rho_a"] - rec["rho_b"], rel_tol=1e-12)
+    assert pair["condition_ordering"]["n"] == 2
+
+
+def test_rater_comparison_uses_one_shared_target_series() -> None:
+    # phi_b's own target arrays differ; the delta must still come from Phi alone, so a
+    # rater whose phi equals the other's must produce exactly zero delta.
+    a, b = _fake_loaded(60, 1), _fake_loaded(60, 5)
+    b["phi"] = a["phi"].copy()
+    got = rater_comparison(
+        {"phi_a": {"x": a}, "phi_b": {"x": b}}, ["x"], n_resamples=100, seed=42, alpha=0.05
+    )
+    for rec in got["pairs"]["phi_a~phi_b"]["correlation_deltas"].values():
+        assert rec["delta"] == 0.0

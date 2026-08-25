@@ -41,3 +41,5 @@ models/
 /*.zip
 /*.tar.gz
 /outputs/*_old.jsonl
+
+claude.md
