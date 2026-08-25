@@ -1,0 +1,150 @@
+{
+  "split": "val",
+  "out_dir": "outputs",
+  "centroid": {
+    "path": "results/stylometrics_centroid.json",
+    "features": [
+      "lex_density",
+      "ttr",
+      "root_ttr",
+      "marker_rate"
+    ],
+    "n_segments": 10860,
+    "fingerprint": "fd5aec8d69454b02"
+  },
+  "bootstrap": {
+    "n_resamples": 2000,
+    "seed": 42,
+    "alpha": 0.05,
+    "paired": true,
+    "n_segments": 1323
+  },
+  "conditions": [
+    "gpt56_sparse_knn",
+    "sparse_knn"
+  ],
+  "ranking": [
+    "gpt56_sparse_knn",
+    "sparse_knn"
+  ],
+  "cells": {
+    "gpt56_sparse_knn": {
+      "n": 1323,
+      "stylo_dist": 0.24545020181653465,
+      "z": {
+        "lex_density": -0.2046820311003229,
+        "ttr": -0.039899929986764136,
+        "root_ttr": -0.08932834172484692,
+        "marker_rate": -0.09369904304828479
+      },
+      "mean": {
+        "lex_density": 0.4118845427205116,
+        "ttr": 0.849649325851638,
+        "root_ttr": 3.9505599175794295,
+        "sent_len_mean": 24.530549256739732,
+        "sent_len_var": 4.805739271017049,
+        "marker_rate": 0.05002276032698376
+      },
+      "stylo_dist_ci": [
+        0.20292608326181763,
+        0.2957355719879309
+      ],
+      "z_lex_density_ci": [
+        -0.2556664733215967,
+        -0.15361056102967333
+      ],
+      "z_ttr_ci": [
+        -0.09719465150847126,
+        0.01525166430008362
+      ],
+      "z_root_ttr_ci": [
+        -0.14056805241048098,
+        -0.036717871765743045
+      ],
+      "z_marker_rate_ci": [
+        -0.1386914145003727,
+        -0.046912776760890146
+      ],
+      "rank": 1,
+      "rank_distribution": {
+        "rank_probs": [
+          1.0,
+          0.0
+        ],
+        "modal_rank": 1,
+        "modal_prob": 1.0,
+        "mean_rank": 1.0
+      }
+    },
+    "sparse_knn": {
+      "n": 1323,
+      "stylo_dist": 0.3749587967235476,
+      "z": {
+        "lex_density": -0.2877421723689817,
+        "ttr": -0.16804825777499222,
+        "root_ttr": -0.17190031849096674,
+        "marker_rate": -0.0029334352291915627
+      },
+      "mean": {
+        "lex_density": 0.40274091830156566,
+        "ttr": 0.8357427919968792,
+        "root_ttr": 3.864469385158492,
+        "sent_len_mean": 24.124300831443687,
+        "sent_len_var": 4.861604728311077,
+        "marker_rate": 0.05711892063339844
+      },
+      "stylo_dist_ci": [
+        0.3291403724509541,
+        0.4262513212519125
+      ],
+      "z_lex_density_ci": [
+        -0.33891251985488496,
+        -0.23676490796173222
+      ],
+      "z_ttr_ci": [
+        -0.228153128978839,
+        -0.10953666152410499
+      ],
+      "z_root_ttr_ci": [
+        -0.2201408220028333,
+        -0.12307149821729385
+      ],
+      "z_marker_rate_ci": [
+        -0.05788014126509769,
+        0.05084467372461061
+      ],
+      "rank": 2,
+      "rank_distribution": {
+        "rank_probs": [
+          0.0,
+          1.0
+        ],
+        "modal_rank": 2,
+        "modal_prob": 1.0,
+        "mean_rank": 2.0
+      }
+    }
+  },
+  "paired_adjacent": [
+    {
+      "a": "gpt56_sparse_knn",
+      "b": "sparse_knn",
+      "diff": -0.12773743535924623,
+      "ci_low": -0.1716072299162765,
+      "ci_high": -0.08554037646609809,
+      "p_value": 0.0,
+      "significant": true
+    }
+  ],
+  "paired_all": [
+    {
+      "a": "gpt56_sparse_knn",
+      "b": "sparse_knn",
+      "diff": -0.12773743535924623,
+      "ci_low": -0.1716072299162765,
+      "ci_high": -0.08554037646609809,
+      "p_value": 0.0,
+      "significant": true
+    }
+  ]
+}

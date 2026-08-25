@@ -1,0 +1,14 @@
+{
+  "condition": "knn_fewshot",
+  "output_name": "gpt56_knn_fewshot",
+  "model": "gpt-5.6-sol",
+  "provenance": {
+    "k": 8,
+    "ordering": "most_similar_last",
+    "index_dir": "data/knn_index"
+  },
+  "calls": 15,
+  "prompt_tokens": 29924,
+  "completion_tokens": 674,
+  "cost_usd": 0.1332
+}
