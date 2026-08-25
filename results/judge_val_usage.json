@@ -2,20 +2,20 @@
   "model": "claude-haiku-4-5",
   "tag": null,
   "conditions": [
-    "sparse_knn"
+    "gpt56_sparse_knn"
   ],
   "limit": null,
   "priced": true,
   "session": {
-    "calls": 1298,
-    "prompt_tokens": 614602,
-    "completion_tokens": 144801,
-    "cost_usd": 1.3386
+    "calls": 1323,
+    "prompt_tokens": 627878,
+    "completion_tokens": 141730,
+    "cost_usd": 1.3365
   },
   "cumulative": {
-    "calls": 7913,
-    "prompt_tokens": 3750472,
-    "completion_tokens": 867249,
-    "cost_usd": 8.0866
+    "calls": 9236,
+    "prompt_tokens": 4378350,
+    "completion_tokens": 1008979,
+    "cost_usd": 9.4231
   }
 }

@@ -1,0 +1,40 @@
+{
+  "metric": "judge",
+  "judge_tag": null,
+  "split": "val",
+  "conditions": [
+    "gpt56_sparse_knn",
+    "sparse_knn"
+  ],
+  "baseline": "gpt56_sparse_knn",
+  "adjacent": false,
+  "n_resamples": 10000,
+  "alpha": 0.05,
+  "seed": 42,
+  "comparisons": [
+    {
+      "a": "sparse_knn",
+      "b": "gpt56_sparse_knn",
+      "n": 1323,
+      "mean_a": 2.81254724111867,
+      "mean_b": 3.625094482237339,
+      "diff": -0.8125472411186694,
+      "ci_low": -0.8647014361300078,
+      "ci_high": -0.7581254724111868,
+      "p_value": 0.0,
+      "significant": true
+    },
+    {
+      "a": "gpt56_sparse_knn",
+      "b": "sparse_knn",
+      "n": 1323,
+      "mean_a": 3.625094482237339,
+      "mean_b": 2.81254724111867,
+      "diff": 0.8125472411186694,
+      "ci_low": 0.7581254724111868,
+      "ci_high": 0.8647014361300078,
+      "p_value": 0.0,
+      "significant": true
+    }
+  ]
+}

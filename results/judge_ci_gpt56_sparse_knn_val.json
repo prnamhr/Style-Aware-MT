@@ -1,0 +1,104 @@
+{
+  "split": "val",
+  "judge": {
+    "tag": null,
+    "model": "claude-haiku-4-5",
+    "template_sha256": "ffd6dad41acb0512",
+    "results_path": "results/judge_val.json"
+  },
+  "bootstrap": {
+    "n_resamples": 10000,
+    "seed": 42,
+    "alpha": 0.05,
+    "paired": true,
+    "unit": "segment",
+    "n_segments": 1323
+  },
+  "evidence_class": {
+    "study_conditions": [
+      "gpt56_sparse_knn",
+      "sparse_knn"
+    ],
+    "external_reference": [],
+    "note": "commercial_haiku is a diagnostic external reference baseline, not a condition of the study, and is excluded from study tables. Phi is not seed-reproducible, so differences of order 0.05 are within measurement noise."
+  },
+  "conditions": [
+    "gpt56_sparse_knn",
+    "sparse_knn"
+  ],
+  "ranking": [
+    "gpt56_sparse_knn",
+    "sparse_knn"
+  ],
+  "cells": {
+    "gpt56_sparse_knn": {
+      "n": 1323,
+      "n_scored": 1323,
+      "coverage": 1.0,
+      "phi": 3.625094482237339,
+      "sd": 0.7471817261640942,
+      "phi_ci": [
+        3.584278155706727,
+        3.6659108087679515
+      ],
+      "score_histogram": {
+        "1": 0.015117157974300832,
+        "2": 0.07558578987150416,
+        "3": 0.21919879062736206,
+        "4": 0.6492819349962207,
+        "5": 0.04081632653061224
+      },
+      "is_reference": false,
+      "rank": 1,
+      "rank_distribution": {
+        "rank_probs": [
+          1.0,
+          0.0
+        ],
+        "modal_rank": 1,
+        "modal_prob": 1.0,
+        "mean_rank": 1.0
+      }
+    },
+    "sparse_knn": {
+      "n": 1323,
+      "n_scored": 1323,
+      "coverage": 1.0,
+      "phi": 2.81254724111867,
+      "sd": 0.9152894087737972,
+      "phi_ci": [
+        2.764928193499622,
+        2.86245275888133
+      ],
+      "score_histogram": {
+        "1": 0.06651549508692366,
+        "2": 0.3204837490551776,
+        "3": 0.35676492819349964,
+        "4": 0.24640967498110355,
+        "5": 0.009826152683295541
+      },
+      "is_reference": false,
+      "rank": 2,
+      "rank_distribution": {
+        "rank_probs": [
+          0.0,
+          1.0
+        ],
+        "modal_rank": 2,
+        "modal_prob": 1.0,
+        "mean_rank": 2.0
+      }
+    }
+  },
+  "paired_adjacent": [
+    {
+      "a": "gpt56_sparse_knn",
+      "b": "sparse_knn",
+      "diff": 0.8123538926681784,
+      "ci_low": 0.7581254724111868,
+      "ci_high": 0.8647014361300078,
+      "p_value": 0.0,
+      "significant": true
+    }
+  ]
+}
