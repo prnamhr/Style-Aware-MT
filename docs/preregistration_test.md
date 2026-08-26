@@ -283,3 +283,58 @@ takes no `--limit`; the cap is `data.limit` in the config it is given. The runbo
 derives two configs per commercial row, one capped at 20 segments and one uncapped, and the full
 pass resumes over the pilot's rows. The commitment is unchanged - a metered pilot before the full
 pass - only the mechanism is stated correctly.
+
+## Addendum, 2026-08-26: three named artifacts had no producing command
+
+The metrics table names `results/bootstrap_chrf_test.json`, `results/bootstrap_bleu_test.json` and
+`results/heldout_decomp_test.json`. Nothing in the block above writes any of them. The chrF and
+BLEU rows name `manage.py eval` as the estimator, which is right for the corpus scores it prints
+and wrong for the artifacts: `src/eval/quick.py` has no output path and writes no file. The paired
+intervals come from `manage.py bootstrap`. The held-out decomposition does have a command,
+`manage.py heldout_decomp`, which writes `results/heldout_decomp_<split>.json` by default; it was
+left out of step 6.
+
+The COMET bootstrap in the block runs without `--out`. `src/eval/bootstrap.py:230` writes only when
+the flag is given, so as written it computes the five confirmatory intervals, prints them, and
+discards them. It also needs an explicit path rather than the bare flag, because the exploratory
+COMET ladder below claims the default name. Test 1 carries no interval because a later run
+overwrote it; that is the same collision.
+
+The commands, replacing the last line of the block above and extending step 6:
+
+```bash
+python manage.py heldout_decomp --split test --n_resamples 10000 \
+    --figure_path docs/figures/heldout_decomp_by_omega_test.png
+
+python manage.py bootstrap --metric comet --split test --n_resamples 10000 \
+    --conditions knn_fewshot sparse_knn afsp_full peft peft_afsp rlsf_w3_2.0 \
+    --pairs peft:knn_fewshot afsp_full:knn_fewshot sparse_knn:knn_fewshot \
+            peft_afsp:peft rlsf_w3_2.0:peft \
+    --out results/bootstrap_comet_confirmatory_test.json
+
+for m in chrf bleu comet; do
+    python manage.py bootstrap --metric "$m" --conditions $CONDS --split test \
+        --baseline zeroshot --adjacent --n_resamples 10000 --out
+done
+```
+
+After step 7, the same ladder for each rater, which is how the val judge intervals were produced:
+
+```bash
+python manage.py bootstrap --metric judge --conditions $CONDS --split test \
+    --baseline zeroshot --adjacent --n_resamples 10000 --out
+python manage.py bootstrap --metric judge --judge_tag gpt --conditions $CONDS --split test \
+    --baseline zeroshot --adjacent --n_resamples 10000 --out
+```
+
+Bare `--out` writes `results/bootstrap_<metric>_test.json`, and `--judge_tag gpt` writes
+`results/bootstrap_judge_gpt_test.json`, matching the val names. `heldout_decomp` reads
+`results/comet_test.json` and so runs after `comet`; its default figure path is the val figure and
+is redirected here rather than overwritten. Every bootstrap line requires identical segment order
+across the conditions it is given - `_assert_aligned` raises otherwise - so the two external rows
+enter the ladder only once their full uncapped files are complete, not while the pilot cap of the
+preceding addendum is still in place.
+
+Nothing about the confirmatory family changes. The ten tests, their metrics, their predicted signs
+and the Holm correction are as declared above; this addendum records the commands that produce the
+artifacts they are read from.

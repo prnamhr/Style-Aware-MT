@@ -246,7 +246,7 @@ RLSF `w3=2` has the lowest corrected held-out distance, at 0.1264, compared with
 
 RLSF `w3=6` has the lowest corrected full stylometric distance, at 0.2704. Because this is the high-pressure diagnostic arm, I treat it mainly as evidence about how strong style optimization changes the model rather than as a replacement for the selected moderate arm.
 
-PEFT+AFSP has the highest COMET score among the main study conditions. PEFT+KNN has the highest chrF and BLEU. AFSP-full remains highest on `Phi_B` at 3.707. For the current Sparse-KNN run, COMET is 0.6846, chrF is 40.08, and BLEU is 14.31; none of its paired adequacy differences from ordinary kNN is statistically resolved. It has no rater score, for the reason given under the table. Its full stylometric distance is 0.3750, compared with 0.3659 for ordinary kNN. The two PEFT retrieval hybrids are also close under both LLM judges.
+PEFT+AFSP has the highest COMET score among the main study conditions. PEFT+KNN has the highest chrF and BLEU. AFSP-full remains highest on `Phi_B` at 3.707. For the current Sparse-KNN run, COMET is 0.6846, chrF is 40.08, and BLEU is 14.31; none of its paired adequacy differences from ordinary kNN is statistically resolved. It has no rater score. Its full stylometric distance is 0.3750, compared with 0.3659 for ordinary kNN. The two PEFT retrieval hybrids are also close under both LLM judges.
 
 The main result is therefore a trade-off, the method that looks best under semantic and reference-overlap metrics is not necessarily the one closest to the measured register.
 
