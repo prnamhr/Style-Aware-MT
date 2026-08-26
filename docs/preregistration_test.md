@@ -114,7 +114,7 @@ validation value it comes from are recorded for each.
 
 | # | Contrast | Question | Metric | Predicted sign | Validation value |
 |---|---|---|---|---|---|
-| 1 | `peft` − `knn_fewshot` | RQ1 | COMET | + | +0.0147, point difference only |
+| 1 | `peft` − `knn_fewshot` | RQ1 | COMET | + | +0.0147 [+0.0102, +0.0191], p < .0001 |
 | 2 | `peft` − `knn_fewshot` | RQ1 | `stylo_dist` | − | −0.0753 [−0.1231, −0.0277], p = .002 |
 | 3 | `rlsf_w3_2.0` − `peft` | RQ1, RQ3 | COMET | + | +0.0021 [+0.0004, +0.0039], p = .015 |
 | 4 | `rlsf_w3_2.0` − `peft` | RQ1, RQ3 | `stylo_dist` | − | −0.0098 [−0.0267, +0.0071], p = .273 |
@@ -129,9 +129,6 @@ Negative is better for `stylo_dist`, positive for COMET. Prediction 8 therefore 
 retrieval on top of PEFT moves the output away from the target centroid while improving COMET.
 That is the shape of the val hybrid result and it is predicted to repeat.
 
-Test 1 carries no interval because the paired COMET bootstrap for that pair was overwritten by a
-later run. 0.6986 against 0.6839 in the val table is the whole of what is recorded for it.
-
 A prediction counts as replicated only when both conditions hold: the sign on test matches the
 sign above, and the Holm-adjusted test rejects. A rejection in the opposite direction is a failed
 prediction and is reported as one, not as a finding.
@@ -145,11 +142,14 @@ asserting an independence the design does not have. Thresholds run from 0.005 fo
 p-value to 0.05 for the largest.
 
 What that is expected to yield, stated before the pass rather than after it. At val effect sizes
-only tests 2 and 6 - the two register contrasts against `knn_fewshot`, at p = .002 and p < .001 -
-are likely to clear a 0.005 or 0.006 threshold. The COMET effects that separated on val are
-0.002 to 0.005 COMET points at p = .010 to .015, and Holm over ten will most likely drop them.
-A thin confirmatory yield is the expected outcome of this family, not a surprise, and it is not
-evidence that those effects are absent.
+three tests are likely to clear. Test 1, the COMET gap between `peft` and `knn_fewshot`, is
++0.0147 at p < .0001 and faces the strictest threshold, 0.005. Tests 6 and 2, the two register
+contrasts against `knn_fewshot`, are at p < .001 and p = .002 against thresholds of 0.0056 and
+0.0063. The remaining COMET effects that separated on val are smaller by a factor of three to
+seven - 0.002 to 0.005 COMET points at p = .010 to .015 - and Holm over ten will most likely drop
+them: test 7 at p = .010 meets a threshold of 0.0071. A yield of three is the expected outcome of
+this family, and the seven tests that fall short are not thereby evidence that those effects are
+absent.
 
 Uncorrected p-values and intervals are reported alongside the corrected verdicts for every test,
 as they are in the val tables.
@@ -297,8 +297,9 @@ left out of step 6.
 The COMET bootstrap in the block runs without `--out`. `src/eval/bootstrap.py:230` writes only when
 the flag is given, so as written it computes the five confirmatory intervals, prints them, and
 discards them. It also needs an explicit path rather than the bare flag, because the exploratory
-COMET ladder below claims the default name. Test 1 carries no interval because a later run
-overwrote it; that is the same collision.
+COMET ladder below claims the default name. The val interval for test 1 had to be recomputed into
+`results/bootstrap_comet_peft_knn_val.json` after an earlier run claimed the default name; that is
+the same collision.
 
 The commands, replacing the last line of the block above and extending step 6:
 

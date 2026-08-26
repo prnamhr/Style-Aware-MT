@@ -515,7 +515,7 @@ For exact experiment provenance, use [`docs/DEVLOG.md`](docs/DEVLOG.md).
 - [`results/heldout_traj_val.json`](results/heldout_traj_val.json): RLSF checkpoint trajectory
 - [`results/stylometrics_ci_casefix_val.json`](results/stylometrics_ci_casefix_val.json): AFSP case-fix sensitivity analysis
 - [`results/stylometrics_ci_sparse_knn_val.json`](results/stylometrics_ci_sparse_knn_val.json): Sparse-KNN vs kNN stylometric comparison
-- [`results/judge_agreement_gpt_sparse_knn_val.json`](results/judge_agreement_gpt_sparse_knn_val.json): two-rater Sparse-KNN judge comparison
+- [`results/judge_agreement_gpt_sparse_knn_val.json`](results/judge_agreement_gpt_sparse_knn_val.json): two-rater Sparse-KNN judge comparison, scored against the superseded `654e09e` generation and retained for provenance only
 - [`results/sparse_selection_val.json`](results/sparse_selection_val.json): Sparse-KNN routing and selection diagnostics
 
 
