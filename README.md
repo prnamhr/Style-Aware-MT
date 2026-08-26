@@ -159,6 +159,7 @@ The training history, budget rules, and preregistration are in:
 
 - [`docs/DEVLOG.md`](docs/DEVLOG.md)
 - [`docs/preregistration_rlsf.md`](docs/preregistration_rlsf.md)
+- [`docs/preregistration_test.md`](docs/preregistration_test.md)
 - [`docs/budget.md`](docs/budget.md)
 
 ### PEFT with retrieval
@@ -364,6 +365,7 @@ Greedy generation is stable within a session, but a small amount of cross-sessio
 │   ├── proposal.pdf
 │   ├── DEVLOG.md
 │   ├── preregistration_rlsf.md
+│   ├── preregistration_test.md
 │   ├── afsp_strategies.md
 │   └── budget.md
 └── notebooks/
@@ -502,6 +504,7 @@ For exact experiment provenance, use [`docs/DEVLOG.md`](docs/DEVLOG.md).
 - [`docs/proposal.pdf`](docs/proposal.pdf): original thesis proposal and hypotheses
 - [`docs/DEVLOG.md`](docs/DEVLOG.md): engineering and decision log
 - [`docs/preregistration_rlsf.md`](docs/preregistration_rlsf.md): RLSF preregistration and dated addenda
+- [`docs/preregistration_test.md`](docs/preregistration_test.md): the test-split condition set, confirmatory family, and correction
 - [`docs/afsp_strategies.md`](docs/afsp_strategies.md): AFSP retrieval and reranking method
 - [`docs/budget.md`](docs/budget.md): compute and API budget records
 - [`results/comet_val.json`](results/comet_val.json): validation COMET scores

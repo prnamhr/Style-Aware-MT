@@ -4,6 +4,7 @@ Shared IO for the evaluation backbone.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -11,6 +12,15 @@ from pathlib import Path
 
 def condition_path(out_dir: str | Path, condition: str, split: str) -> Path:
     return Path(out_dir) / f"{condition}_{split}.jsonl"
+
+
+def file_digest(path: str | Path) -> str:
+    """sha256 of a generation file, so a score can be tied to the bytes it scored."""
+    h = hashlib.sha256()
+    with Path(path).open("rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
 
 
 def merge_results(path: str | Path, new: dict[str, dict]) -> list[str]:

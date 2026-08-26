@@ -543,3 +543,12 @@ the readable quantity; a step-to-step move is not.
 The test-split seal remains unchanged. The ladder is generated and scored on \`val.jsonl\` only, and the checkpoint
 
 selection the arms are reported at was made on the dev slice before any of this was read.
+
+## Addendum, 2026-08-26: the test-split family is declared elsewhere
+
+The test-split seal clause above is the only prior statement in the repository about opening
+`data/splits/test.jsonl`, and it covers the three RLSF arms alone. The conditions scored on test,
+the metrics, the confirmatory family and its correction are declared in
+`docs/preregistration_test.md`, written before any test generation, metric, or judge call. That
+document supersedes nothing here: the seal conditions of this pre-registration stand, and the RLSF
+predictions above are still scored on val exactly as written.

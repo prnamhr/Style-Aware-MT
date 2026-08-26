@@ -19,7 +19,13 @@ from pathlib import Path
 
 import yaml
 
-from src.eval._io import condition_path, load_condition, merge_results, read_completed_jsonl
+from src.eval._io import (
+    condition_path,
+    file_digest,
+    load_condition,
+    merge_results,
+    read_completed_jsonl,
+)
 from src.infer.run import make_client
 
 _RESULTS_DIR = Path("results")
@@ -93,6 +99,27 @@ def assert_cache_identity(cache_dir: Path, meta: dict) -> None:
             )
         return
     path.write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8")
+
+
+def bind_output(cache_dir: Path, condition: str, source_path: Path) -> str:
+    """Tie a condition's cached scores to the generation bytes they were scored against."""
+    # The cache resumes on the source text alone, so a regenerated file would otherwise
+    # inherit scores computed against different predictions.
+    digest = file_digest(source_path)
+    path = cache_dir / _META_NAME
+    meta = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+    bound = meta.setdefault("outputs", {})
+    prior = bound.get(condition)
+    if prior is not None and prior["sha256"] != digest:
+        raise ValueError(
+            f"segment cache {cache_dir} scored {condition} against {prior['file']} "
+            f"sha256 {prior['sha256'][:16]}, but that file is now {digest[:16]}. The "
+            f"generation changed after it was judged; delete {cache_dir / f'{condition}.jsonl'} "
+            f"and this condition's entry in {path} to re-judge it."
+        )
+    bound[condition] = {"file": str(source_path), "sha256": digest}
+    path.write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8")
+    return digest
 
 
 def assert_results_identity(out_path: Path, model: str, *, allow_overwrite: bool) -> None:
@@ -248,6 +275,7 @@ def main() -> None:
         assert_cache_identity(
             cache_dir, {"model": judge_model, "tag": tag, "template_sha256": digest}
         )
+        output_sha256 = bind_output(cache_dir, cond, path)
         scores = score_condition(
             client, template, sources, preds, refs, cache_path=cache_dir / f"{cond}.jsonl"
         )
@@ -257,6 +285,7 @@ def main() -> None:
             "model": judge_model,
             "judge_tag": tag,
             "template_sha256": digest,
+            "output_sha256": output_sha256,
             "mean": mean,
             "coverage": round(coverage, 4),
             "sources": sources,

@@ -67,6 +67,56 @@ A second audit on 2026-08-10 checked `README.md` and `docs/budget.md` against th
 
 This log was audited for internal consistency against the committed artifacts, configs, and git history on 2026-08-01. Corrections made in that pass are marked inline as *Correction (2026-08-01)*; they amend the claims of earlier entries but do not restate their history.
 
+## 2026-08-26: Scores bound to the generation bytes they scored
+
+### Summary
+
+Nothing linked a score to the file it was computed from. `manage.py judge` and
+`manage.py judge_batch` now record the SHA-256 of `outputs/<condition>_<split>.jsonl` in the
+segment cache's `_meta.json` and refuse to extend a cache whose recorded digest no longer matches
+the file; `manage.py comet` writes the same digest into each condition's record.
+
+### Rationale
+
+The judge segment cache resumes on the source text: `score_condition` compares each cached
+`input` against the current sources and stops there. Sources are fixed by the split, so a
+condition regenerated between judge runs passes that check with different predictions, and the
+cached scores carry over to translations that were never judged. The README already records
+cross-session decoding drift under greedy decoding, so this is not hypothetical. The failure is
+silent, the raters are paid per call, and the test pass happens once.
+
+### What changed
+
+- `src/eval/_io.py`: `file_digest`, a chunked SHA-256 of a generation file.
+- `src/eval/judge.py`: `bind_output(cache_dir, condition, source_path)` records
+  `outputs.<condition> = {file, sha256}` in `_meta.json` and raises on a digest change, naming the
+cache file to delete. `assert_cache_identity` compares only the keys it is passed, so the new block
+does not disturb the (model, tag, template) identity check.
+- `src/eval/judge.py`, `src/eval/judge_batch.py`: the digest is bound before scoring and stored as
+  `output_sha256` on each condition's result record.
+- `src/eval/comet.py`: `output_sha256` on each condition's record.
+- `tests/test_judge_provenance.py`: six tests covering the digest, first binding, idempotent
+  rebinding, the refusal on a regenerated file, independence across conditions, and that the
+identity check still passes once an outputs block exists.
+
+### Verification
+
+`pytest tests/` passes, 437 tests, 6 of them new. `ruff check` and `ruff format --check` pass on
+the touched files.
+
+### Limitations and risks
+
+The existing validation artifacts are not backfilled. They were scored before the binding existed,
+and writing today's digests into them would assert a link that was never checked; `judge_val.json`
+and `comet_val.json` therefore carry no `output_sha256` and the val segment caches carry no
+`outputs` block until a condition is re-scored. The binding proves that a cache and a file agree
+now, not that the file is the one a paid call actually saw - that guarantee starts with the first
+run under this code, which is the test pass.
+
+`manage.py eval` and `manage.py stylometrics` print rather than write per-condition results, so
+neither carries a digest. Both recompute from the file on every invocation, which is what makes
+the stale-cache hazard specific to the judge.
+
 ## 2026-08-25: Register direction derived from the corrected centroid
 
 ### Summary

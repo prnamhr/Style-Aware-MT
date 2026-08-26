@@ -16,10 +16,22 @@
     "config": "configs/afsp_sweep.yaml",
     "select_target_sigma": 0.5,
     "direction": {
-      "lex_density": 0.355,
-      "ttr": 0.098,
-      "root_ttr": -0.296,
-      "marker_rate": 0.514
+      "lex_density": 0.32172331929003295,
+      "ttr": 0.04750455027682748,
+      "root_ttr": -0.2734255957359488,
+      "marker_rate": 0.41411608855835425
+    }
+  },
+  "raters": {
+    "phi_a": {
+      "judge_dir": "results/judge_val_segments",
+      "model": "claude-haiku-4-5",
+      "template_sha256": "ffd6dad41acb0512"
+    },
+    "phi_b": {
+      "judge_dir": "results/judge_gpt_val_segments",
+      "model": "gpt-5.6-terra",
+      "template_sha256": "ffd6dad41acb0512"
     }
   },
   "bootstrap": {
@@ -34,53 +46,25 @@
       "zeroshot",
       "random_fewshot",
       "knn_fewshot",
+      "sparse_knn",
       "afsp_margin",
       "afsp_full",
-      "peft"
+      "peft",
+      "peft_knn",
+      "peft_afsp",
+      "rlsf_w3_0.0",
+      "rlsf_w3_2.0",
+      "rlsf_w3_6.0"
     ],
     "external_reference": "commercial_haiku",
-    "note": "commercial_haiku is a diagnostic external reference baseline, not a condition of the study; correlations are reported both without it (study_only) and with it (with_reference), and the two differ materially"
-  },
-  "coverage": {
-    "zeroshot": {
-      "n_total": 1323,
-      "n_scored": 1323,
-      "coverage": 1.0
-    },
-    "random_fewshot": {
-      "n_total": 1323,
-      "n_scored": 1323,
-      "coverage": 1.0
-    },
-    "knn_fewshot": {
-      "n_total": 1323,
-      "n_scored": 1322,
-      "coverage": 0.999244142101285
-    },
-    "afsp_margin": {
-      "n_total": 1323,
-      "n_scored": 1323,
-      "coverage": 1.0
-    },
-    "afsp_full": {
-      "n_total": 1323,
-      "n_scored": 1323,
-      "coverage": 1.0
-    },
-    "peft": {
-      "n_total": 1323,
-      "n_scored": 1323,
-      "coverage": 1.0
-    },
-    "commercial_haiku": {
-      "n_total": 1323,
-      "n_scored": 1323,
-      "coverage": 1.0
-    }
+    "note": "commercial_haiku is a diagnostic external reference baseline, not a condition of the study; correlations are reported both without it (study_only) and with it (with_reference), and the two differ materially. Neither rater is a ground truth: the rater_comparison block bounds how far an RQ4 claim depends on rater identity, not which rater is correct."
   },
   "system_metrics": {
     "zeroshot": {
-      "phi": 2.54572940287226,
+      "phi": {
+        "phi_a": 2.54572940287226,
+        "phi_b": 3.647692307692308
+      },
       "stylo_dist": 0.44809097570698314,
       "comet": 0.6480389923780864,
       "z": {
@@ -91,7 +75,10 @@
       }
     },
     "random_fewshot": {
-      "phi": 2.63265306122449,
+      "phi": {
+        "phi_a": 2.63265306122449,
+        "phi_b": 3.632999228989977
+      },
       "stylo_dist": 0.31615250457000654,
       "comet": 0.6643897993989902,
       "z": {
@@ -102,8 +89,11 @@
       }
     },
     "knn_fewshot": {
-      "phi": 2.7481089258698943,
-      "stylo_dist": 0.3658712273707831,
+      "phi": {
+        "phi_a": 2.7481089258698943,
+        "phi_b": 3.6788990825688073
+      },
+      "stylo_dist": 0.36587122737078304,
       "comet": 0.6839142447155889,
       "z": {
         "lex_density": -0.2814769142994191,
@@ -112,8 +102,25 @@
         "marker_rate": -0.018430932896304136
       }
     },
+    "sparse_knn": {
+      "phi": {
+        "phi_a": 2.81254724111867,
+        "phi_b": 3.6984615384615385
+      },
+      "stylo_dist": 0.3749587967235476,
+      "comet": 0.6846179145579075,
+      "z": {
+        "lex_density": -0.2877421723689817,
+        "ttr": -0.16804825777499222,
+        "root_ttr": -0.17190031849096674,
+        "marker_rate": -0.0029334352291915627
+      }
+    },
     "afsp_margin": {
-      "phi": 2.762660619803477,
+      "phi": {
+        "phi_a": 2.762660619803477,
+        "phi_b": 3.666922486569455
+      },
       "stylo_dist": 0.33943324717266316,
       "comet": 0.6823725980831111,
       "z": {
@@ -124,8 +131,11 @@
       }
     },
     "afsp_full": {
-      "phi": 2.7906273620559334,
-      "stylo_dist": 0.3032208972708757,
+      "phi": {
+        "phi_a": 2.7906273620559334,
+        "phi_b": 3.7068702290076336
+      },
+      "stylo_dist": 0.30322089727087576,
       "comet": 0.6852737477757402,
       "z": {
         "lex_density": -0.21765149859281988,
@@ -135,8 +145,11 @@
       }
     },
     "peft": {
-      "phi": 2.743764172335601,
-      "stylo_dist": 0.2890407986490139,
+      "phi": {
+        "phi_a": 2.743764172335601,
+        "phi_b": 3.6125574272588055
+      },
+      "stylo_dist": 0.28904079864901383,
       "comet": 0.6985758094177585,
       "z": {
         "lex_density": -0.23278118551584967,
@@ -145,9 +158,82 @@
         "marker_rate": -0.13690646755986888
       }
     },
+    "peft_knn": {
+      "phi": {
+        "phi_a": 2.801965230536659,
+        "phi_b": 3.662037037037037
+      },
+      "stylo_dist": 0.35887651376759305,
+      "comet": 0.7015224571986713,
+      "z": {
+        "lex_density": -0.2148672950462749,
+        "ttr": -0.1598929110333762,
+        "root_ttr": -0.16232417995394743,
+        "marker_rate": -0.1752413057958363
+      }
+    },
+    "peft_afsp": {
+      "phi": {
+        "phi_a": 2.7951625094482235,
+        "phi_b": 3.636643571978445
+      },
+      "stylo_dist": 0.3244110008255178,
+      "comet": 0.7032568473889804,
+      "z": {
+        "lex_density": -0.19126314143532994,
+        "ttr": -0.10940046824455779,
+        "root_ttr": -0.14770539202980196,
+        "marker_rate": -0.1867500010658558
+      }
+    },
+    "rlsf_w3_0.0": {
+      "phi": {
+        "phi_a": 2.7687074829931975,
+        "phi_b": 3.598473282442748
+      },
+      "stylo_dist": 0.2856511825482565,
+      "comet": 0.7007009198696255,
+      "z": {
+        "lex_density": -0.23487436915345153,
+        "ttr": 0.002854090701185419,
+        "root_ttr": -0.10023859333772497,
+        "marker_rate": -0.12796369554654602
+      }
+    },
+    "rlsf_w3_2.0": {
+      "phi": {
+        "phi_a": 2.7906273620559334,
+        "phi_b": 3.6534047436878345
+      },
+      "stylo_dist": 0.2792784748239472,
+      "comet": 0.7007183595894866,
+      "z": {
+        "lex_density": -0.24905340171408588,
+        "ttr": -0.011295418245187162,
+        "root_ttr": -0.08547401704166771,
+        "marker_rate": -0.09238763733346178
+      }
+    },
+    "rlsf_w3_6.0": {
+      "phi": {
+        "phi_a": 2.742252456538171,
+        "phi_b": 3.63587786259542
+      },
+      "stylo_dist": 0.2703725015017805,
+      "comet": 0.6992645501324559,
+      "z": {
+        "lex_density": -0.22991366547075656,
+        "ttr": -0.011273747431763296,
+        "root_ttr": -0.0891941659304464,
+        "marker_rate": -0.11026467875502174
+      }
+    },
     "commercial_haiku": {
-      "phi": 3.3333333333333335,
-      "stylo_dist": 0.4873068297509572,
+      "phi": {
+        "phi_a": 3.3333333333333335,
+        "phi_b": 3.9808868501529053
+      },
+      "stylo_dist": 0.4873068297509571,
       "comet": 0.7184582240907693,
       "z": {
         "lex_density": -0.37780943727373145,
@@ -157,699 +243,2675 @@
       }
     }
   },
-  "condition_level": {
-    "study_only": {
-      "conditions": [
-        "zeroshot",
-        "random_fewshot",
-        "knn_fewshot",
-        "afsp_margin",
-        "afsp_full",
-        "peft"
-      ],
-      "n": 6,
-      "p_floor": 0.002777777777777778,
-      "pairs": {
-        "phi~stylo_dist": {
-          "rho": -0.3714285714285715,
-          "p_value": 0.4684781341107872,
-          "n": 6
-        },
-        "phi~comet": {
-          "rho": 0.6,
-          "p_value": 0.208,
-          "n": 6
-        },
-        "stylo_dist~comet": {
-          "rho": -0.7714285714285715,
-          "p_value": 0.07239650145772594,
-          "n": 6
-        }
-      }
-    },
-    "with_reference": {
-      "conditions": [
-        "zeroshot",
-        "random_fewshot",
-        "knn_fewshot",
-        "afsp_margin",
-        "afsp_full",
-        "peft",
-        "commercial_haiku"
-      ],
-      "n": 7,
-      "p_floor": 0.0003968253968253968,
-      "pairs": {
-        "phi~stylo_dist": {
-          "rho": 0.14285714285714288,
-          "p_value": 0.7599453002180927,
-          "n": 7
-        },
-        "phi~comet": {
-          "rho": 0.7500000000000002,
-          "p_value": 0.0521814004570578,
-          "n": 7
-        },
-        "stylo_dist~comet": {
-          "rho": -0.10714285714285716,
-          "p_value": 0.8191508555699912,
-          "n": 7
-        }
-      }
-    }
-  },
-  "segment_level": {
-    "study_only": {
-      "conditions": [
-        "zeroshot",
-        "random_fewshot",
-        "knn_fewshot",
-        "afsp_margin",
-        "afsp_full",
-        "peft"
-      ],
-      "n_pooled": 7937,
-      "per_condition": {
+  "per_rater": {
+    "phi_a": {
+      "conditions": {
+        "study_only": [
+          "zeroshot",
+          "random_fewshot",
+          "knn_fewshot",
+          "sparse_knn",
+          "afsp_margin",
+          "afsp_full",
+          "peft",
+          "peft_knn",
+          "peft_afsp",
+          "rlsf_w3_0.0",
+          "rlsf_w3_2.0",
+          "rlsf_w3_6.0"
+        ],
+        "with_reference": [
+          "zeroshot",
+          "random_fewshot",
+          "knn_fewshot",
+          "sparse_knn",
+          "afsp_margin",
+          "afsp_full",
+          "peft",
+          "peft_knn",
+          "peft_afsp",
+          "rlsf_w3_0.0",
+          "rlsf_w3_2.0",
+          "rlsf_w3_6.0",
+          "commercial_haiku"
+        ]
+      },
+      "coverage": {
         "zeroshot": {
-          "centroid_dist": {
-            "rho": -0.07010659301478318,
-            "ci_low": -0.12278258562469851,
-            "ci_high": -0.014783538353899733,
-            "p_value": 0.010750055289799849,
-            "n": 1323,
-            "separates": true
-          },
-          "band_dist": {
-            "rho": -0.013256109186945543,
-            "ci_low": -0.06750157240466169,
-            "ci_high": 0.04261425190024016,
-            "p_value": 0.6299972262264542,
-            "n": 1323,
-            "separates": false
-          },
-          "marker_rate": {
-            "rho": -0.02122598457836561,
-            "ci_low": -0.07627144003087565,
-            "ci_high": 0.03450121931461388,
-            "p_value": 0.44046318388311567,
-            "n": 1323,
-            "separates": false
-          },
-          "comet": {
-            "rho": 0.4600544698185591,
-            "ci_low": 0.413689961106271,
-            "ci_high": 0.5044937133068005,
-            "p_value": 2.8859451914212194e-70,
-            "n": 1323,
-            "separates": true
-          }
+          "n_total": 1323,
+          "n_scored": 1323,
+          "coverage": 1.0
         },
         "random_fewshot": {
-          "centroid_dist": {
-            "rho": -0.0786555740012627,
-            "ci_low": -0.13261101907682474,
-            "ci_high": -0.025163248488451098,
-            "p_value": 0.004200797175257015,
-            "n": 1323,
-            "separates": true
-          },
-          "band_dist": {
-            "rho": 0.012741104399912077,
-            "ci_low": -0.040429145937074286,
-            "ci_high": 0.06557243465759821,
-            "p_value": 0.6433544868599221,
-            "n": 1323,
-            "separates": false
-          },
-          "marker_rate": {
-            "rho": 0.011575500491438554,
-            "ci_low": -0.04370738028097147,
-            "ci_high": 0.06633184139169111,
-            "p_value": 0.674008800676964,
-            "n": 1323,
-            "separates": false
-          },
-          "comet": {
-            "rho": 0.4723213150073043,
-            "ci_low": 0.4262029224522744,
-            "ci_high": 0.517132428059056,
-            "p_value": 1.806504177152254e-74,
-            "n": 1323,
-            "separates": true
-          }
+          "n_total": 1323,
+          "n_scored": 1323,
+          "coverage": 1.0
         },
         "knn_fewshot": {
-          "centroid_dist": {
-            "rho": -0.08239737858696,
-            "ci_low": -0.1361759167928697,
-            "ci_high": -0.025583157746365142,
-            "p_value": 0.0027159913176866063,
-            "n": 1322,
-            "separates": true
-          },
-          "band_dist": {
-            "rho": -0.030444007857066403,
-            "ci_low": -0.0869491521755755,
-            "ci_high": 0.025828731232090733,
-            "p_value": 0.26866910656144394,
-            "n": 1322,
-            "separates": false
-          },
-          "marker_rate": {
-            "rho": 0.09950159190712216,
-            "ci_low": 0.04426592768769238,
-            "ci_high": 0.1538405579036112,
-            "p_value": 0.00029077505626892144,
-            "n": 1322,
-            "separates": true
-          },
-          "comet": {
-            "rho": 0.4049863509262442,
-            "ci_low": 0.3544972363138569,
-            "ci_high": 0.4526109300087336,
-            "p_value": 2.420102986146331e-53,
-            "n": 1322,
-            "separates": true
-          }
+          "n_total": 1323,
+          "n_scored": 1322,
+          "coverage": 0.999244142101285
+        },
+        "sparse_knn": {
+          "n_total": 1323,
+          "n_scored": 1323,
+          "coverage": 1.0
         },
         "afsp_margin": {
-          "centroid_dist": {
-            "rho": -0.07866122654668375,
-            "ci_low": -0.13265557597392846,
-            "ci_high": -0.023813642885441747,
-            "p_value": 0.004198062259288516,
-            "n": 1323,
-            "separates": true
-          },
-          "band_dist": {
-            "rho": -0.022279916871606856,
-            "ci_low": -0.07702620783810273,
-            "ci_high": 0.032109918512895075,
-            "p_value": 0.4180991613689751,
-            "n": 1323,
-            "separates": false
-          },
-          "marker_rate": {
-            "rho": 0.1356180898759504,
-            "ci_low": 0.08140923377380502,
-            "ci_high": 0.18984939116548064,
-            "p_value": 7.380528748914414e-07,
-            "n": 1323,
-            "separates": true
-          },
-          "comet": {
-            "rho": 0.4523964108908584,
-            "ci_low": 0.40419156567218345,
-            "ci_high": 0.4990141253424806,
-            "p_value": 9.973682544777728e-68,
-            "n": 1323,
-            "separates": true
-          }
+          "n_total": 1323,
+          "n_scored": 1323,
+          "coverage": 1.0
         },
         "afsp_full": {
-          "centroid_dist": {
-            "rho": -0.08110579752467746,
-            "ci_low": -0.1356155989282003,
-            "ci_high": -0.026740034180015252,
-            "p_value": 0.0031557708797538176,
-            "n": 1323,
-            "separates": true
-          },
-          "band_dist": {
-            "rho": -0.021956105525990265,
-            "ci_low": -0.07646641230978449,
-            "ci_high": 0.03389378026583691,
-            "p_value": 0.42489822379791053,
-            "n": 1323,
-            "separates": false
-          },
-          "marker_rate": {
-            "rho": 0.11548872866060966,
-            "ci_low": 0.06112015949860416,
-            "ci_high": 0.16944415636098295,
-            "p_value": 2.5446221150548832e-05,
-            "n": 1323,
-            "separates": true
-          },
-          "comet": {
-            "rho": 0.42290484134933054,
-            "ci_low": 0.37490322713433405,
-            "ci_high": 0.4687564834838956,
-            "p_value": 1.5497126797300774e-58,
-            "n": 1323,
-            "separates": true
-          }
+          "n_total": 1323,
+          "n_scored": 1323,
+          "coverage": 1.0
         },
         "peft": {
-          "centroid_dist": {
-            "rho": -0.06245189461815637,
-            "ci_low": -0.11763953548920841,
-            "ci_high": -0.008294187048942294,
-            "p_value": 0.023108418139624273,
-            "n": 1323,
-            "separates": true
-          },
-          "band_dist": {
-            "rho": -0.04880552368125047,
-            "ci_low": -0.1038324418543946,
-            "ci_high": 0.0045083218191099205,
-            "p_value": 0.07596624493046779,
-            "n": 1323,
-            "separates": false
-          },
-          "marker_rate": {
-            "rho": 0.3555927020917681,
-            "ci_low": 0.3062096408786127,
-            "ci_high": 0.40385279829038145,
-            "p_value": 1.0233947030801684e-40,
-            "n": 1323,
-            "separates": true
-          },
-          "comet": {
-            "rho": 0.4633176274547249,
-            "ci_low": 0.4148732306558957,
-            "ci_high": 0.5087369715090845,
-            "p_value": 2.284441858250159e-71,
-            "n": 1323,
-            "separates": true
-          }
-        }
-      },
-      "pooled": {
-        "centroid_dist": {
-          "rho": -0.0781833336418076,
-          "ci_low": -0.10040999695469933,
-          "ci_high": -0.05586758634633881,
-          "p_value": 3.0604105448833853e-12,
-          "n": 7937,
-          "separates": true,
-          "holm_significant": true
+          "n_total": 1323,
+          "n_scored": 1323,
+          "coverage": 1.0
         },
-        "band_dist": {
-          "rho": -0.02061877876836145,
-          "ci_low": -0.04252144648180026,
-          "ci_high": 0.0011681817380132346,
-          "p_value": 0.06623504273428016,
-          "n": 7937,
-          "separates": false,
-          "holm_significant": false
+        "peft_knn": {
+          "n_total": 1323,
+          "n_scored": 1323,
+          "coverage": 1.0
         },
-        "marker_rate": {
-          "rho": 0.10579155942527896,
-          "ci_low": 0.08386823810327503,
-          "ci_high": 0.12798242943656457,
-          "p_value": 3.388412023902698e-21,
-          "n": 7937,
-          "separates": true,
-          "holm_significant": true
+        "peft_afsp": {
+          "n_total": 1323,
+          "n_scored": 1323,
+          "coverage": 1.0
         },
-        "comet": {
-          "rho": 0.4529415665119748,
-          "ci_low": 0.4335245834630339,
-          "ci_high": 0.4717323682874991,
-          "p_value": 0.0,
-          "n": 7937,
-          "separates": true,
-          "holm_significant": true
+        "rlsf_w3_0.0": {
+          "n_total": 1323,
+          "n_scored": 1323,
+          "coverage": 1.0
         },
-        "comet~centroid_dist": {
-          "rho": -0.07361322987317048,
-          "ci_low": -0.09638755365147302,
-          "ci_high": -0.050844301600009696,
-          "p_value": 5.1661392243745726e-11,
-          "n": 7937,
-          "separates": true,
-          "holm_significant": true
+        "rlsf_w3_2.0": {
+          "n_total": 1323,
+          "n_scored": 1323,
+          "coverage": 1.0
         },
-        "comet~band_dist": {
-          "rho": 0.00949902210373515,
-          "ci_low": -0.012966650979822365,
-          "ci_high": 0.03250910768574902,
-          "p_value": 0.3974678542770058,
-          "n": 7937,
-          "separates": false,
-          "holm_significant": false
-        }
-      },
-      "holm_family_size": 6
-    },
-    "with_reference": {
-      "conditions": [
-        "zeroshot",
-        "random_fewshot",
-        "knn_fewshot",
-        "afsp_margin",
-        "afsp_full",
-        "peft",
-        "commercial_haiku"
-      ],
-      "n_pooled": 9260,
-      "per_condition": {
-        "zeroshot": {
-          "centroid_dist": {
-            "rho": -0.07010659301478318,
-            "ci_low": -0.12278258562469851,
-            "ci_high": -0.014783538353899733,
-            "p_value": 0.010750055289799849,
-            "n": 1323,
-            "separates": true
-          },
-          "band_dist": {
-            "rho": -0.013256109186945543,
-            "ci_low": -0.06750157240466169,
-            "ci_high": 0.04261425190024016,
-            "p_value": 0.6299972262264542,
-            "n": 1323,
-            "separates": false
-          },
-          "marker_rate": {
-            "rho": -0.02122598457836561,
-            "ci_low": -0.07627144003087565,
-            "ci_high": 0.03450121931461388,
-            "p_value": 0.44046318388311567,
-            "n": 1323,
-            "separates": false
-          },
-          "comet": {
-            "rho": 0.4600544698185591,
-            "ci_low": 0.413689961106271,
-            "ci_high": 0.5044937133068005,
-            "p_value": 2.8859451914212194e-70,
-            "n": 1323,
-            "separates": true
-          }
-        },
-        "random_fewshot": {
-          "centroid_dist": {
-            "rho": -0.0786555740012627,
-            "ci_low": -0.13261101907682474,
-            "ci_high": -0.025163248488451098,
-            "p_value": 0.004200797175257015,
-            "n": 1323,
-            "separates": true
-          },
-          "band_dist": {
-            "rho": 0.012741104399912077,
-            "ci_low": -0.040429145937074286,
-            "ci_high": 0.06557243465759821,
-            "p_value": 0.6433544868599221,
-            "n": 1323,
-            "separates": false
-          },
-          "marker_rate": {
-            "rho": 0.011575500491438554,
-            "ci_low": -0.04370738028097147,
-            "ci_high": 0.06633184139169111,
-            "p_value": 0.674008800676964,
-            "n": 1323,
-            "separates": false
-          },
-          "comet": {
-            "rho": 0.4723213150073043,
-            "ci_low": 0.4262029224522744,
-            "ci_high": 0.517132428059056,
-            "p_value": 1.806504177152254e-74,
-            "n": 1323,
-            "separates": true
-          }
-        },
-        "knn_fewshot": {
-          "centroid_dist": {
-            "rho": -0.08239737858696,
-            "ci_low": -0.1361759167928697,
-            "ci_high": -0.025583157746365142,
-            "p_value": 0.0027159913176866063,
-            "n": 1322,
-            "separates": true
-          },
-          "band_dist": {
-            "rho": -0.030444007857066403,
-            "ci_low": -0.0869491521755755,
-            "ci_high": 0.025828731232090733,
-            "p_value": 0.26866910656144394,
-            "n": 1322,
-            "separates": false
-          },
-          "marker_rate": {
-            "rho": 0.09950159190712216,
-            "ci_low": 0.04426592768769238,
-            "ci_high": 0.1538405579036112,
-            "p_value": 0.00029077505626892144,
-            "n": 1322,
-            "separates": true
-          },
-          "comet": {
-            "rho": 0.4049863509262442,
-            "ci_low": 0.3544972363138569,
-            "ci_high": 0.4526109300087336,
-            "p_value": 2.420102986146331e-53,
-            "n": 1322,
-            "separates": true
-          }
-        },
-        "afsp_margin": {
-          "centroid_dist": {
-            "rho": -0.07866122654668375,
-            "ci_low": -0.13265557597392846,
-            "ci_high": -0.023813642885441747,
-            "p_value": 0.004198062259288516,
-            "n": 1323,
-            "separates": true
-          },
-          "band_dist": {
-            "rho": -0.022279916871606856,
-            "ci_low": -0.07702620783810273,
-            "ci_high": 0.032109918512895075,
-            "p_value": 0.4180991613689751,
-            "n": 1323,
-            "separates": false
-          },
-          "marker_rate": {
-            "rho": 0.1356180898759504,
-            "ci_low": 0.08140923377380502,
-            "ci_high": 0.18984939116548064,
-            "p_value": 7.380528748914414e-07,
-            "n": 1323,
-            "separates": true
-          },
-          "comet": {
-            "rho": 0.4523964108908584,
-            "ci_low": 0.40419156567218345,
-            "ci_high": 0.4990141253424806,
-            "p_value": 9.973682544777728e-68,
-            "n": 1323,
-            "separates": true
-          }
-        },
-        "afsp_full": {
-          "centroid_dist": {
-            "rho": -0.08110579752467746,
-            "ci_low": -0.1356155989282003,
-            "ci_high": -0.026740034180015252,
-            "p_value": 0.0031557708797538176,
-            "n": 1323,
-            "separates": true
-          },
-          "band_dist": {
-            "rho": -0.021956105525990265,
-            "ci_low": -0.07646641230978449,
-            "ci_high": 0.03389378026583691,
-            "p_value": 0.42489822379791053,
-            "n": 1323,
-            "separates": false
-          },
-          "marker_rate": {
-            "rho": 0.11548872866060966,
-            "ci_low": 0.06112015949860416,
-            "ci_high": 0.16944415636098295,
-            "p_value": 2.5446221150548832e-05,
-            "n": 1323,
-            "separates": true
-          },
-          "comet": {
-            "rho": 0.42290484134933054,
-            "ci_low": 0.37490322713433405,
-            "ci_high": 0.4687564834838956,
-            "p_value": 1.5497126797300774e-58,
-            "n": 1323,
-            "separates": true
-          }
-        },
-        "peft": {
-          "centroid_dist": {
-            "rho": -0.06245189461815637,
-            "ci_low": -0.11763953548920841,
-            "ci_high": -0.008294187048942294,
-            "p_value": 0.023108418139624273,
-            "n": 1323,
-            "separates": true
-          },
-          "band_dist": {
-            "rho": -0.04880552368125047,
-            "ci_low": -0.1038324418543946,
-            "ci_high": 0.0045083218191099205,
-            "p_value": 0.07596624493046779,
-            "n": 1323,
-            "separates": false
-          },
-          "marker_rate": {
-            "rho": 0.3555927020917681,
-            "ci_low": 0.3062096408786127,
-            "ci_high": 0.40385279829038145,
-            "p_value": 1.0233947030801684e-40,
-            "n": 1323,
-            "separates": true
-          },
-          "comet": {
-            "rho": 0.4633176274547249,
-            "ci_low": 0.4148732306558957,
-            "ci_high": 0.5087369715090845,
-            "p_value": 2.284441858250159e-71,
-            "n": 1323,
-            "separates": true
-          }
+        "rlsf_w3_6.0": {
+          "n_total": 1323,
+          "n_scored": 1323,
+          "coverage": 1.0
         },
         "commercial_haiku": {
-          "centroid_dist": {
-            "rho": -0.002144494466274546,
-            "ci_low": -0.0551738194106501,
-            "ci_high": 0.05282231677511761,
-            "p_value": 0.9378851668810313,
-            "n": 1323,
-            "separates": false
-          },
-          "band_dist": {
-            "rho": 0.0067749453686156225,
-            "ci_low": -0.047498020578013486,
-            "ci_high": 0.06160101004842594,
-            "p_value": 0.805530947465701,
-            "n": 1323,
-            "separates": false
-          },
-          "marker_rate": {
-            "rho": 0.2198151671216315,
-            "ci_low": 0.16836462864155163,
-            "ci_high": 0.2716727206117617,
-            "p_value": 6.120186185251201e-16,
-            "n": 1323,
-            "separates": true
-          },
-          "comet": {
-            "rho": 0.3499997183136716,
-            "ci_low": 0.2973102575103857,
-            "ci_high": 0.399207605522998,
-            "p_value": 2.0408396461444816e-39,
-            "n": 1323,
-            "separates": true
+          "n_total": 1323,
+          "n_scored": 1323,
+          "coverage": 1.0
+        }
+      },
+      "condition_level": {
+        "study_only": {
+          "conditions": [
+            "zeroshot",
+            "random_fewshot",
+            "knn_fewshot",
+            "sparse_knn",
+            "afsp_margin",
+            "afsp_full",
+            "peft",
+            "peft_knn",
+            "peft_afsp",
+            "rlsf_w3_0.0",
+            "rlsf_w3_2.0",
+            "rlsf_w3_6.0"
+          ],
+          "n": 12,
+          "p_floor": 4.17535139757362e-09,
+          "pairs": {
+            "phi~stylo_dist": {
+              "rho": 0.10858160259244368,
+              "p_value": 0.7369437083547932,
+              "n": 12
+            },
+            "phi~comet": {
+              "rho": 0.6164632921377448,
+              "p_value": 0.03277603808376062,
+              "n": 12
+            },
+            "stylo_dist~comet": {
+              "rho": -0.4755244755244756,
+              "p_value": 0.118175957013032,
+              "n": 12
+            }
+          }
+        },
+        "with_reference": {
+          "conditions": [
+            "zeroshot",
+            "random_fewshot",
+            "knn_fewshot",
+            "sparse_knn",
+            "afsp_margin",
+            "afsp_full",
+            "peft",
+            "peft_knn",
+            "peft_afsp",
+            "rlsf_w3_0.0",
+            "rlsf_w3_2.0",
+            "rlsf_w3_6.0",
+            "commercial_haiku"
+          ],
+          "n": 13,
+          "p_floor": 3.2118087673643227e-10,
+          "pairs": {
+            "phi~stylo_dist": {
+              "rho": 0.29986273209499753,
+              "p_value": 0.31954781207783645,
+              "n": 13
+            },
+            "phi~comet": {
+              "rho": 0.6987626968085264,
+              "p_value": 0.00787810756246046,
+              "n": 13
+            },
+            "stylo_dist~comet": {
+              "rho": -0.15934065934065936,
+              "p_value": 0.6030877531318971,
+              "n": 13
+            }
           }
         }
       },
-      "pooled": {
-        "centroid_dist": {
-          "rho": -0.06262777313543857,
-          "ci_low": -0.08315842949444922,
-          "ci_high": -0.04229750810737908,
-          "p_value": 1.6223469133278735e-09,
-          "n": 9260,
-          "separates": true,
-          "holm_significant": true
+      "segment_level": {
+        "study_only": {
+          "conditions": [
+            "zeroshot",
+            "random_fewshot",
+            "knn_fewshot",
+            "sparse_knn",
+            "afsp_margin",
+            "afsp_full",
+            "peft",
+            "peft_knn",
+            "peft_afsp",
+            "rlsf_w3_0.0",
+            "rlsf_w3_2.0",
+            "rlsf_w3_6.0"
+          ],
+          "n_pooled": 15875,
+          "per_condition": {
+            "zeroshot": {
+              "centroid_dist": {
+                "rho": -0.07010659301478318,
+                "ci_low": -0.12278258562469851,
+                "ci_high": -0.014783538353899733,
+                "p_value": 0.010750055289799849,
+                "n": 1323,
+                "separates": true
+              },
+              "band_dist": {
+                "rho": -0.01384689224891371,
+                "ci_low": -0.06840290508466179,
+                "ci_high": 0.04182158931963573,
+                "p_value": 0.6148222645343744,
+                "n": 1323,
+                "separates": false
+              },
+              "marker_rate": {
+                "rho": -0.02122598457836561,
+                "ci_low": -0.07627144003087565,
+                "ci_high": 0.03450121931461388,
+                "p_value": 0.44046318388311567,
+                "n": 1323,
+                "separates": false
+              },
+              "comet": {
+                "rho": 0.4600544698185591,
+                "ci_low": 0.413689961106271,
+                "ci_high": 0.5044937133068005,
+                "p_value": 2.8859451914212194e-70,
+                "n": 1323,
+                "separates": true
+              }
+            },
+            "random_fewshot": {
+              "centroid_dist": {
+                "rho": -0.0786555740012627,
+                "ci_low": -0.13261101907682474,
+                "ci_high": -0.025163248488451098,
+                "p_value": 0.004200797175257015,
+                "n": 1323,
+                "separates": true
+              },
+              "band_dist": {
+                "rho": 0.010969827824345713,
+                "ci_low": -0.04229334689754078,
+                "ci_high": 0.06379061752994135,
+                "p_value": 0.6901576569485972,
+                "n": 1323,
+                "separates": false
+              },
+              "marker_rate": {
+                "rho": 0.011575500491438554,
+                "ci_low": -0.04370738028097147,
+                "ci_high": 0.06633184139169111,
+                "p_value": 0.674008800676964,
+                "n": 1323,
+                "separates": false
+              },
+              "comet": {
+                "rho": 0.4723213150073043,
+                "ci_low": 0.4262029224522744,
+                "ci_high": 0.517132428059056,
+                "p_value": 1.806504177152254e-74,
+                "n": 1323,
+                "separates": true
+              }
+            },
+            "knn_fewshot": {
+              "centroid_dist": {
+                "rho": -0.08239737858696,
+                "ci_low": -0.1361759167928697,
+                "ci_high": -0.025583157746365142,
+                "p_value": 0.0027159913176866063,
+                "n": 1322,
+                "separates": true
+              },
+              "band_dist": {
+                "rho": -0.02618461087464099,
+                "ci_low": -0.08249018238253504,
+                "ci_high": 0.03043885921105381,
+                "p_value": 0.34144342717834236,
+                "n": 1322,
+                "separates": false
+              },
+              "marker_rate": {
+                "rho": 0.09950159190712216,
+                "ci_low": 0.04426592768769238,
+                "ci_high": 0.1538405579036112,
+                "p_value": 0.00029077505626892144,
+                "n": 1322,
+                "separates": true
+              },
+              "comet": {
+                "rho": 0.4049863509262442,
+                "ci_low": 0.3544972363138569,
+                "ci_high": 0.4526109300087336,
+                "p_value": 2.420102986146331e-53,
+                "n": 1322,
+                "separates": true
+              }
+            },
+            "sparse_knn": {
+              "centroid_dist": {
+                "rho": -0.051460007663080454,
+                "ci_low": -0.10440846392374771,
+                "ci_high": 0.0031312531110204906,
+                "p_value": 0.061313359536400144,
+                "n": 1323,
+                "separates": false
+              },
+              "band_dist": {
+                "rho": 0.004274805626596217,
+                "ci_low": -0.05066545331571807,
+                "ci_high": 0.058957060823705235,
+                "p_value": 0.8765520777310556,
+                "n": 1323,
+                "separates": false
+              },
+              "marker_rate": {
+                "rho": 0.06682857654396729,
+                "ci_low": 0.00917928794295655,
+                "ci_high": 0.12182850318134997,
+                "p_value": 0.01504970180154189,
+                "n": 1323,
+                "separates": true
+              },
+              "comet": {
+                "rho": 0.3679692059070513,
+                "ci_low": 0.31610494785332394,
+                "ci_high": 0.41695664182652026,
+                "p_value": 1.0953182543204269e-43,
+                "n": 1323,
+                "separates": true
+              }
+            },
+            "afsp_margin": {
+              "centroid_dist": {
+                "rho": -0.07866122654668375,
+                "ci_low": -0.13265557597392846,
+                "ci_high": -0.023813642885441747,
+                "p_value": 0.004198062259288516,
+                "n": 1323,
+                "separates": true
+              },
+              "band_dist": {
+                "rho": -0.018770463069857767,
+                "ci_low": -0.07355148681562182,
+                "ci_high": 0.035280208034321914,
+                "p_value": 0.49514154141548694,
+                "n": 1323,
+                "separates": false
+              },
+              "marker_rate": {
+                "rho": 0.1356180898759504,
+                "ci_low": 0.08140923377380502,
+                "ci_high": 0.18984939116548064,
+                "p_value": 7.380528748914414e-07,
+                "n": 1323,
+                "separates": true
+              },
+              "comet": {
+                "rho": 0.4523964108908584,
+                "ci_low": 0.40419156567218345,
+                "ci_high": 0.4990141253424806,
+                "p_value": 9.973682544777728e-68,
+                "n": 1323,
+                "separates": true
+              }
+            },
+            "afsp_full": {
+              "centroid_dist": {
+                "rho": -0.08110579752467746,
+                "ci_low": -0.1356155989282003,
+                "ci_high": -0.026740034180015252,
+                "p_value": 0.0031557708797538176,
+                "n": 1323,
+                "separates": true
+              },
+              "band_dist": {
+                "rho": -0.01970763799202136,
+                "ci_low": -0.07550520197814134,
+                "ci_high": 0.03587597863002251,
+                "p_value": 0.4738559952790535,
+                "n": 1323,
+                "separates": false
+              },
+              "marker_rate": {
+                "rho": 0.11548872866060966,
+                "ci_low": 0.06112015949860416,
+                "ci_high": 0.16944415636098295,
+                "p_value": 2.5446221150548832e-05,
+                "n": 1323,
+                "separates": true
+              },
+              "comet": {
+                "rho": 0.42290484134933054,
+                "ci_low": 0.37490322713433405,
+                "ci_high": 0.4687564834838956,
+                "p_value": 1.5497126797300774e-58,
+                "n": 1323,
+                "separates": true
+              }
+            },
+            "peft": {
+              "centroid_dist": {
+                "rho": -0.06245189461815637,
+                "ci_low": -0.11763953548920841,
+                "ci_high": -0.008294187048942294,
+                "p_value": 0.023108418139624273,
+                "n": 1323,
+                "separates": true
+              },
+              "band_dist": {
+                "rho": -0.042079954917968725,
+                "ci_low": -0.09707509398228535,
+                "ci_high": 0.01093385754053633,
+                "p_value": 0.1260642918593838,
+                "n": 1323,
+                "separates": false
+              },
+              "marker_rate": {
+                "rho": 0.3555927020917681,
+                "ci_low": 0.3062096408786127,
+                "ci_high": 0.40385279829038145,
+                "p_value": 1.0233947030801684e-40,
+                "n": 1323,
+                "separates": true
+              },
+              "comet": {
+                "rho": 0.4633176274547249,
+                "ci_low": 0.4148732306558957,
+                "ci_high": 0.5087369715090845,
+                "p_value": 2.284441858250159e-71,
+                "n": 1323,
+                "separates": true
+              }
+            },
+            "peft_knn": {
+              "centroid_dist": {
+                "rho": -0.07674928927171677,
+                "ci_low": -0.13108191068248243,
+                "ci_high": -0.02175026170661397,
+                "p_value": 0.005220735693403988,
+                "n": 1323,
+                "separates": true
+              },
+              "band_dist": {
+                "rho": -0.05368249871434759,
+                "ci_low": -0.1083009016497752,
+                "ci_high": 0.0007239636669043221,
+                "p_value": 0.05091930987783982,
+                "n": 1323,
+                "separates": false
+              },
+              "marker_rate": {
+                "rho": 0.32952182627346993,
+                "ci_low": 0.279313234036672,
+                "ci_high": 0.3775870730813263,
+                "p_value": 7.05967319651308e-35,
+                "n": 1323,
+                "separates": true
+              },
+              "comet": {
+                "rho": 0.4714804937721338,
+                "ci_low": 0.42448374632336766,
+                "ci_high": 0.5149801029267556,
+                "p_value": 3.5518883113156535e-74,
+                "n": 1323,
+                "separates": true
+              }
+            },
+            "peft_afsp": {
+              "centroid_dist": {
+                "rho": -0.05133906535210269,
+                "ci_low": -0.10523750676443233,
+                "ci_high": 0.002598557626296713,
+                "p_value": 0.061925989069708816,
+                "n": 1323,
+                "separates": false
+              },
+              "band_dist": {
+                "rho": -0.0568693186082833,
+                "ci_low": -0.11117826003615452,
+                "ci_high": -0.002471583866439493,
+                "p_value": 0.03861837991476157,
+                "n": 1323,
+                "separates": true
+              },
+              "marker_rate": {
+                "rho": 0.3550737103832457,
+                "ci_low": 0.30494474389902,
+                "ci_high": 0.4029920352400586,
+                "p_value": 1.3544355126519618e-40,
+                "n": 1323,
+                "separates": true
+              },
+              "comet": {
+                "rho": 0.46063088383363676,
+                "ci_low": 0.4143022960454814,
+                "ci_high": 0.505895596845582,
+                "p_value": 1.847491136056791e-70,
+                "n": 1323,
+                "separates": true
+              }
+            },
+            "rlsf_w3_0.0": {
+              "centroid_dist": {
+                "rho": -0.07648253479439,
+                "ci_low": -0.13069244578900527,
+                "ci_high": -0.02196567596980211,
+                "p_value": 0.005380033651632366,
+                "n": 1323,
+                "separates": true
+              },
+              "band_dist": {
+                "rho": -0.05046736352400787,
+                "ci_low": -0.10564196903158617,
+                "ci_high": 0.003982396661575289,
+                "p_value": 0.06649278700433062,
+                "n": 1323,
+                "separates": false
+              },
+              "marker_rate": {
+                "rho": 0.33742201232712193,
+                "ci_low": 0.2865278035705866,
+                "ci_high": 0.3875676450996243,
+                "p_value": 1.3742880827365598e-36,
+                "n": 1323,
+                "separates": true
+              },
+              "comet": {
+                "rho": 0.46124405363080895,
+                "ci_low": 0.41348732035751184,
+                "ci_high": 0.5068357810514892,
+                "p_value": 1.1484625095360487e-70,
+                "n": 1323,
+                "separates": true
+              }
+            },
+            "rlsf_w3_2.0": {
+              "centroid_dist": {
+                "rho": -0.07256959877428341,
+                "ci_low": -0.1287523870928214,
+                "ci_high": -0.018227064634054355,
+                "p_value": 0.008276767799379407,
+                "n": 1323,
+                "separates": true
+              },
+              "band_dist": {
+                "rho": -0.055837541653070887,
+                "ci_low": -0.11121172591443626,
+                "ci_high": -0.003035305866242949,
+                "p_value": 0.04229079254056757,
+                "n": 1323,
+                "separates": true
+              },
+              "marker_rate": {
+                "rho": 0.3118219739110404,
+                "ci_low": 0.2596284772237217,
+                "ci_high": 0.36312444242389574,
+                "p_value": 3.1787408851665585e-31,
+                "n": 1323,
+                "separates": true
+              },
+              "comet": {
+                "rho": 0.4775319869660839,
+                "ci_low": 0.43028144805896573,
+                "ci_high": 0.5224059586370801,
+                "p_value": 2.6233308472920012e-76,
+                "n": 1323,
+                "separates": true
+              }
+            },
+            "rlsf_w3_6.0": {
+              "centroid_dist": {
+                "rho": -0.08860890220912034,
+                "ci_low": -0.1435317758347872,
+                "ci_high": -0.033335304728989615,
+                "p_value": 0.001254111100669054,
+                "n": 1323,
+                "separates": true
+              },
+              "band_dist": {
+                "rho": -0.050048573724283674,
+                "ci_low": -0.10524386666616217,
+                "ci_high": 0.003702498820396451,
+                "p_value": 0.06878338676444092,
+                "n": 1323,
+                "separates": false
+              },
+              "marker_rate": {
+                "rho": 0.3148060332059562,
+                "ci_low": 0.263641092717919,
+                "ci_high": 0.3666123778233036,
+                "p_value": 8.005909621231831e-32,
+                "n": 1323,
+                "separates": true
+              },
+              "comet": {
+                "rho": 0.4804853466027065,
+                "ci_low": 0.4344940023324829,
+                "ci_high": 0.5253209006212803,
+                "p_value": 2.306239085387275e-77,
+                "n": 1323,
+                "separates": true
+              }
+            }
+          },
+          "pooled": {
+            "centroid_dist": {
+              "rho": -0.07534600196654696,
+              "ci_low": -0.09115063572296023,
+              "ci_high": -0.05967897867494478,
+              "p_value": 1.9801376577703004e-21,
+              "n": 15875,
+              "separates": true,
+              "holm_significant": true
+            },
+            "band_dist": {
+              "rho": -0.03197003978259301,
+              "ci_low": -0.047693142232810244,
+              "ci_high": -0.016340960066664915,
+              "p_value": 5.605973088401895e-05,
+              "n": 15875,
+              "separates": true,
+              "holm_significant": true
+            },
+            "marker_rate": {
+              "rho": 0.1924525449242669,
+              "ci_low": 0.1769571294234105,
+              "ci_high": 0.20827833779963004,
+              "p_value": 2.695572868883663e-132,
+              "n": 15875,
+              "separates": true,
+              "holm_significant": true
+            },
+            "comet": {
+              "rho": 0.45659202876576155,
+              "ci_low": 0.44318769058753865,
+              "ci_high": 0.46955016264245775,
+              "p_value": 0.0,
+              "n": 15875,
+              "separates": true,
+              "holm_significant": true
+            },
+            "comet~centroid_dist": {
+              "rho": -0.05916964057059934,
+              "ci_low": -0.07496849069080375,
+              "ci_high": -0.04298626916984849,
+              "p_value": 8.580961711570078e-14,
+              "n": 15875,
+              "separates": true,
+              "holm_significant": true
+            },
+            "comet~band_dist": {
+              "rho": -0.003433304874580487,
+              "ci_low": -0.019640815927478746,
+              "ci_high": 0.01260923010968166,
+              "p_value": 0.6653417192907524,
+              "n": 15875,
+              "separates": false,
+              "holm_significant": false
+            }
+          },
+          "holm_family_size": 6
         },
-        "band_dist": {
-          "rho": -0.011099080666313219,
-          "ci_low": -0.031394481544356506,
-          "ci_high": 0.009686947602033764,
-          "p_value": 0.28554714395525305,
-          "n": 9260,
-          "separates": false,
-          "holm_significant": false
-        },
-        "marker_rate": {
-          "rho": 0.11848210433468087,
-          "ci_low": 0.09762653068938561,
-          "ci_high": 0.13935103745051175,
-          "p_value": 2.633446770059679e-30,
-          "n": 9260,
-          "separates": true,
-          "holm_significant": true
-        },
-        "comet": {
-          "rho": 0.46108117742375854,
-          "ci_low": 0.443429218197046,
-          "ci_high": 0.4776927123922585,
-          "p_value": 0.0,
-          "n": 9260,
-          "separates": true,
-          "holm_significant": true
-        },
-        "comet~centroid_dist": {
-          "rho": -0.053731385932488294,
-          "ci_low": -0.07486458545823871,
-          "ci_high": -0.0328075505345673,
-          "p_value": 2.2968627239750302e-07,
-          "n": 9260,
-          "separates": true,
-          "holm_significant": true
-        },
-        "comet~band_dist": {
-          "rho": 0.02338117083882947,
-          "ci_low": 0.002056083190313696,
-          "ci_high": 0.04472934204729216,
-          "p_value": 0.024452245155427745,
-          "n": 9260,
-          "separates": true,
-          "holm_significant": true
+        "with_reference": {
+          "conditions": [
+            "zeroshot",
+            "random_fewshot",
+            "knn_fewshot",
+            "sparse_knn",
+            "afsp_margin",
+            "afsp_full",
+            "peft",
+            "peft_knn",
+            "peft_afsp",
+            "rlsf_w3_0.0",
+            "rlsf_w3_2.0",
+            "rlsf_w3_6.0",
+            "commercial_haiku"
+          ],
+          "n_pooled": 17198,
+          "per_condition": {
+            "zeroshot": {
+              "centroid_dist": {
+                "rho": -0.07010659301478318,
+                "ci_low": -0.12278258562469851,
+                "ci_high": -0.014783538353899733,
+                "p_value": 0.010750055289799849,
+                "n": 1323,
+                "separates": true
+              },
+              "band_dist": {
+                "rho": -0.01384689224891371,
+                "ci_low": -0.06840290508466179,
+                "ci_high": 0.04182158931963573,
+                "p_value": 0.6148222645343744,
+                "n": 1323,
+                "separates": false
+              },
+              "marker_rate": {
+                "rho": -0.02122598457836561,
+                "ci_low": -0.07627144003087565,
+                "ci_high": 0.03450121931461388,
+                "p_value": 0.44046318388311567,
+                "n": 1323,
+                "separates": false
+              },
+              "comet": {
+                "rho": 0.4600544698185591,
+                "ci_low": 0.413689961106271,
+                "ci_high": 0.5044937133068005,
+                "p_value": 2.8859451914212194e-70,
+                "n": 1323,
+                "separates": true
+              }
+            },
+            "random_fewshot": {
+              "centroid_dist": {
+                "rho": -0.0786555740012627,
+                "ci_low": -0.13261101907682474,
+                "ci_high": -0.025163248488451098,
+                "p_value": 0.004200797175257015,
+                "n": 1323,
+                "separates": true
+              },
+              "band_dist": {
+                "rho": 0.010969827824345713,
+                "ci_low": -0.04229334689754078,
+                "ci_high": 0.06379061752994135,
+                "p_value": 0.6901576569485972,
+                "n": 1323,
+                "separates": false
+              },
+              "marker_rate": {
+                "rho": 0.011575500491438554,
+                "ci_low": -0.04370738028097147,
+                "ci_high": 0.06633184139169111,
+                "p_value": 0.674008800676964,
+                "n": 1323,
+                "separates": false
+              },
+              "comet": {
+                "rho": 0.4723213150073043,
+                "ci_low": 0.4262029224522744,
+                "ci_high": 0.517132428059056,
+                "p_value": 1.806504177152254e-74,
+                "n": 1323,
+                "separates": true
+              }
+            },
+            "knn_fewshot": {
+              "centroid_dist": {
+                "rho": -0.08239737858696,
+                "ci_low": -0.1361759167928697,
+                "ci_high": -0.025583157746365142,
+                "p_value": 0.0027159913176866063,
+                "n": 1322,
+                "separates": true
+              },
+              "band_dist": {
+                "rho": -0.02618461087464099,
+                "ci_low": -0.08249018238253504,
+                "ci_high": 0.03043885921105381,
+                "p_value": 0.34144342717834236,
+                "n": 1322,
+                "separates": false
+              },
+              "marker_rate": {
+                "rho": 0.09950159190712216,
+                "ci_low": 0.04426592768769238,
+                "ci_high": 0.1538405579036112,
+                "p_value": 0.00029077505626892144,
+                "n": 1322,
+                "separates": true
+              },
+              "comet": {
+                "rho": 0.4049863509262442,
+                "ci_low": 0.3544972363138569,
+                "ci_high": 0.4526109300087336,
+                "p_value": 2.420102986146331e-53,
+                "n": 1322,
+                "separates": true
+              }
+            },
+            "sparse_knn": {
+              "centroid_dist": {
+                "rho": -0.051460007663080454,
+                "ci_low": -0.10440846392374771,
+                "ci_high": 0.0031312531110204906,
+                "p_value": 0.061313359536400144,
+                "n": 1323,
+                "separates": false
+              },
+              "band_dist": {
+                "rho": 0.004274805626596217,
+                "ci_low": -0.05066545331571807,
+                "ci_high": 0.058957060823705235,
+                "p_value": 0.8765520777310556,
+                "n": 1323,
+                "separates": false
+              },
+              "marker_rate": {
+                "rho": 0.06682857654396729,
+                "ci_low": 0.00917928794295655,
+                "ci_high": 0.12182850318134997,
+                "p_value": 0.01504970180154189,
+                "n": 1323,
+                "separates": true
+              },
+              "comet": {
+                "rho": 0.3679692059070513,
+                "ci_low": 0.31610494785332394,
+                "ci_high": 0.41695664182652026,
+                "p_value": 1.0953182543204269e-43,
+                "n": 1323,
+                "separates": true
+              }
+            },
+            "afsp_margin": {
+              "centroid_dist": {
+                "rho": -0.07866122654668375,
+                "ci_low": -0.13265557597392846,
+                "ci_high": -0.023813642885441747,
+                "p_value": 0.004198062259288516,
+                "n": 1323,
+                "separates": true
+              },
+              "band_dist": {
+                "rho": -0.018770463069857767,
+                "ci_low": -0.07355148681562182,
+                "ci_high": 0.035280208034321914,
+                "p_value": 0.49514154141548694,
+                "n": 1323,
+                "separates": false
+              },
+              "marker_rate": {
+                "rho": 0.1356180898759504,
+                "ci_low": 0.08140923377380502,
+                "ci_high": 0.18984939116548064,
+                "p_value": 7.380528748914414e-07,
+                "n": 1323,
+                "separates": true
+              },
+              "comet": {
+                "rho": 0.4523964108908584,
+                "ci_low": 0.40419156567218345,
+                "ci_high": 0.4990141253424806,
+                "p_value": 9.973682544777728e-68,
+                "n": 1323,
+                "separates": true
+              }
+            },
+            "afsp_full": {
+              "centroid_dist": {
+                "rho": -0.08110579752467746,
+                "ci_low": -0.1356155989282003,
+                "ci_high": -0.026740034180015252,
+                "p_value": 0.0031557708797538176,
+                "n": 1323,
+                "separates": true
+              },
+              "band_dist": {
+                "rho": -0.01970763799202136,
+                "ci_low": -0.07550520197814134,
+                "ci_high": 0.03587597863002251,
+                "p_value": 0.4738559952790535,
+                "n": 1323,
+                "separates": false
+              },
+              "marker_rate": {
+                "rho": 0.11548872866060966,
+                "ci_low": 0.06112015949860416,
+                "ci_high": 0.16944415636098295,
+                "p_value": 2.5446221150548832e-05,
+                "n": 1323,
+                "separates": true
+              },
+              "comet": {
+                "rho": 0.42290484134933054,
+                "ci_low": 0.37490322713433405,
+                "ci_high": 0.4687564834838956,
+                "p_value": 1.5497126797300774e-58,
+                "n": 1323,
+                "separates": true
+              }
+            },
+            "peft": {
+              "centroid_dist": {
+                "rho": -0.06245189461815637,
+                "ci_low": -0.11763953548920841,
+                "ci_high": -0.008294187048942294,
+                "p_value": 0.023108418139624273,
+                "n": 1323,
+                "separates": true
+              },
+              "band_dist": {
+                "rho": -0.042079954917968725,
+                "ci_low": -0.09707509398228535,
+                "ci_high": 0.01093385754053633,
+                "p_value": 0.1260642918593838,
+                "n": 1323,
+                "separates": false
+              },
+              "marker_rate": {
+                "rho": 0.3555927020917681,
+                "ci_low": 0.3062096408786127,
+                "ci_high": 0.40385279829038145,
+                "p_value": 1.0233947030801684e-40,
+                "n": 1323,
+                "separates": true
+              },
+              "comet": {
+                "rho": 0.4633176274547249,
+                "ci_low": 0.4148732306558957,
+                "ci_high": 0.5087369715090845,
+                "p_value": 2.284441858250159e-71,
+                "n": 1323,
+                "separates": true
+              }
+            },
+            "peft_knn": {
+              "centroid_dist": {
+                "rho": -0.07674928927171677,
+                "ci_low": -0.13108191068248243,
+                "ci_high": -0.02175026170661397,
+                "p_value": 0.005220735693403988,
+                "n": 1323,
+                "separates": true
+              },
+              "band_dist": {
+                "rho": -0.05368249871434759,
+                "ci_low": -0.1083009016497752,
+                "ci_high": 0.0007239636669043221,
+                "p_value": 0.05091930987783982,
+                "n": 1323,
+                "separates": false
+              },
+              "marker_rate": {
+                "rho": 0.32952182627346993,
+                "ci_low": 0.279313234036672,
+                "ci_high": 0.3775870730813263,
+                "p_value": 7.05967319651308e-35,
+                "n": 1323,
+                "separates": true
+              },
+              "comet": {
+                "rho": 0.4714804937721338,
+                "ci_low": 0.42448374632336766,
+                "ci_high": 0.5149801029267556,
+                "p_value": 3.5518883113156535e-74,
+                "n": 1323,
+                "separates": true
+              }
+            },
+            "peft_afsp": {
+              "centroid_dist": {
+                "rho": -0.05133906535210269,
+                "ci_low": -0.10523750676443233,
+                "ci_high": 0.002598557626296713,
+                "p_value": 0.061925989069708816,
+                "n": 1323,
+                "separates": false
+              },
+              "band_dist": {
+                "rho": -0.0568693186082833,
+                "ci_low": -0.11117826003615452,
+                "ci_high": -0.002471583866439493,
+                "p_value": 0.03861837991476157,
+                "n": 1323,
+                "separates": true
+              },
+              "marker_rate": {
+                "rho": 0.3550737103832457,
+                "ci_low": 0.30494474389902,
+                "ci_high": 0.4029920352400586,
+                "p_value": 1.3544355126519618e-40,
+                "n": 1323,
+                "separates": true
+              },
+              "comet": {
+                "rho": 0.46063088383363676,
+                "ci_low": 0.4143022960454814,
+                "ci_high": 0.505895596845582,
+                "p_value": 1.847491136056791e-70,
+                "n": 1323,
+                "separates": true
+              }
+            },
+            "rlsf_w3_0.0": {
+              "centroid_dist": {
+                "rho": -0.07648253479439,
+                "ci_low": -0.13069244578900527,
+                "ci_high": -0.02196567596980211,
+                "p_value": 0.005380033651632366,
+                "n": 1323,
+                "separates": true
+              },
+              "band_dist": {
+                "rho": -0.05046736352400787,
+                "ci_low": -0.10564196903158617,
+                "ci_high": 0.003982396661575289,
+                "p_value": 0.06649278700433062,
+                "n": 1323,
+                "separates": false
+              },
+              "marker_rate": {
+                "rho": 0.33742201232712193,
+                "ci_low": 0.2865278035705866,
+                "ci_high": 0.3875676450996243,
+                "p_value": 1.3742880827365598e-36,
+                "n": 1323,
+                "separates": true
+              },
+              "comet": {
+                "rho": 0.46124405363080895,
+                "ci_low": 0.41348732035751184,
+                "ci_high": 0.5068357810514892,
+                "p_value": 1.1484625095360487e-70,
+                "n": 1323,
+                "separates": true
+              }
+            },
+            "rlsf_w3_2.0": {
+              "centroid_dist": {
+                "rho": -0.07256959877428341,
+                "ci_low": -0.1287523870928214,
+                "ci_high": -0.018227064634054355,
+                "p_value": 0.008276767799379407,
+                "n": 1323,
+                "separates": true
+              },
+              "band_dist": {
+                "rho": -0.055837541653070887,
+                "ci_low": -0.11121172591443626,
+                "ci_high": -0.003035305866242949,
+                "p_value": 0.04229079254056757,
+                "n": 1323,
+                "separates": true
+              },
+              "marker_rate": {
+                "rho": 0.3118219739110404,
+                "ci_low": 0.2596284772237217,
+                "ci_high": 0.36312444242389574,
+                "p_value": 3.1787408851665585e-31,
+                "n": 1323,
+                "separates": true
+              },
+              "comet": {
+                "rho": 0.4775319869660839,
+                "ci_low": 0.43028144805896573,
+                "ci_high": 0.5224059586370801,
+                "p_value": 2.6233308472920012e-76,
+                "n": 1323,
+                "separates": true
+              }
+            },
+            "rlsf_w3_6.0": {
+              "centroid_dist": {
+                "rho": -0.08860890220912034,
+                "ci_low": -0.1435317758347872,
+                "ci_high": -0.033335304728989615,
+                "p_value": 0.001254111100669054,
+                "n": 1323,
+                "separates": true
+              },
+              "band_dist": {
+                "rho": -0.050048573724283674,
+                "ci_low": -0.10524386666616217,
+                "ci_high": 0.003702498820396451,
+                "p_value": 0.06878338676444092,
+                "n": 1323,
+                "separates": false
+              },
+              "marker_rate": {
+                "rho": 0.3148060332059562,
+                "ci_low": 0.263641092717919,
+                "ci_high": 0.3666123778233036,
+                "p_value": 8.005909621231831e-32,
+                "n": 1323,
+                "separates": true
+              },
+              "comet": {
+                "rho": 0.4804853466027065,
+                "ci_low": 0.4344940023324829,
+                "ci_high": 0.5253209006212803,
+                "p_value": 2.306239085387275e-77,
+                "n": 1323,
+                "separates": true
+              }
+            },
+            "commercial_haiku": {
+              "centroid_dist": {
+                "rho": -0.002144494466274546,
+                "ci_low": -0.0551738194106501,
+                "ci_high": 0.05282231677511761,
+                "p_value": 0.9378851668810313,
+                "n": 1323,
+                "separates": false
+              },
+              "band_dist": {
+                "rho": 0.01202936213712679,
+                "ci_low": -0.042385064845395504,
+                "ci_high": 0.06709610280529935,
+                "p_value": 0.6620047228956801,
+                "n": 1323,
+                "separates": false
+              },
+              "marker_rate": {
+                "rho": 0.2198151671216315,
+                "ci_low": 0.16836462864155163,
+                "ci_high": 0.2716727206117617,
+                "p_value": 6.120186185251201e-16,
+                "n": 1323,
+                "separates": true
+              },
+              "comet": {
+                "rho": 0.3499997183136716,
+                "ci_low": 0.2973102575103857,
+                "ci_high": 0.399207605522998,
+                "p_value": 2.0408396461444816e-39,
+                "n": 1323,
+                "separates": true
+              }
+            }
+          },
+          "pooled": {
+            "centroid_dist": {
+              "rho": -0.06610113061544297,
+              "ci_low": -0.08119163318037911,
+              "ci_high": -0.05062249192797946,
+              "p_value": 4.047810308513143e-18,
+              "n": 17198,
+              "separates": true,
+              "holm_significant": true
+            },
+            "band_dist": {
+              "rho": -0.025843662618168756,
+              "ci_low": -0.04122660744867058,
+              "ci_high": -0.010455599396093657,
+              "p_value": 0.000700234674082752,
+              "n": 17198,
+              "separates": true,
+              "holm_significant": true
+            },
+            "marker_rate": {
+              "rho": 0.1948471734181187,
+              "ci_low": 0.17976785092072486,
+              "ci_high": 0.2092759858903042,
+              "p_value": 9.27632498044052e-147,
+              "n": 17198,
+              "separates": true,
+              "holm_significant": true
+            },
+            "comet": {
+              "rho": 0.4565357235443322,
+              "ci_low": 0.44368175573122287,
+              "ci_high": 0.4691997886317854,
+              "p_value": 0.0,
+              "n": 17198,
+              "separates": true,
+              "holm_significant": true
+            },
+            "comet~centroid_dist": {
+              "rho": -0.04965913662781609,
+              "ci_low": -0.06496607231161383,
+              "ci_high": -0.034333659605560514,
+              "p_value": 7.225379387108412e-11,
+              "n": 17198,
+              "separates": true,
+              "holm_significant": true
+            },
+            "comet~band_dist": {
+              "rho": 0.003917972228047453,
+              "ci_low": -0.011227571419286982,
+              "ci_high": 0.0196185362569304,
+              "p_value": 0.6074114127226209,
+              "n": 17198,
+              "separates": false,
+              "holm_significant": false
+            }
+          },
+          "holm_family_size": 6
         }
       },
-      "holm_family_size": 6
+      "component_level": {
+        "study_only": {
+          "conditions": [
+            "zeroshot",
+            "random_fewshot",
+            "knn_fewshot",
+            "sparse_knn",
+            "afsp_margin",
+            "afsp_full",
+            "peft",
+            "peft_knn",
+            "peft_afsp",
+            "rlsf_w3_0.0",
+            "rlsf_w3_2.0",
+            "rlsf_w3_6.0"
+          ],
+          "n_pooled": 15875,
+          "features": {
+            "lex_density": {
+              "rho": -0.15366738108582434,
+              "ci_low": -0.16934055460925426,
+              "ci_high": -0.13816804219021067,
+              "p_value": 1.763864191732651e-84,
+              "n": 15875,
+              "separates": true,
+              "holm_significant": true
+            },
+            "ttr": {
+              "rho": -0.1115619154153485,
+              "ci_low": -0.1271245633042492,
+              "ci_high": -0.09575668397528124,
+              "p_value": 3.836506004498806e-45,
+              "n": 15875,
+              "separates": true,
+              "holm_significant": true
+            },
+            "root_ttr": {
+              "rho": 0.15907812576471575,
+              "ci_low": 0.1435521122194282,
+              "ci_high": 0.17479132268999245,
+              "p_value": 1.7892894193506398e-90,
+              "n": 15875,
+              "separates": true,
+              "holm_significant": true
+            },
+            "marker_rate": {
+              "rho": 0.1924525449242669,
+              "ci_low": 0.1769571294234105,
+              "ci_high": 0.20827833779963004,
+              "p_value": 2.695572868883663e-132,
+              "n": 15875,
+              "separates": true,
+              "holm_significant": true
+            }
+          }
+        },
+        "with_reference": {
+          "conditions": [
+            "zeroshot",
+            "random_fewshot",
+            "knn_fewshot",
+            "sparse_knn",
+            "afsp_margin",
+            "afsp_full",
+            "peft",
+            "peft_knn",
+            "peft_afsp",
+            "rlsf_w3_0.0",
+            "rlsf_w3_2.0",
+            "rlsf_w3_6.0",
+            "commercial_haiku"
+          ],
+          "n_pooled": 17198,
+          "features": {
+            "lex_density": {
+              "rho": -0.15100245034778637,
+              "ci_low": -0.1661709185540256,
+              "ci_high": -0.1357821588078299,
+              "p_value": 2.987349413987622e-88,
+              "n": 17198,
+              "separates": true,
+              "holm_significant": true
+            },
+            "ttr": {
+              "rho": -0.1132146264105916,
+              "ci_low": -0.12832154015674788,
+              "ci_high": -0.09820741342703633,
+              "p_value": 3.6095730671562794e-50,
+              "n": 17198,
+              "separates": true,
+              "holm_significant": true
+            },
+            "root_ttr": {
+              "rho": 0.15904420187372337,
+              "ci_low": 0.1436479853323551,
+              "ci_high": 0.17419717572399626,
+              "p_value": 8.189037395720628e-98,
+              "n": 17198,
+              "separates": true,
+              "holm_significant": true
+            },
+            "marker_rate": {
+              "rho": 0.1948471734181187,
+              "ci_low": 0.17976785092072486,
+              "ci_high": 0.2092759858903042,
+              "p_value": 9.27632498044052e-147,
+              "n": 17198,
+              "separates": true,
+              "holm_significant": true
+            }
+          }
+        }
+      }
+    },
+    "phi_b": {
+      "conditions": {
+        "study_only": [
+          "zeroshot",
+          "random_fewshot",
+          "knn_fewshot",
+          "sparse_knn",
+          "afsp_margin",
+          "afsp_full",
+          "peft",
+          "peft_knn",
+          "peft_afsp",
+          "rlsf_w3_0.0",
+          "rlsf_w3_2.0",
+          "rlsf_w3_6.0"
+        ],
+        "with_reference": [
+          "zeroshot",
+          "random_fewshot",
+          "knn_fewshot",
+          "sparse_knn",
+          "afsp_margin",
+          "afsp_full",
+          "peft",
+          "peft_knn",
+          "peft_afsp",
+          "rlsf_w3_0.0",
+          "rlsf_w3_2.0",
+          "rlsf_w3_6.0",
+          "commercial_haiku"
+        ]
+      },
+      "coverage": {
+        "zeroshot": {
+          "n_total": 1323,
+          "n_scored": 1300,
+          "coverage": 0.982615268329554
+        },
+        "random_fewshot": {
+          "n_total": 1323,
+          "n_scored": 1297,
+          "coverage": 0.9803476946334089
+        },
+        "knn_fewshot": {
+          "n_total": 1323,
+          "n_scored": 1308,
+          "coverage": 0.9886621315192744
+        },
+        "sparse_knn": {
+          "n_total": 1323,
+          "n_scored": 1300,
+          "coverage": 0.982615268329554
+        },
+        "afsp_margin": {
+          "n_total": 1323,
+          "n_scored": 1303,
+          "coverage": 0.9848828420256992
+        },
+        "afsp_full": {
+          "n_total": 1323,
+          "n_scored": 1310,
+          "coverage": 0.9901738473167044
+        },
+        "peft": {
+          "n_total": 1323,
+          "n_scored": 1306,
+          "coverage": 0.9871504157218443
+        },
+        "peft_knn": {
+          "n_total": 1323,
+          "n_scored": 1296,
+          "coverage": 0.9795918367346939
+        },
+        "peft_afsp": {
+          "n_total": 1323,
+          "n_scored": 1299,
+          "coverage": 0.981859410430839
+        },
+        "rlsf_w3_0.0": {
+          "n_total": 1323,
+          "n_scored": 1310,
+          "coverage": 0.9901738473167044
+        },
+        "rlsf_w3_2.0": {
+          "n_total": 1323,
+          "n_scored": 1307,
+          "coverage": 0.9879062736205594
+        },
+        "rlsf_w3_6.0": {
+          "n_total": 1323,
+          "n_scored": 1310,
+          "coverage": 0.9901738473167044
+        },
+        "commercial_haiku": {
+          "n_total": 1323,
+          "n_scored": 1308,
+          "coverage": 0.9886621315192744
+        }
+      },
+      "condition_level": {
+        "study_only": {
+          "conditions": [
+            "zeroshot",
+            "random_fewshot",
+            "knn_fewshot",
+            "sparse_knn",
+            "afsp_margin",
+            "afsp_full",
+            "peft",
+            "peft_knn",
+            "peft_afsp",
+            "rlsf_w3_0.0",
+            "rlsf_w3_2.0",
+            "rlsf_w3_6.0"
+          ],
+          "n": 12,
+          "p_floor": 4.17535139757362e-09,
+          "pairs": {
+            "phi~stylo_dist": {
+              "rho": 0.5034965034965035,
+              "p_value": 0.09515736659412467,
+              "n": 12
+            },
+            "phi~comet": {
+              "rho": -0.1958041958041958,
+              "p_value": 0.5419358857313173,
+              "n": 12
+            },
+            "stylo_dist~comet": {
+              "rho": -0.4755244755244756,
+              "p_value": 0.118175957013032,
+              "n": 12
+            }
+          }
+        },
+        "with_reference": {
+          "conditions": [
+            "zeroshot",
+            "random_fewshot",
+            "knn_fewshot",
+            "sparse_knn",
+            "afsp_margin",
+            "afsp_full",
+            "peft",
+            "peft_knn",
+            "peft_afsp",
+            "rlsf_w3_0.0",
+            "rlsf_w3_2.0",
+            "rlsf_w3_6.0",
+            "commercial_haiku"
+          ],
+          "n": 13,
+          "p_floor": 3.2118087673643227e-10,
+          "pairs": {
+            "phi~stylo_dist": {
+              "rho": 0.6098901098901099,
+              "p_value": 0.02687783442125201,
+              "n": 13
+            },
+            "phi~comet": {
+              "rho": 0.06043956043956044,
+              "p_value": 0.8445023706449681,
+              "n": 13
+            },
+            "stylo_dist~comet": {
+              "rho": -0.15934065934065936,
+              "p_value": 0.6030877531318971,
+              "n": 13
+            }
+          }
+        }
+      },
+      "segment_level": {
+        "study_only": {
+          "conditions": [
+            "zeroshot",
+            "random_fewshot",
+            "knn_fewshot",
+            "sparse_knn",
+            "afsp_margin",
+            "afsp_full",
+            "peft",
+            "peft_knn",
+            "peft_afsp",
+            "rlsf_w3_0.0",
+            "rlsf_w3_2.0",
+            "rlsf_w3_6.0"
+          ],
+          "n_pooled": 15646,
+          "per_condition": {
+            "zeroshot": {
+              "centroid_dist": {
+                "rho": 0.027893364728895014,
+                "ci_low": -0.02672809503832839,
+                "ci_high": 0.08274181624909745,
+                "p_value": 0.3149268791923047,
+                "n": 1300,
+                "separates": false
+              },
+              "band_dist": {
+                "rho": 0.04529690256757242,
+                "ci_low": -0.009683641491131387,
+                "ci_high": 0.09911989966532879,
+                "p_value": 0.10258053429695406,
+                "n": 1300,
+                "separates": false
+              },
+              "marker_rate": {
+                "rho": 0.20340660623611037,
+                "ci_low": 0.14651977823838203,
+                "ci_high": 0.2580793042185993,
+                "p_value": 1.3173208983583237e-13,
+                "n": 1300,
+                "separates": true
+              },
+              "comet": {
+                "rho": 0.3460751415336898,
+                "ci_low": 0.2946186229302748,
+                "ci_high": 0.39575328806410176,
+                "p_value": 7.033608402323276e-38,
+                "n": 1300,
+                "separates": true
+              }
+            },
+            "random_fewshot": {
+              "centroid_dist": {
+                "rho": -0.02229642705710329,
+                "ci_low": -0.0777301118617892,
+                "ci_high": 0.03352799695090613,
+                "p_value": 0.42237568668955683,
+                "n": 1297,
+                "separates": false
+              },
+              "band_dist": {
+                "rho": -0.014600337469334902,
+                "ci_low": -0.06955762776862398,
+                "ci_high": 0.04109402738514246,
+                "p_value": 0.5993497004255599,
+                "n": 1297,
+                "separates": false
+              },
+              "marker_rate": {
+                "rho": 0.21787990702216464,
+                "ci_low": 0.16429623487880574,
+                "ci_high": 0.2712024303107999,
+                "p_value": 2.110925021566687e-15,
+                "n": 1297,
+                "separates": true
+              },
+              "comet": {
+                "rho": 0.3438404828729158,
+                "ci_low": 0.2918889018470112,
+                "ci_high": 0.39457971708415057,
+                "p_value": 2.664758869868773e-37,
+                "n": 1297,
+                "separates": true
+              }
+            },
+            "knn_fewshot": {
+              "centroid_dist": {
+                "rho": 0.011239661587012943,
+                "ci_low": -0.04446223988182863,
+                "ci_high": 0.06654031918446296,
+                "p_value": 0.6846537238336947,
+                "n": 1308,
+                "separates": false
+              },
+              "band_dist": {
+                "rho": -0.04014208021451553,
+                "ci_low": -0.09401727574394955,
+                "ci_high": 0.014450179477267594,
+                "p_value": 0.1467835826643945,
+                "n": 1308,
+                "separates": false
+              },
+              "marker_rate": {
+                "rho": 0.29988040674175004,
+                "ci_low": 0.24923038913672566,
+                "ci_high": 0.3493455229117031,
+                "p_value": 1.380465869405829e-28,
+                "n": 1308,
+                "separates": true
+              },
+              "comet": {
+                "rho": 0.3470050110294912,
+                "ci_low": 0.29127331979560606,
+                "ci_high": 0.3996446065352124,
+                "p_value": 2.602454908285987e-38,
+                "n": 1308,
+                "separates": true
+              }
+            },
+            "sparse_knn": {
+              "centroid_dist": {
+                "rho": -0.014181727642307419,
+                "ci_low": -0.06970376254269381,
+                "ci_high": 0.040494479909080464,
+                "p_value": 0.6094468014525156,
+                "n": 1300,
+                "separates": false
+              },
+              "band_dist": {
+                "rho": 0.012066241932453542,
+                "ci_low": -0.04279972539294796,
+                "ci_high": 0.06775068361198933,
+                "p_value": 0.663815149335077,
+                "n": 1300,
+                "separates": false
+              },
+              "marker_rate": {
+                "rho": 0.17730721150320738,
+                "ci_low": 0.12187973971608712,
+                "ci_high": 0.2300434463429272,
+                "p_value": 1.2119703185085825e-10,
+                "n": 1300,
+                "separates": true
+              },
+              "comet": {
+                "rho": 0.3002931546028925,
+                "ci_low": 0.24674086127637346,
+                "ci_high": 0.35335025161273653,
+                "p_value": 1.6893431190240415e-28,
+                "n": 1300,
+                "separates": true
+              }
+            },
+            "afsp_margin": {
+              "centroid_dist": {
+                "rho": 0.013984906991142541,
+                "ci_low": -0.0413028507558567,
+                "ci_high": 0.06961999953937724,
+                "p_value": 0.6140121924155614,
+                "n": 1303,
+                "separates": false
+              },
+              "band_dist": {
+                "rho": -0.010933875094826543,
+                "ci_low": -0.06605454152313138,
+                "ci_high": 0.044102453056448436,
+                "p_value": 0.6933491699167216,
+                "n": 1303,
+                "separates": false
+              },
+              "marker_rate": {
+                "rho": 0.2957900994798832,
+                "ci_low": 0.24479935498890554,
+                "ci_high": 0.3448594276979292,
+                "p_value": 1.0100732735966439e-27,
+                "n": 1303,
+                "separates": true
+              },
+              "comet": {
+                "rho": 0.332814980226789,
+                "ci_low": 0.2787525983458655,
+                "ci_high": 0.3830583098625515,
+                "p_value": 4.5173744721739144e-35,
+                "n": 1303,
+                "separates": true
+              }
+            },
+            "afsp_full": {
+              "centroid_dist": {
+                "rho": -0.03657677729038409,
+                "ci_low": -0.09023792994366556,
+                "ci_high": 0.018042369449549407,
+                "p_value": 0.18582341863547272,
+                "n": 1310,
+                "separates": false
+              },
+              "band_dist": {
+                "rho": -0.03728530428117634,
+                "ci_low": -0.08997396549574242,
+                "ci_high": 0.016367877963505282,
+                "p_value": 0.17743909906568991,
+                "n": 1310,
+                "separates": false
+              },
+              "marker_rate": {
+                "rho": 0.2527321931206747,
+                "ci_low": 0.2019462597803835,
+                "ci_high": 0.30200364808282476,
+                "p_value": 1.5450151924328478e-20,
+                "n": 1310,
+                "separates": true
+              },
+              "comet": {
+                "rho": 0.37256844036297315,
+                "ci_low": 0.32052231213491567,
+                "ci_high": 0.4231516973855599,
+                "p_value": 2.1181424193803025e-44,
+                "n": 1310,
+                "separates": true
+              }
+            },
+            "peft": {
+              "centroid_dist": {
+                "rho": -0.045704513543740354,
+                "ci_low": -0.10235906423581458,
+                "ci_high": 0.009873342167930451,
+                "p_value": 0.09874279524622036,
+                "n": 1306,
+                "separates": false
+              },
+              "band_dist": {
+                "rho": -0.047218222100325655,
+                "ci_low": -0.10162352070367563,
+                "ci_high": 0.010166728672545323,
+                "p_value": 0.08806041813968479,
+                "n": 1306,
+                "separates": false
+              },
+              "marker_rate": {
+                "rho": 0.43912423013083546,
+                "ci_low": 0.39481478771364614,
+                "ci_high": 0.4821326310509637,
+                "p_value": 1.100034029501198e-62,
+                "n": 1306,
+                "separates": true
+              },
+              "comet": {
+                "rho": 0.41309919565775444,
+                "ci_low": 0.3628360692421306,
+                "ci_high": 0.46031659222564836,
+                "p_value": 5.537541985279186e-55,
+                "n": 1306,
+                "separates": true
+              }
+            },
+            "peft_knn": {
+              "centroid_dist": {
+                "rho": -0.027720095559283956,
+                "ci_low": -0.08246743040970383,
+                "ci_high": 0.02692708062617437,
+                "p_value": 0.31869067821037644,
+                "n": 1296,
+                "separates": false
+              },
+              "band_dist": {
+                "rho": -0.032912952623873525,
+                "ci_low": -0.08833891771628148,
+                "ci_high": 0.021809867455626703,
+                "p_value": 0.2363957425488633,
+                "n": 1296,
+                "separates": false
+              },
+              "marker_rate": {
+                "rho": 0.40853853666459217,
+                "ci_low": 0.36488030214996336,
+                "ci_high": 0.4501872124069013,
+                "p_value": 2.647189576701987e-53,
+                "n": 1296,
+                "separates": true
+              },
+              "comet": {
+                "rho": 0.4078549032220946,
+                "ci_low": 0.3584738425699009,
+                "ci_high": 0.4552524539603854,
+                "p_value": 4.089635589943971e-53,
+                "n": 1296,
+                "separates": true
+              }
+            },
+            "peft_afsp": {
+              "centroid_dist": {
+                "rho": -0.009335071418938874,
+                "ci_low": -0.06342539520928316,
+                "ci_high": 0.04658573255233549,
+                "p_value": 0.7367692714105883,
+                "n": 1299,
+                "separates": false
+              },
+              "band_dist": {
+                "rho": -0.059073310641139555,
+                "ci_low": -0.11533828804612338,
+                "ci_high": -0.00313939971263615,
+                "p_value": 0.033261810117107,
+                "n": 1299,
+                "separates": true
+              },
+              "marker_rate": {
+                "rho": 0.4179726061845869,
+                "ci_low": 0.37291201650188316,
+                "ci_high": 0.4617429565973634,
+                "p_value": 4.41651351921864e-56,
+                "n": 1299,
+                "separates": true
+              },
+              "comet": {
+                "rho": 0.38395836322170396,
+                "ci_low": 0.33281671210962277,
+                "ci_high": 0.43405885959139906,
+                "p_value": 6.911924390177745e-47,
+                "n": 1299,
+                "separates": true
+              }
+            },
+            "rlsf_w3_0.0": {
+              "centroid_dist": {
+                "rho": -0.050374425093924355,
+                "ci_low": -0.10574521501774072,
+                "ci_high": 0.005634269114110572,
+                "p_value": 0.06835418430998495,
+                "n": 1310,
+                "separates": false
+              },
+              "band_dist": {
+                "rho": -0.046639649762113676,
+                "ci_low": -0.101557836207074,
+                "ci_high": 0.008632677325009186,
+                "p_value": 0.09153056625261452,
+                "n": 1310,
+                "separates": false
+              },
+              "marker_rate": {
+                "rho": 0.44633693426255555,
+                "ci_low": 0.40014026748531634,
+                "ci_high": 0.4883796193170195,
+                "p_value": 3.902988866738106e-65,
+                "n": 1310,
+                "separates": true
+              },
+              "comet": {
+                "rho": 0.4106479348425373,
+                "ci_low": 0.3608954993072774,
+                "ci_high": 0.4587549695122201,
+                "p_value": 1.8766296568361057e-54,
+                "n": 1310,
+                "separates": true
+              }
+            },
+            "rlsf_w3_2.0": {
+              "centroid_dist": {
+                "rho": -0.028646220347147484,
+                "ci_low": -0.08548929900098601,
+                "ci_high": 0.028546586750556324,
+                "p_value": 0.30073772811007127,
+                "n": 1307,
+                "separates": false
+              },
+              "band_dist": {
+                "rho": -0.05422391093943089,
+                "ci_low": -0.11024857653279957,
+                "ci_high": 0.001749131969813505,
+                "p_value": 0.05000820407746305,
+                "n": 1307,
+                "separates": false
+              },
+              "marker_rate": {
+                "rho": 0.42338437112604493,
+                "ci_low": 0.37805053662752786,
+                "ci_high": 0.46715533194594283,
+                "p_value": 5.456592978394073e-58,
+                "n": 1307,
+                "separates": true
+              },
+              "comet": {
+                "rho": 0.40372244469932883,
+                "ci_low": 0.3547320251387199,
+                "ci_high": 0.4513313981428837,
+                "p_value": 2.076883429784221e-52,
+                "n": 1307,
+                "separates": true
+              }
+            },
+            "rlsf_w3_6.0": {
+              "centroid_dist": {
+                "rho": -0.035763809536585874,
+                "ci_low": -0.09083108748553678,
+                "ci_high": 0.020553519233714575,
+                "p_value": 0.19579993199886395,
+                "n": 1310,
+                "separates": false
+              },
+              "band_dist": {
+                "rho": -0.040965518073285995,
+                "ci_low": -0.09660503893682072,
+                "ci_high": 0.016377381664237328,
+                "p_value": 0.13836439636172077,
+                "n": 1310,
+                "separates": false
+              },
+              "marker_rate": {
+                "rho": 0.43627038576927696,
+                "ci_low": 0.38989723232265827,
+                "ci_high": 0.4795939000812534,
+                "p_value": 5.435168685777231e-62,
+                "n": 1310,
+                "separates": true
+              },
+              "comet": {
+                "rho": 0.42594141454627454,
+                "ci_low": 0.3779426894050428,
+                "ci_high": 0.4731033970340907,
+                "p_value": 7.12174215454949e-59,
+                "n": 1310,
+                "separates": true
+              }
+            }
+          },
+          "pooled": {
+            "centroid_dist": {
+              "rho": -0.019720141805579607,
+              "ci_low": -0.035373578853688414,
+              "ci_high": -0.00354175735723841,
+              "p_value": 0.013635829560134946,
+              "n": 15646,
+              "separates": true,
+              "holm_significant": true
+            },
+            "band_dist": {
+              "rho": -0.027827597296208376,
+              "ci_low": -0.04353781310323796,
+              "ci_high": -0.011996426025725381,
+              "p_value": 0.0004992054396612731,
+              "n": 15646,
+              "separates": true,
+              "holm_significant": true
+            },
+            "marker_rate": {
+              "rho": 0.330840189792767,
+              "ci_low": 0.3164825204269756,
+              "ci_high": 0.34482676011222446,
+              "p_value": 0.0,
+              "n": 15646,
+              "separates": true,
+              "holm_significant": true
+            },
+            "comet": {
+              "rho": 0.37621317443917635,
+              "ci_low": 0.3623251408863275,
+              "ci_high": 0.39103699039899403,
+              "p_value": 0.0,
+              "n": 15646,
+              "separates": true,
+              "holm_significant": true
+            },
+            "comet~centroid_dist": {
+              "rho": -0.06040566327777917,
+              "ci_low": -0.07628014590246902,
+              "ci_high": -0.0443624504258417,
+              "p_value": 3.96667514966978e-14,
+              "n": 15646,
+              "separates": true,
+              "holm_significant": true
+            },
+            "comet~band_dist": {
+              "rho": -0.003943685503093822,
+              "ci_low": -0.020206475677441396,
+              "ci_high": 0.012444984484591495,
+              "p_value": 0.6218328778370891,
+              "n": 15646,
+              "separates": false,
+              "holm_significant": false
+            }
+          },
+          "holm_family_size": 6
+        },
+        "with_reference": {
+          "conditions": [
+            "zeroshot",
+            "random_fewshot",
+            "knn_fewshot",
+            "sparse_knn",
+            "afsp_margin",
+            "afsp_full",
+            "peft",
+            "peft_knn",
+            "peft_afsp",
+            "rlsf_w3_0.0",
+            "rlsf_w3_2.0",
+            "rlsf_w3_6.0",
+            "commercial_haiku"
+          ],
+          "n_pooled": 16954,
+          "per_condition": {
+            "zeroshot": {
+              "centroid_dist": {
+                "rho": 0.027893364728895014,
+                "ci_low": -0.02672809503832839,
+                "ci_high": 0.08274181624909745,
+                "p_value": 0.3149268791923047,
+                "n": 1300,
+                "separates": false
+              },
+              "band_dist": {
+                "rho": 0.04529690256757242,
+                "ci_low": -0.009683641491131387,
+                "ci_high": 0.09911989966532879,
+                "p_value": 0.10258053429695406,
+                "n": 1300,
+                "separates": false
+              },
+              "marker_rate": {
+                "rho": 0.20340660623611037,
+                "ci_low": 0.14651977823838203,
+                "ci_high": 0.2580793042185993,
+                "p_value": 1.3173208983583237e-13,
+                "n": 1300,
+                "separates": true
+              },
+              "comet": {
+                "rho": 0.3460751415336898,
+                "ci_low": 0.2946186229302748,
+                "ci_high": 0.39575328806410176,
+                "p_value": 7.033608402323276e-38,
+                "n": 1300,
+                "separates": true
+              }
+            },
+            "random_fewshot": {
+              "centroid_dist": {
+                "rho": -0.02229642705710329,
+                "ci_low": -0.0777301118617892,
+                "ci_high": 0.03352799695090613,
+                "p_value": 0.42237568668955683,
+                "n": 1297,
+                "separates": false
+              },
+              "band_dist": {
+                "rho": -0.014600337469334902,
+                "ci_low": -0.06955762776862398,
+                "ci_high": 0.04109402738514246,
+                "p_value": 0.5993497004255599,
+                "n": 1297,
+                "separates": false
+              },
+              "marker_rate": {
+                "rho": 0.21787990702216464,
+                "ci_low": 0.16429623487880574,
+                "ci_high": 0.2712024303107999,
+                "p_value": 2.110925021566687e-15,
+                "n": 1297,
+                "separates": true
+              },
+              "comet": {
+                "rho": 0.3438404828729158,
+                "ci_low": 0.2918889018470112,
+                "ci_high": 0.39457971708415057,
+                "p_value": 2.664758869868773e-37,
+                "n": 1297,
+                "separates": true
+              }
+            },
+            "knn_fewshot": {
+              "centroid_dist": {
+                "rho": 0.011239661587012943,
+                "ci_low": -0.04446223988182863,
+                "ci_high": 0.06654031918446296,
+                "p_value": 0.6846537238336947,
+                "n": 1308,
+                "separates": false
+              },
+              "band_dist": {
+                "rho": -0.04014208021451553,
+                "ci_low": -0.09401727574394955,
+                "ci_high": 0.014450179477267594,
+                "p_value": 0.1467835826643945,
+                "n": 1308,
+                "separates": false
+              },
+              "marker_rate": {
+                "rho": 0.29988040674175004,
+                "ci_low": 0.24923038913672566,
+                "ci_high": 0.3493455229117031,
+                "p_value": 1.380465869405829e-28,
+                "n": 1308,
+                "separates": true
+              },
+              "comet": {
+                "rho": 0.3470050110294912,
+                "ci_low": 0.29127331979560606,
+                "ci_high": 0.3996446065352124,
+                "p_value": 2.602454908285987e-38,
+                "n": 1308,
+                "separates": true
+              }
+            },
+            "sparse_knn": {
+              "centroid_dist": {
+                "rho": -0.014181727642307419,
+                "ci_low": -0.06970376254269381,
+                "ci_high": 0.040494479909080464,
+                "p_value": 0.6094468014525156,
+                "n": 1300,
+                "separates": false
+              },
+              "band_dist": {
+                "rho": 0.012066241932453542,
+                "ci_low": -0.04279972539294796,
+                "ci_high": 0.06775068361198933,
+                "p_value": 0.663815149335077,
+                "n": 1300,
+                "separates": false
+              },
+              "marker_rate": {
+                "rho": 0.17730721150320738,
+                "ci_low": 0.12187973971608712,
+                "ci_high": 0.2300434463429272,
+                "p_value": 1.2119703185085825e-10,
+                "n": 1300,
+                "separates": true
+              },
+              "comet": {
+                "rho": 0.3002931546028925,
+                "ci_low": 0.24674086127637346,
+                "ci_high": 0.35335025161273653,
+                "p_value": 1.6893431190240415e-28,
+                "n": 1300,
+                "separates": true
+              }
+            },
+            "afsp_margin": {
+              "centroid_dist": {
+                "rho": 0.013984906991142541,
+                "ci_low": -0.0413028507558567,
+                "ci_high": 0.06961999953937724,
+                "p_value": 0.6140121924155614,
+                "n": 1303,
+                "separates": false
+              },
+              "band_dist": {
+                "rho": -0.010933875094826543,
+                "ci_low": -0.06605454152313138,
+                "ci_high": 0.044102453056448436,
+                "p_value": 0.6933491699167216,
+                "n": 1303,
+                "separates": false
+              },
+              "marker_rate": {
+                "rho": 0.2957900994798832,
+                "ci_low": 0.24479935498890554,
+                "ci_high": 0.3448594276979292,
+                "p_value": 1.0100732735966439e-27,
+                "n": 1303,
+                "separates": true
+              },
+              "comet": {
+                "rho": 0.332814980226789,
+                "ci_low": 0.2787525983458655,
+                "ci_high": 0.3830583098625515,
+                "p_value": 4.5173744721739144e-35,
+                "n": 1303,
+                "separates": true
+              }
+            },
+            "afsp_full": {
+              "centroid_dist": {
+                "rho": -0.03657677729038409,
+                "ci_low": -0.09023792994366556,
+                "ci_high": 0.018042369449549407,
+                "p_value": 0.18582341863547272,
+                "n": 1310,
+                "separates": false
+              },
+              "band_dist": {
+                "rho": -0.03728530428117634,
+                "ci_low": -0.08997396549574242,
+                "ci_high": 0.016367877963505282,
+                "p_value": 0.17743909906568991,
+                "n": 1310,
+                "separates": false
+              },
+              "marker_rate": {
+                "rho": 0.2527321931206747,
+                "ci_low": 0.2019462597803835,
+                "ci_high": 0.30200364808282476,
+                "p_value": 1.5450151924328478e-20,
+                "n": 1310,
+                "separates": true
+              },
+              "comet": {
+                "rho": 0.37256844036297315,
+                "ci_low": 0.32052231213491567,
+                "ci_high": 0.4231516973855599,
+                "p_value": 2.1181424193803025e-44,
+                "n": 1310,
+                "separates": true
+              }
+            },
+            "peft": {
+              "centroid_dist": {
+                "rho": -0.045704513543740354,
+                "ci_low": -0.10235906423581458,
+                "ci_high": 0.009873342167930451,
+                "p_value": 0.09874279524622036,
+                "n": 1306,
+                "separates": false
+              },
+              "band_dist": {
+                "rho": -0.047218222100325655,
+                "ci_low": -0.10162352070367563,
+                "ci_high": 0.010166728672545323,
+                "p_value": 0.08806041813968479,
+                "n": 1306,
+                "separates": false
+              },
+              "marker_rate": {
+                "rho": 0.43912423013083546,
+                "ci_low": 0.39481478771364614,
+                "ci_high": 0.4821326310509637,
+                "p_value": 1.100034029501198e-62,
+                "n": 1306,
+                "separates": true
+              },
+              "comet": {
+                "rho": 0.41309919565775444,
+                "ci_low": 0.3628360692421306,
+                "ci_high": 0.46031659222564836,
+                "p_value": 5.537541985279186e-55,
+                "n": 1306,
+                "separates": true
+              }
+            },
+            "peft_knn": {
+              "centroid_dist": {
+                "rho": -0.027720095559283956,
+                "ci_low": -0.08246743040970383,
+                "ci_high": 0.02692708062617437,
+                "p_value": 0.31869067821037644,
+                "n": 1296,
+                "separates": false
+              },
+              "band_dist": {
+                "rho": -0.032912952623873525,
+                "ci_low": -0.08833891771628148,
+                "ci_high": 0.021809867455626703,
+                "p_value": 0.2363957425488633,
+                "n": 1296,
+                "separates": false
+              },
+              "marker_rate": {
+                "rho": 0.40853853666459217,
+                "ci_low": 0.36488030214996336,
+                "ci_high": 0.4501872124069013,
+                "p_value": 2.647189576701987e-53,
+                "n": 1296,
+                "separates": true
+              },
+              "comet": {
+                "rho": 0.4078549032220946,
+                "ci_low": 0.3584738425699009,
+                "ci_high": 0.4552524539603854,
+                "p_value": 4.089635589943971e-53,
+                "n": 1296,
+                "separates": true
+              }
+            },
+            "peft_afsp": {
+              "centroid_dist": {
+                "rho": -0.009335071418938874,
+                "ci_low": -0.06342539520928316,
+                "ci_high": 0.04658573255233549,
+                "p_value": 0.7367692714105883,
+                "n": 1299,
+                "separates": false
+              },
+              "band_dist": {
+                "rho": -0.059073310641139555,
+                "ci_low": -0.11533828804612338,
+                "ci_high": -0.00313939971263615,
+                "p_value": 0.033261810117107,
+                "n": 1299,
+                "separates": true
+              },
+              "marker_rate": {
+                "rho": 0.4179726061845869,
+                "ci_low": 0.37291201650188316,
+                "ci_high": 0.4617429565973634,
+                "p_value": 4.41651351921864e-56,
+                "n": 1299,
+                "separates": true
+              },
+              "comet": {
+                "rho": 0.38395836322170396,
+                "ci_low": 0.33281671210962277,
+                "ci_high": 0.43405885959139906,
+                "p_value": 6.911924390177745e-47,
+                "n": 1299,
+                "separates": true
+              }
+            },
+            "rlsf_w3_0.0": {
+              "centroid_dist": {
+                "rho": -0.050374425093924355,
+                "ci_low": -0.10574521501774072,
+                "ci_high": 0.005634269114110572,
+                "p_value": 0.06835418430998495,
+                "n": 1310,
+                "separates": false
+              },
+              "band_dist": {
+                "rho": -0.046639649762113676,
+                "ci_low": -0.101557836207074,
+                "ci_high": 0.008632677325009186,
+                "p_value": 0.09153056625261452,
+                "n": 1310,
+                "separates": false
+              },
+              "marker_rate": {
+                "rho": 0.44633693426255555,
+                "ci_low": 0.40014026748531634,
+                "ci_high": 0.4883796193170195,
+                "p_value": 3.902988866738106e-65,
+                "n": 1310,
+                "separates": true
+              },
+              "comet": {
+                "rho": 0.4106479348425373,
+                "ci_low": 0.3608954993072774,
+                "ci_high": 0.4587549695122201,
+                "p_value": 1.8766296568361057e-54,
+                "n": 1310,
+                "separates": true
+              }
+            },
+            "rlsf_w3_2.0": {
+              "centroid_dist": {
+                "rho": -0.028646220347147484,
+                "ci_low": -0.08548929900098601,
+                "ci_high": 0.028546586750556324,
+                "p_value": 0.30073772811007127,
+                "n": 1307,
+                "separates": false
+              },
+              "band_dist": {
+                "rho": -0.05422391093943089,
+                "ci_low": -0.11024857653279957,
+                "ci_high": 0.001749131969813505,
+                "p_value": 0.05000820407746305,
+                "n": 1307,
+                "separates": false
+              },
+              "marker_rate": {
+                "rho": 0.42338437112604493,
+                "ci_low": 0.37805053662752786,
+                "ci_high": 0.46715533194594283,
+                "p_value": 5.456592978394073e-58,
+                "n": 1307,
+                "separates": true
+              },
+              "comet": {
+                "rho": 0.40372244469932883,
+                "ci_low": 0.3547320251387199,
+                "ci_high": 0.4513313981428837,
+                "p_value": 2.076883429784221e-52,
+                "n": 1307,
+                "separates": true
+              }
+            },
+            "rlsf_w3_6.0": {
+              "centroid_dist": {
+                "rho": -0.035763809536585874,
+                "ci_low": -0.09083108748553678,
+                "ci_high": 0.020553519233714575,
+                "p_value": 0.19579993199886395,
+                "n": 1310,
+                "separates": false
+              },
+              "band_dist": {
+                "rho": -0.040965518073285995,
+                "ci_low": -0.09660503893682072,
+                "ci_high": 0.016377381664237328,
+                "p_value": 0.13836439636172077,
+                "n": 1310,
+                "separates": false
+              },
+              "marker_rate": {
+                "rho": 0.43627038576927696,
+                "ci_low": 0.38989723232265827,
+                "ci_high": 0.4795939000812534,
+                "p_value": 5.435168685777231e-62,
+                "n": 1310,
+                "separates": true
+              },
+              "comet": {
+                "rho": 0.42594141454627454,
+                "ci_low": 0.3779426894050428,
+                "ci_high": 0.4731033970340907,
+                "p_value": 7.12174215454949e-59,
+                "n": 1310,
+                "separates": true
+              }
+            },
+            "commercial_haiku": {
+              "centroid_dist": {
+                "rho": 0.0500483440114272,
+                "ci_low": -0.002844628529167052,
+                "ci_high": 0.10296324468242327,
+                "p_value": 0.07037863768852816,
+                "n": 1308,
+                "separates": false
+              },
+              "band_dist": {
+                "rho": 0.008500228614680553,
+                "ci_low": -0.04641303610009619,
+                "ci_high": 0.06437648359696992,
+                "p_value": 0.7587419121877319,
+                "n": 1308,
+                "separates": false
+              },
+              "marker_rate": {
+                "rho": 0.27879063212751853,
+                "ci_low": 0.2264064665834154,
+                "ci_high": 0.330079719016121,
+                "p_value": 8.889117361745572e-25,
+                "n": 1308,
+                "separates": true
+              },
+              "comet": {
+                "rho": 0.36493074802666625,
+                "ci_low": 0.3136926530232951,
+                "ci_high": 0.4152435218667124,
+                "p_value": 1.7739535327242212e-42,
+                "n": 1308,
+                "separates": true
+              }
+            }
+          },
+          "pooled": {
+            "centroid_dist": {
+              "rho": -0.013073890400259802,
+              "ci_low": -0.02856470365923924,
+              "ci_high": 0.002518913183477329,
+              "p_value": 0.0887054848022854,
+              "n": 16954,
+              "separates": false,
+              "holm_significant": false
+            },
+            "band_dist": {
+              "rho": -0.023344487892466955,
+              "ci_low": -0.03869657871529324,
+              "ci_high": -0.007914317297845877,
+              "p_value": 0.002367210487678446,
+              "n": 16954,
+              "separates": true,
+              "holm_significant": true
+            },
+            "marker_rate": {
+              "rho": 0.32692669116047224,
+              "ci_low": 0.3129833439344424,
+              "ci_high": 0.34086241910511106,
+              "p_value": 0.0,
+              "n": 16954,
+              "separates": true,
+              "holm_significant": true
+            },
+            "comet": {
+              "rho": 0.3812257364166322,
+              "ci_low": 0.36761996622833765,
+              "ci_high": 0.3952194812954137,
+              "p_value": 0.0,
+              "n": 16954,
+              "separates": true,
+              "holm_significant": true
+            },
+            "comet~centroid_dist": {
+              "rho": -0.051337807890394604,
+              "ci_low": -0.06680934985475269,
+              "ci_high": -0.03554616997097636,
+              "p_value": 2.254903884285723e-11,
+              "n": 16954,
+              "separates": true,
+              "holm_significant": true
+            },
+            "comet~band_dist": {
+              "rho": 0.002916560931768766,
+              "ci_low": -0.012340094058282127,
+              "ci_high": 0.018517030259065936,
+              "p_value": 0.7041451115484879,
+              "n": 16954,
+              "separates": false,
+              "holm_significant": false
+            }
+          },
+          "holm_family_size": 6
+        }
+      },
+      "component_level": {
+        "study_only": {
+          "conditions": [
+            "zeroshot",
+            "random_fewshot",
+            "knn_fewshot",
+            "sparse_knn",
+            "afsp_margin",
+            "afsp_full",
+            "peft",
+            "peft_knn",
+            "peft_afsp",
+            "rlsf_w3_0.0",
+            "rlsf_w3_2.0",
+            "rlsf_w3_6.0"
+          ],
+          "n_pooled": 15646,
+          "features": {
+            "lex_density": {
+              "rho": -0.1718310522416684,
+              "ci_low": -0.18790294620574735,
+              "ci_high": -0.15596228343362364,
+              "p_value": 5.716966199190079e-104,
+              "n": 15646,
+              "separates": true,
+              "holm_significant": true
+            },
+            "ttr": {
+              "rho": -0.05688709467177974,
+              "ci_low": -0.07340359048872476,
+              "ci_high": -0.04117505256672639,
+              "p_value": 1.0725433970014902e-12,
+              "n": 15646,
+              "separates": true,
+              "holm_significant": true
+            },
+            "root_ttr": {
+              "rho": 0.09694860909814525,
+              "ci_low": 0.08027798851930568,
+              "ci_high": 0.11385803501599552,
+              "p_value": 5.436810566064159e-34,
+              "n": 15646,
+              "separates": true,
+              "holm_significant": true
+            },
+            "marker_rate": {
+              "rho": 0.330840189792767,
+              "ci_low": 0.3164825204269756,
+              "ci_high": 0.34482676011222446,
+              "p_value": 0.0,
+              "n": 15646,
+              "separates": true,
+              "holm_significant": true
+            }
+          }
+        },
+        "with_reference": {
+          "conditions": [
+            "zeroshot",
+            "random_fewshot",
+            "knn_fewshot",
+            "sparse_knn",
+            "afsp_margin",
+            "afsp_full",
+            "peft",
+            "peft_knn",
+            "peft_afsp",
+            "rlsf_w3_0.0",
+            "rlsf_w3_2.0",
+            "rlsf_w3_6.0",
+            "commercial_haiku"
+          ],
+          "n_pooled": 16954,
+          "features": {
+            "lex_density": {
+              "rho": -0.16498564113148584,
+              "ci_low": -0.18045464922774146,
+              "ci_high": -0.1499242664450561,
+              "p_value": 9.550053294278222e-104,
+              "n": 16954,
+              "separates": true,
+              "holm_significant": true
+            },
+            "ttr": {
+              "rho": -0.052831342148751376,
+              "ci_low": -0.06829570697795448,
+              "ci_high": -0.03741574656136152,
+              "p_value": 5.846598180237651e-12,
+              "n": 16954,
+              "separates": true,
+              "holm_significant": true
+            },
+            "root_ttr": {
+              "rho": 0.0934540856724907,
+              "ci_low": 0.07761845730426949,
+              "ci_high": 0.10971960392716036,
+              "p_value": 3.3367763569348373e-34,
+              "n": 16954,
+              "separates": true,
+              "holm_significant": true
+            },
+            "marker_rate": {
+              "rho": 0.32692669116047224,
+              "ci_low": 0.3129833439344424,
+              "ci_high": 0.34086241910511106,
+              "p_value": 0.0,
+              "n": 16954,
+              "separates": true,
+              "holm_significant": true
+            }
+          }
+        }
+      }
     }
   },
-  "component_level": {
+  "rater_comparison": {
     "study_only": {
       "conditions": [
         "zeroshot",
         "random_fewshot",
         "knn_fewshot",
+        "sparse_knn",
         "afsp_margin",
         "afsp_full",
-        "peft"
+        "peft",
+        "peft_knn",
+        "peft_afsp",
+        "rlsf_w3_0.0",
+        "rlsf_w3_2.0",
+        "rlsf_w3_6.0"
       ],
-      "n_pooled": 7937,
-      "features": {
-        "lex_density": {
-          "rho": -0.1553456380496495,
-          "ci_low": -0.17737986426389432,
-          "ci_high": -0.13312059219808625,
-          "p_value": 4.648312640180852e-44,
-          "n": 7937,
-          "separates": true,
-          "holm_significant": true
-        },
-        "ttr": {
-          "rho": -0.10264635954150857,
-          "ci_low": -0.12480889738614255,
-          "ci_high": -0.08026093700135335,
-          "p_value": 4.8397901563517195e-20,
-          "n": 7937,
-          "separates": true,
-          "holm_significant": true
-        },
-        "root_ttr": {
-          "rho": 0.13442126277270644,
-          "ci_low": 0.11179033561882128,
-          "ci_high": 0.15725281473676178,
-          "p_value": 2.5227858620293217e-33,
-          "n": 7937,
-          "separates": true,
-          "holm_significant": true
-        },
-        "marker_rate": {
-          "rho": 0.10579155942527896,
-          "ci_low": 0.08386823810327503,
-          "ci_high": 0.12798242943656457,
-          "p_value": 3.388412023902698e-21,
-          "n": 7937,
-          "separates": true,
-          "holm_significant": true
+      "raters": [
+        "phi_a",
+        "phi_b"
+      ],
+      "n_pooled": 15645,
+      "note": "Pooled over segments scored by every rater. A delta whose interval excludes zero means the RQ4 answer for that pair is rater-dependent.",
+      "pairs": {
+        "phi_a~phi_b": {
+          "segment_phi_agreement": {
+            "rho": 0.6302374184830892,
+            "ci_low": 0.6196201023056777,
+            "ci_high": 0.6404649863858807,
+            "p_value": 0.0,
+            "n": 15645,
+            "separates": true
+          },
+          "condition_ordering": {
+            "rho": 0.5454545454545455,
+            "p_value": 0.06661188226688902,
+            "n": 12,
+            "p_floor": 4.17535139757362e-09
+          },
+          "correlation_deltas": {
+            "centroid_dist": {
+              "rho_a": -0.07646419961638744,
+              "rho_b": -0.019884764220225955,
+              "delta": -0.05657943539616148,
+              "ci_low": -0.07001979722734701,
+              "ci_high": -0.04259408761629121,
+              "p_value": 0.0,
+              "n": 15645,
+              "separates": true,
+              "holm_significant": true
+            },
+            "band_dist": {
+              "rho_a": -0.03326618171107658,
+              "rho_b": -0.027955824405400863,
+              "delta": -0.005310357305675716,
+              "ci_low": -0.019347612728645384,
+              "ci_high": 0.008907795672048541,
+              "p_value": 0.4628000000000001,
+              "n": 15645,
+              "separates": false,
+              "holm_significant": false
+            },
+            "marker_rate": {
+              "rho_a": 0.19522475661096927,
+              "rho_b": 0.3308532369009759,
+              "delta": -0.13562848029000663,
+              "ci_low": -0.1495277313908298,
+              "ci_high": -0.1216090244951689,
+              "p_value": 0.0,
+              "n": 15645,
+              "separates": true,
+              "holm_significant": true
+            },
+            "comet": {
+              "rho_a": 0.45764640719867916,
+              "rho_b": 0.37647222682730275,
+              "delta": 0.08117418037137641,
+              "ci_low": 0.06821756348289224,
+              "ci_high": 0.09406344540243997,
+              "p_value": 0.0,
+              "n": 15645,
+              "separates": true,
+              "holm_significant": true
+            }
+          },
+          "holm_family_size": 4
         }
       }
     },
@@ -858,48 +2920,86 @@
         "zeroshot",
         "random_fewshot",
         "knn_fewshot",
+        "sparse_knn",
         "afsp_margin",
         "afsp_full",
         "peft",
+        "peft_knn",
+        "peft_afsp",
+        "rlsf_w3_0.0",
+        "rlsf_w3_2.0",
+        "rlsf_w3_6.0",
         "commercial_haiku"
       ],
-      "n_pooled": 9260,
-      "features": {
-        "lex_density": {
-          "rho": -0.15027491364287596,
-          "ci_low": -0.17096743561783592,
-          "ci_high": -0.1296461804704142,
-          "p_value": 6.614635392385e-48,
-          "n": 9260,
-          "separates": true,
-          "holm_significant": true
-        },
-        "ttr": {
-          "rho": -0.10665469744504545,
-          "ci_low": -0.12676286743987705,
-          "ci_high": -0.0858601741221174,
-          "p_value": 7.717418052279996e-25,
-          "n": 9260,
-          "separates": true,
-          "holm_significant": true
-        },
-        "root_ttr": {
-          "rho": 0.14071311810150702,
-          "ci_low": 0.11961252912732434,
-          "ci_high": 0.16113342138267714,
-          "p_value": 3.659392717693132e-42,
-          "n": 9260,
-          "separates": true,
-          "holm_significant": true
-        },
-        "marker_rate": {
-          "rho": 0.11848210433468087,
-          "ci_low": 0.09762653068938561,
-          "ci_high": 0.13935103745051175,
-          "p_value": 2.633446770059679e-30,
-          "n": 9260,
-          "separates": true,
-          "holm_significant": true
+      "raters": [
+        "phi_a",
+        "phi_b"
+      ],
+      "n_pooled": 16953,
+      "note": "Pooled over segments scored by every rater. A delta whose interval excludes zero means the RQ4 answer for that pair is rater-dependent.",
+      "pairs": {
+        "phi_a~phi_b": {
+          "segment_phi_agreement": {
+            "rho": 0.6322810363625206,
+            "ci_low": 0.6222649483016469,
+            "ci_high": 0.6420657357938911,
+            "p_value": 0.0,
+            "n": 16953,
+            "separates": true
+          },
+          "condition_ordering": {
+            "rho": 0.6428571428571429,
+            "p_value": 0.017792450692375714,
+            "n": 13,
+            "p_floor": 3.2118087673643227e-10
+          },
+          "correlation_deltas": {
+            "centroid_dist": {
+              "rho_a": -0.06663987447284475,
+              "rho_b": -0.013224212360248499,
+              "delta": -0.053415662112596254,
+              "ci_low": -0.06654093899695154,
+              "ci_high": -0.04035710136613795,
+              "p_value": 0.0,
+              "n": 16953,
+              "separates": true,
+              "holm_significant": true
+            },
+            "band_dist": {
+              "rho_a": -0.027098038697552815,
+              "rho_b": -0.023461096331474217,
+              "delta": -0.0036369423660785986,
+              "ci_low": -0.016912463539459154,
+              "ci_high": 0.009626657929353029,
+              "p_value": 0.5862,
+              "n": 16953,
+              "separates": false,
+              "holm_significant": false
+            },
+            "marker_rate": {
+              "rho_a": 0.1972293039934363,
+              "rho_b": 0.3269393531441468,
+              "delta": -0.1297100491507105,
+              "ci_low": -0.14317789611991216,
+              "ci_high": -0.11625774098670814,
+              "p_value": 0.0,
+              "n": 16953,
+              "separates": true,
+              "holm_significant": true
+            },
+            "comet": {
+              "rho_a": 0.45796458095591924,
+              "rho_b": 0.3814643920783649,
+              "delta": 0.07650018887755433,
+              "ci_low": 0.06407369925742655,
+              "ci_high": 0.08896314398924246,
+              "p_value": 0.0,
+              "n": 16953,
+              "separates": true,
+              "holm_significant": true
+            }
+          },
+          "holm_family_size": 4
         }
       }
     }

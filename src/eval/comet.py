@@ -9,7 +9,7 @@ from pathlib import Path
 
 from comet import download_model, load_from_checkpoint
 
-from src.eval._io import condition_path, load_condition, merge_results
+from src.eval._io import condition_path, file_digest, load_condition, merge_results
 
 DEFAULT_MODEL = "Unbabel/wmt22-comet-da"
 _RESULTS_DIR = Path("results")
@@ -80,7 +80,13 @@ def main() -> None:
     for cond in present:
         sources, preds, refs = load_condition(out_dir, cond, args.split)
         res = score(sources, preds, refs, model=model, batch_size=args.batch_size, gpus=args.gpus)
-        results[cond] = {"n": len(preds), "model": args.model, "sources": sources, **res}
+        results[cond] = {
+            "n": len(preds),
+            "model": args.model,
+            "output_sha256": file_digest(condition_path(out_dir, cond, args.split)),
+            "sources": sources,
+            **res,
+        }
         print(f"{cond:<16} COMET {res['system']:.4f}  (n={len(preds)})")
 
     out_path = Path(args.results_path or Path(args.results_dir) / f"comet_{args.split}.json")

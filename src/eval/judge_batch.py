@@ -25,6 +25,7 @@ from src.eval.judge import (
     _aggregate,
     assert_cache_identity,
     assert_results_identity,
+    bind_output,
     build_prompt,
     judge_results_path,
     judge_segment_dir,
@@ -76,12 +77,7 @@ def append_results(
     *,
     complete: bool,
 ) -> tuple[int, int]:
-    """Append returned scores in segment order; returns ``(written, failed)``.
-
-    Writes only the contiguous run from ``start``. If the batch did not finish, the
-    first gap stops the write so the unwritten tail is resubmitted on the next run
-    instead of being frozen into the cache as a null.
-    """
+    """Append returned scores in segment order."""
     written = failed = 0
     with cache_path.open("a", encoding="utf-8") as f:
         for i in range(start, len(sources)):
@@ -244,6 +240,7 @@ def main() -> None:
         assert_cache_identity(
             cache_dir, {"model": judge_model, "tag": tag, "template_sha256": digest}
         )
+        output_sha256 = bind_output(cache_dir, cond, condition_path(out_dir, cond, args.split))
         scores = run_condition(
             client,
             template,
@@ -264,6 +261,7 @@ def main() -> None:
             "model": judge_model,
             "judge_tag": tag,
             "template_sha256": digest,
+            "output_sha256": output_sha256,
             "transport": "batch",
             "mean": mean,
             "coverage": round(coverage, 4),
