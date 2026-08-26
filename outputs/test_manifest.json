@@ -91,6 +91,22 @@
       "seconds": 1216.3,
       "finished": "2026-08-26T15:09:20.816624+00:00",
       "output_sha256": "e833f78cae0c38d4b1510492f5ad18dfc4df1bf25be8a43eac5b82a84e48654d"
+    },
+    "commercial_haiku": {
+      "condition": "zeroshot",
+      "config": "configs/test/commercial_haiku_zeroshot.full.yaml",
+      "seconds": null,
+      "finished": "2026-08-26T16:21:29.130447+00:00",
+      "timing_source": "output mtime; the kernel was lost before section 11",
+      "output_sha256": "9758395607ad31ef9cd1ba0e387984bed5c17926b6eb8b7b801f122af699f0a4"
+    },
+    "gpt56_sparse_knn": {
+      "condition": "sparse_knn",
+      "config": "configs/test/commercial_gpt56_sparse_knn.full.yaml",
+      "seconds": null,
+      "finished": "2026-08-26T17:10:26.457338+00:00",
+      "timing_source": "output mtime; the kernel was lost before section 11",
+      "output_sha256": "4ea9f9f51580a91138d7baa11bfcfceafe532c1c9642c2be70dffba97113848a"
     }
   },
   "derived_configs": {
@@ -121,7 +137,11 @@
     "configs/sparse_knn.yaml": {
       "path": "configs/test/sparse_knn.yaml",
       "sha256": "3dedce070242f0651165ac0b19bcc296e37c010b86b63a83db7970f2018f46a2"
-    }
+    },
+    "configs/commercial_haiku_zeroshot.yaml::pilot": "configs/test/commercial_haiku_zeroshot.pilot.yaml",
+    "configs/commercial_haiku_zeroshot.yaml::full": "configs/test/commercial_haiku_zeroshot.full.yaml",
+    "configs/commercial_gpt56_sparse_knn.yaml::pilot": "configs/test/commercial_gpt56_sparse_knn.pilot.yaml",
+    "configs/commercial_gpt56_sparse_knn.yaml::full": "configs/test/commercial_gpt56_sparse_knn.full.yaml"
   },
   "adapters": {
     "models/peft_lora_r32_lr2e-4/checkpoint-1358": "ad97c46af8528d22d7d26716be16d8ca01343dd86054efe4b1eee2b678243391",
@@ -164,5 +184,38 @@
     "transformers": "5.12.1",
     "peft": "0.18.0",
     "python": "3.12.13"
+  },
+  "spend": {
+    "authorized_usd": 15,
+    "projected_usd": 10.9084,
+    "actual_usd": 10.5462,
+    "per_row": {
+      "commercial_haiku": {
+        "pilot": {
+          "calls": 20,
+          "cost_usd": 0.0093,
+          "rate": 0.00046499999999999997
+        },
+        "full": {
+          "calls": 1302,
+          "cost_usd": 0.6129
+        },
+        "total_calls": 1322,
+        "total_usd": 0.6222
+      },
+      "gpt56_sparse_knn": {
+        "pilot": {
+          "calls": 20,
+          "cost_usd": 0.1633,
+          "rate": 0.008165
+        },
+        "full": {
+          "calls": 1302,
+          "cost_usd": 9.7607
+        },
+        "total_calls": 1322,
+        "total_usd": 9.924
+      }
+    }
   }
 }
