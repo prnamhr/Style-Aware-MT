@@ -1,0 +1,28 @@
+{
+  "metric": "comet",
+  "judge_tag": null,
+  "split": "val",
+  "conditions": [
+    "knn_fewshot",
+    "peft"
+  ],
+  "baseline": "knn_fewshot",
+  "adjacent": false,
+  "n_resamples": 10000,
+  "alpha": 0.05,
+  "seed": 42,
+  "comparisons": [
+    {
+      "a": "peft",
+      "b": "knn_fewshot",
+      "n": 1323,
+      "mean_a": 0.6985758094177585,
+      "mean_b": 0.6839142447155889,
+      "diff": 0.014661564702169616,
+      "ci_low": 0.010194424470817597,
+      "ci_high": 0.01914458943929349,
+      "p_value": 0.0,
+      "significant": true
+    }
+  ]
+}

@@ -268,3 +268,18 @@ rather than after seeing which comparisons came close. That is what is declared 
 
 Held-out distance, `Phi_A`, `Phi_B`, chrF, and BLEU were also read on val, which is part of why
 they sit outside the family rather than in it.
+
+## Addendum, 2026-08-26: GPT-5.6 rate corrected for its pilot
+
+The budget table above prices `gpt56_sparse_knn` generation at $7.765e-3 per call, taken from the
+val full run alone. The val pass also made a 15-call pilot costing $0.129, kept in a separate
+sidecar; blended over both, 1,323 calls for $10.2853, the rate is $7.774e-3 and the projected line
+is $10.28. The total becomes $41.81 to $42.04. Nothing else in this document changes.
+
+## Addendum, 2026-08-26: the pilot is a config value, not a CLI flag
+
+Step 5 above says the two external rows each start with a `--limit 20` pilot. `manage.py infer`
+takes no `--limit`; the cap is `data.limit` in the config it is given. The runbook therefore
+derives two configs per commercial row, one capped at 20 segments and one uncapped, and the full
+pass resumes over the pilot's rows. The commitment is unchanged - a metered pilot before the full
+pass - only the mechanism is stated correctly.

@@ -67,6 +67,160 @@ A second audit on 2026-08-10 checked `README.md` and `docs/budget.md` against th
 
 This log was audited for internal consistency against the committed artifacts, configs, and git history on 2026-08-01. Corrections made in that pass are marked inline as *Correction (2026-08-01)*; they amend the claims of earlier entries but do not restate their history.
 
+## 2026-08-26: Test-split generation declared before the seal is opened
+
+### Summary
+
+Steps 2-5 of the order of operations in `docs/preregistration_test.md`: the spend authorization,
+the leakage audit, and the two generation passes. Written before any of them has run. `outputs/`
+holds no `*_test.jsonl`, `results/` holds no `*_test*.json`, and `data/splits/test.jsonl` is
+`3e24e90f`, 1,322 segments over 8 works, unchanged in git since `f78ec23`.
+
+Steps 3 and 4 spend nothing and may run first. Step 5 does not start until `docs/budget.md`
+carries a dated authorization, and this entry exists so that what the run consists of is fixed
+while none of its numbers is available.
+
+### Step 2: authorization
+
+The projection uses the per-call rates measured on the most recent val passes, not the older
+planning rates.
+
+| Line | Calls | Rate | Cost |
+|---|---:|---:|---:|
+| `Phi_A`, `claude-haiku-4-5`, 14 conditions | 18,508 | $1.010e-3 to $1.020e-3 | $18.70 to $18.88 |
+| `Phi_B`, `gpt-5.6-terra`, Batch 50%, 14 conditions | 18,508 | $6.589e-4 to $6.619e-4 | $12.20 to $12.25 |
+| `gpt56_sparse_knn` generation | 1,322 | $7.774e-3 | $10.28 |
+| `commercial_haiku` generation | 1,322 | $4.774e-4 | $0.63 |
+| **Total** | **39,660** |  | **$41.81 to $42.04** |
+
+The GPT-5.6 rate is the val pass blended over its pilot and its full run, 1,323 calls for $10.2853;
+quoting the full run alone understates it by the pilot's $0.129. The two rater rates are the last
+recorded session of each: $1.3365 for 1,323 `Phi_A` calls, $0.8757 for 1,323 `Phi_B` calls.
+
+This is larger than any single authorization the project has recorded. The val rater pass was
+authorized at $5.74, and the $25 RLSF cap covers the training reward judge only; neither extends
+here. Two reductions are recorded now so that taking one later is a budget decision rather than a
+redesign: dropping `gpt56_sparse_knn` removes $10.28 of generation and about $2.20 of rater calls,
+and restricting both raters to the six conditions the confirmatory contrasts name removes roughly
+$13 more. Neither touches the ten confirmatory tests.
+
+### Step 3: leakage audit
+
+```bash
+python manage.py leakage --config configs/sparse_retrieval.yaml --split test --unseal-test
+```
+
+Without `--write-quarantine`. That flag writes `leak.quarantine_file`, which is
+`data/splits/pool_quarantine.json` - the val-only 22-row list rebuilt on 2026-08-23 - and a test
+audit would overwrite it with a list conditioned on the sealed split. The audit writes
+`results/leakage_test.json` and nothing else.
+
+The trigger is declared in `docs/preregistration_test.md`: if more than 2.56% of test segments are
+flagged as near-duplicates of a pool row, twice the val rate of 1.28% (17 of 1,323), the retrieval
+conditions are regenerated against a test-quarantined index and reported as a sensitivity check.
+Otherwise no quarantined rebuild happens.
+
+This reverses what the 2026-08-23 entry anticipated. That entry said a test-time quarantine has to
+be written at the final pass and the index rebuilt from it. The primary pass instead retrieves from
+`data/knn_index`, the unquarantined 10,860-row pool that every val run used, because pruning the
+pool for test and not for val changes the method between the two splits, which is a larger defect
+than the near-duplicate rate it removes. The audit still runs; its result is reported; the rebuild
+is conditional on the trigger rather than automatic.
+
+### Step 4: local generation
+
+Twelve rows on the frozen local base, listed with their configs in the pre-registration's condition
+table. The seal is opened by pointing `data.eval_file` at `data/splits/test.jsonl`. `manage.py
+infer` carries no test guard - unlike `afsp_sweep`, `afsp_verify`, `peft_sweep` and `leakage`,
+which all refuse it - so the opening is a config edit, and recording it here is what makes it
+deliberate rather than incidental.
+
+Nothing is re-selected. Decoding is the locked greedy setting, retrieval is k = 8 at
+`most_similar_last`, AFSP is the frozen (k, λ, β, σ), sparse is `min_df: 40` with the 500-term list
+at rarity digest `8fa5b0b2`, and the adapters are the PEFT checkpoint and the three RLSF
+checkpoints selected on the dev slice. The full list is the frozen-settings table in the
+pre-registration.
+
+Each row writes `outputs/<condition>_test.jsonl` and a `_usage.json` sidecar. For the twelve local
+rows that sidecar must record zero calls and $0.00; a nonzero one means a condition was routed to a
+paid provider and the row is discarded rather than reported.
+
+### Step 5: external generation
+
+`commercial_haiku` and `gpt56_sparse_knn`, both paid, each preceded by a `--limit 20` pilot whose
+realized per-call rate is checked against the projection above before the full pass runs. The val
+GPT-5.6 pass used a 15-row pilot the same way and its cost sidecar is kept separate from the full
+run's, which is why the blended rate above is recoverable at all.
+
+Neither row supports a confirmatory test. `commercial_haiku` is an external reference and
+`gpt56_sparse_knn` is a generator-family diagnostic; both change the model family and the compute
+budget, and the README already records that the GPT-5.6 row is descriptive only.
+
+### Verification
+
+Nothing in this entry has been run. What was checked before writing it:
+
+- `outputs/` and `results/` contain no artifact matching `*test*`; the test split has never been
+  generated on.
+- `sha256sum data/splits/test.jsonl` reproduces `3e24e90f...`, the digest in
+  `data/splits/hashes.json`.
+- `pytest tests/` passes at `a9f3caf`, 437 tests.
+- The rates in the step 2 table were re-read from the committed usage sidecars, not from
+  `docs/budget.md`'s older planning figures.
+
+The score-to-generation binding added earlier today at `a9f3caf` is in place, so the test pass is
+the first run under it: every judge and COMET record will carry the SHA-256 of the file it scored.
+
+### Reproduction
+
+```bash
+# 3
+python manage.py leakage --config configs/sparse_retrieval.yaml --split test --unseal-test
+
+# 4, one row shown; the twelve differ only in --condition and --config
+python manage.py infer --condition knn_fewshot --config configs/base_qwen.yaml   # eval_file: test
+
+# 5, pilot then full
+python manage.py infer --condition zeroshot --config configs/commercial_haiku_zeroshot.yaml --limit 20
+python manage.py infer --condition sparse_knn --config configs/commercial_gpt56_sparse_knn.yaml --limit 20
+```
+
+`notebooks/test_generation_colab.ipynb` is the runbook for steps 3, 4 and 5. It gates every cell
+that reads the sealed split behind a hand-set `SEAL_OPEN`, derives the test configs into
+`configs/test/` rather than editing the committed ones, asserts the frozen settings back out of
+each config before generating, and writes `outputs/test_manifest.json` with the SHA-256 of every
+generated row - the same digest the raters and COMET will bind to.
+
+The twelve local rows run with no API key in the kernel, asserted, so they cannot spend. Step 5 is
+gated separately behind `SPEND_OK` and an `AUTHORIZED_USD` that has to cover the projection. Each
+commercial row runs a 20-segment pilot first; its usage sidecar is copied to
+`<name>_test_pilot_usage.json` before the full pass, because `manage.py infer` overwrites that file
+per invocation and the val GPT-5.6 pass showed the blended rate is otherwise unrecoverable. The
+full pass runs only if the realized per-call rate is within 1.25x the projection and the revised
+total still fits the authorization. A pilot that reports `cost_usd` of 0 fails rather than passing,
+since an unpriced model would make the rate guard inert.
+
+### Limitations and risks
+
+The audit at step 3 is the third recorded read of the test split, after the marker statistics of
+2026-08-20 and the quarantine audit of 2026-08-23. It reaches no selection decision: its only
+possible consequence is the conditional sensitivity rerun, and that decision rule was fixed before
+the audit ran.
+
+The 2.56% trigger is set from the val flagged rate. A test rate just below it leaves the
+near-duplicate exposure in place rather than removing it, and that is the accepted cost of holding
+the retrieval pool identical across the two splits.
+
+Local generation is not byte-reproducible across sessions even at greedy decoding; the README
+records the drift and the `sparse_knn` rows in the val table were invalidated by exactly that. The
+binding from `a9f3caf` makes a regeneration after scoring fail loudly instead of silently, but it
+does not make generation stable. If a test row is regenerated after it is judged, its rater scores
+are spent and have to be bought again.
+
+Steps 6-9 are not covered here. The scoring passes, the ten confirmatory tests and the exploratory
+reporting are declared in `docs/preregistration_test.md` and will get their own entry once they
+have run.
+
 ## 2026-08-26: Scores bound to the generation bytes they scored
 
 ### Summary

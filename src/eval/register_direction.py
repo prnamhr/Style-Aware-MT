@@ -87,9 +87,7 @@ def derive_direction(targets: list[str], centroid: dict) -> dict[str, float]:
                 "rebuild results/stylometrics_centroid.json before deriving the direction"
             )
 
-    matrix = np.asarray(
-        [[features(text)[name] for name in names] for text in targets], dtype=float
-    )
+    matrix = np.asarray([[features(text)[name] for name in names] for text in targets], dtype=float)
     mean = np.asarray(centroid["mean"], dtype=float)
     std = np.asarray(centroid["std"], dtype=float)
     z = (matrix - mean) / std
@@ -162,22 +160,13 @@ def compare_directions(
         "max_abs_coefficient_delta": float(np.max(np.abs(raw_delta))),
         "max_abs_weight_share_delta": max_share_delta,
         "sign_flips": sign_flips,
-        "coefficient_delta": {
-            name: float(delta) for name, delta in zip(names, raw_delta)
-        },
-        "legacy_abs_weight_share": {
-            name: float(value) for name, value in zip(names, old_share)
-        },
-        "corrected_abs_weight_share": {
-            name: float(value) for name, value in zip(names, new_share)
-        },
-        "weight_share_delta": {
-            name: float(value) for name, value in zip(names, share_delta)
-        },
+        "coefficient_delta": {name: float(delta) for name, delta in zip(names, raw_delta)},
+        "legacy_abs_weight_share": {name: float(value) for name, value in zip(names, old_share)},
+        "corrected_abs_weight_share": {name: float(value) for name, value in zip(names, new_share)},
+        "weight_share_delta": {name: float(value) for name, value in zip(names, share_delta)},
         "classification": classification,
         "rerun_afsp_full": classification == "very_different",
     }
-
 
 
 def compare_afsp_sweep_objective(
@@ -283,9 +272,7 @@ def load_direction_artifact(
         missing = [name for name in names if name not in direction]
         extra = [name for name in direction if name not in names]
         if missing or extra:
-            raise ValueError(
-                f"{p} direction feature mismatch: missing={missing}, extra={extra}"
-            )
+            raise ValueError(f"{p} direction feature mismatch: missing={missing}, extra={extra}")
 
     if centroid is not None:
         artifact_fp = payload.get("centroid", {}).get("fingerprint")
@@ -346,9 +333,7 @@ def build_artifact(
         "comparison_to_legacy": comparison,
     }
     if sweep_results is not None and sweep_output_dir is not None:
-        impact = compare_afsp_sweep_objective(
-            sweep_results, sweep_output_dir, centroid, direction
-        )
+        impact = compare_afsp_sweep_objective(sweep_results, sweep_output_dir, centroid, direction)
         if impact is not None:
             artifact["afsp_sweep_objective_impact"] = impact
     return artifact
@@ -364,9 +349,7 @@ def main() -> None:
     parser.add_argument(
         "--afsp-sweep-results", type=Path, default=Path("results/afsp_sweep_val.json")
     )
-    parser.add_argument(
-        "--afsp-sweep-output-dir", type=Path, default=Path("outputs/sweep")
-    )
+    parser.add_argument("--afsp-sweep-output-dir", type=Path, default=Path("outputs/sweep"))
     parser.add_argument(
         "--no-sweep-impact", action="store_true", help="skip the offline AFSP sweep re-score"
     )

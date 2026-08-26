@@ -377,9 +377,7 @@ def component_level(
     return {"conditions": present, "n_pooled": int(phi.size), "features": out}
 
 
-def _common_keep(
-    conditions: list[str], rater_dirs: dict[str, Path]
-) -> dict[str, list[int]]:
+def _common_keep(conditions: list[str], rater_dirs: dict[str, Path]) -> dict[str, list[int]]:
     """Segment indices every rater scored, per condition."""
     out: dict[str, list[int]] = {}
     for cond in conditions:
