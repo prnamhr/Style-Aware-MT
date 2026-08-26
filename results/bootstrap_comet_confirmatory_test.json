@@ -1,0 +1,104 @@
+{
+  "metric": "comet",
+  "judge_tag": null,
+  "split": "test",
+  "conditions": [
+    "knn_fewshot",
+    "sparse_knn",
+    "afsp_full",
+    "peft",
+    "peft_afsp",
+    "rlsf_w3_2.0"
+  ],
+  "baseline": "knn_fewshot",
+  "adjacent": false,
+  "n_resamples": 10000,
+  "alpha": 0.05,
+  "seed": 42,
+  "comparisons": [
+    {
+      "a": "sparse_knn",
+      "b": "knn_fewshot",
+      "n": 1322,
+      "mean_a": 0.6903631465112208,
+      "mean_b": 0.690464983706936,
+      "diff": -0.00010183719571521532,
+      "ci_low": -0.0025333119046264813,
+      "ci_high": 0.002340143748788725,
+      "p_value": 0.9404,
+      "significant": false
+    },
+    {
+      "a": "afsp_full",
+      "b": "knn_fewshot",
+      "n": 1322,
+      "mean_a": 0.6934820720179178,
+      "mean_b": 0.690464983706936,
+      "diff": 0.003017088310981797,
+      "ci_low": -0.0003144326085808918,
+      "ci_high": 0.006386622586449594,
+      "p_value": 0.0782,
+      "significant": false
+    },
+    {
+      "a": "peft",
+      "b": "knn_fewshot",
+      "n": 1322,
+      "mean_a": 0.7195547507813767,
+      "mean_b": 0.690464983706936,
+      "diff": 0.029089767074440664,
+      "ci_low": 0.02438633129474079,
+      "ci_high": 0.033885077541516505,
+      "p_value": 0.0,
+      "significant": true
+    },
+    {
+      "a": "peft_afsp",
+      "b": "knn_fewshot",
+      "n": 1322,
+      "mean_a": 0.7180505923802842,
+      "mean_b": 0.690464983706936,
+      "diff": 0.02758560867334825,
+      "ci_low": 0.02294861613272628,
+      "ci_high": 0.03229745210975462,
+      "p_value": 0.0,
+      "significant": true
+    },
+    {
+      "a": "rlsf_w3_2.0",
+      "b": "knn_fewshot",
+      "n": 1322,
+      "mean_a": 0.7198048456488868,
+      "mean_b": 0.690464983706936,
+      "diff": 0.029339861941950818,
+      "ci_low": 0.024762462126302558,
+      "ci_high": 0.03400710976250057,
+      "p_value": 0.0,
+      "significant": true
+    },
+    {
+      "a": "peft_afsp",
+      "b": "peft",
+      "n": 1322,
+      "mean_a": 0.7180505923802842,
+      "mean_b": 0.7195547507813767,
+      "diff": -0.0015041584010924147,
+      "ci_low": -0.004980238351784921,
+      "ci_high": 0.001849258193427768,
+      "p_value": 0.3824,
+      "significant": false
+    },
+    {
+      "a": "rlsf_w3_2.0",
+      "b": "peft",
+      "n": 1322,
+      "mean_a": 0.7198048456488868,
+      "mean_b": 0.7195547507813767,
+      "diff": 0.0002500948675101533,
+      "ci_low": -0.0014086049478416879,
+      "ci_high": 0.0018711227134614505,
+      "p_value": 0.7562,
+      "significant": false
+    }
+  ]
+}
