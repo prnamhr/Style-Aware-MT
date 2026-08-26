@@ -7,8 +7,8 @@
     "ordering": "most_similar_last",
     "index_dir": "data/knn_index"
   },
-  "calls": 0,
-  "prompt_tokens": 0,
-  "completion_tokens": 0,
+  "calls": 1322,
+  "prompt_tokens": 1340061,
+  "completion_tokens": 40860,
   "cost_usd": 0.0
 }
