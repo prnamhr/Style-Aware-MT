@@ -67,6 +67,137 @@ A second audit on 2026-08-10 checked `README.md` and `docs/budget.md` against th
 
 This log was audited for internal consistency against the committed artifacts, configs, and git history on 2026-08-01. Corrections made in that pass are marked inline as *Correction (2026-08-01)*; they amend the claims of earlier entries but do not restate their history.
 
+## 2026-08-26: The fourteen rows generated on test, and an authorization written after the spend
+
+### Summary
+
+Steps 3, 4 and 5 of `docs/preregistration_test.md` ran. The leakage audit flagged 21 of 1,322 test
+segments, below the declared 2.56% trigger, so no quarantined rebuild happened. Twelve local rows
+generated at zero cost and two commercial rows cost $10.5462 over 2,644 calls, against a $10.91
+projection. `outputs/test_manifest.json` records the fourteen rows at freeze commit `88de192`, and
+its digests reproduce against the files on disk.
+
+The step 2 authorization did not exist when the paid rows ran. It is now recorded in
+`docs/budget.md` under today's date, and it says there what it says here: the line follows the
+spend rather than preceding it.
+
+### The authorization was written after the spend
+
+Step 2 of the order of operations puts a dated authorization in `docs/budget.md` before step 5. No
+such line existed when the two paid rows ran. The last commit to that file was `5f597f8` on
+2026-08-20, six days earlier, and it stated that the test split was sealed.
+
+The ceiling the run actually enforced was `AUTHORIZED_USD = 15`, a constant in section 10 of
+`notebooks/test_generation_colab.ipynb`. It was asserted twice, against the $10.9084 projection
+before the pilots and against the pilot-derived revised total before the full passes, and both
+assertions held. The cell in that section which names `docs/budget.md` prints its git log and then
+a reminder that the authorization must already be a dated line there; it reads nothing and asserts
+nothing, so an absent authorization passes it.
+
+What is recorded now is a correction, not the control the pre-registration asked for. The gap is
+worth stating precisely because the two lines still unspent are the larger ones: Phi_A and Phi_B
+over fourteen conditions are projected at $18.70 to $18.88 and $12.20 to $12.25, roughly three
+times what generation cost. Each needs its dated line before it runs.
+
+### Step 3: leakage audit
+
+`results/leakage_test.json` reports 21 of 1,322 test segments flagged, 1.589%, against the 2.56%
+trigger: 28 flag pairs over 28 distinct pool rows. The thresholds are the val audit's - cosine
+0.95, Jaccard 0.7 over character 4-grams, top 10 neighbours - and the val pass flagged 17 of 1,323,
+1.285%. The trigger did not fire. The retrieval conditions were not regenerated on a quarantined
+index, `data/splits/pool_quarantine.json` is byte-identical to the val-only list rebuilt on
+2026-08-23, and the manifest records `quarantine.applied: false`.
+
+The 28 pool rows reproduce the 28 that the 2026-08-23 audit found against test and that were then
+dropped from the quarantine, with `results/leakage_test.json` deleted. The file is written again
+here, under `--unseal-test`, as the diagnostic the pre-registration declares.
+
+### Step 4: the twelve local rows
+
+Twelve rows, 1,322 calls each, `cost_usd: 0.0` in every sidecar. Generation took 11,975 seconds,
+about 3.3 hours, on an RTX 5090 under torch 2.12.0+cu130, transformers 5.12.1, peft 0.18.0 and
+python 3.12.13; `peft_knn` was the slowest at 1,478 s and `zeroshot` the fastest at 587 s. The seal
+was opened by deriving `configs/test/*.yaml` from the committed configs rather than editing them,
+and the manifest carries a digest for each derived file. Section 9 of the runbook asserts zero cost
+across the twelve, no rater key in the environment, the test digest, and a working tree with no
+non-test change.
+
+Two sidecars did not survive the session as written. `outputs/zeroshot_test_usage.json` and
+`outputs/random_fewshot_test_usage.json` were committed at `a21de13` with `calls: 0`; `f6e694e`
+restored the provider-reported counts committed at `88d91d1`. The generation files themselves never
+changed - both are untouched since `88d91d1` and both still match their manifest digest. The
+runbook records the mechanism in section 10: a repeated pass over a finished output rewrites the
+usage sidecar with zeros. The pre-registration's discard rule reads a *nonzero* cost on a local row
+as evidence of paid routing, and a zeroed sidecar passes both that rule and the section 9
+assertion while carrying no evidence at all. That is why the counts were put back rather than left.
+
+### Step 5: the two commercial rows
+
+Each row ran a 20-segment pilot and then a full pass that resumed over it for 1,302 further calls.
+
+| Row | Pilot rate | Projected rate | Realized rate | Calls | Cost |
+|---|---:|---:|---:|---:|---:|
+| `commercial_haiku` | $4.650e-4 | $4.774e-4 | $4.707e-4 | 1,322 | $0.6222 |
+| `gpt56_sparse_knn` | $8.165e-3 | $7.774e-3 | $7.507e-3 | 1,322 | $9.9240 |
+| **Total** |  |  |  | **2,644** | **$10.5462** |
+
+The GPT-5.6 pilot came in at 1.05 times its projection, inside the 1.25x guard, and the full pass
+then ran below the projection: the pilot's 20 segments were longer-prompted than the split average.
+Realized spend is 0.967 times the projection and 0.70 times the $15 the notebook held.
+
+The kernel was lost before section 11. The two commercial rows therefore carry `seconds: null` and
+a `finished` timestamp taken from the output mtime, marked as such under `timing_source`; the
+twelve local rows carry measured wall clock. The final seal and the manifest write ran in a fresh
+kernel over the artifacts on disk rather than in the session that produced them, which is why the
+manifest's freeze commit is `88de192` while the artifacts landed across `88d91d1` to `f6e694e`.
+
+### Verification
+
+Recomputed from the files rather than read out of the manifest:
+
+- All fourteen `output_sha256` values in `outputs/test_manifest.json` match a fresh SHA-256 of the
+  corresponding `outputs/<condition>_test.jsonl`.
+- `data/splits/test.jsonl` is `3e24e90f`, the digest in `data/splits/hashes.json` and in the
+  manifest.
+- Each of the fourteen files holds 1,322 rows, in the source order of `test.jsonl`, with no empty
+  prediction.
+- The twelve local sidecars report 1,322 calls and $0.00 each; the four commercial sidecars sum to
+  $10.5462 over 2,644 calls.
+- The working tree is clean at `f6e694e`.
+
+No code changed in this pass. The digest binding added at `a9f3caf` has not been exercised yet:
+nothing has been scored, so no `_meta.json` carries an `outputs` block for a test condition.
+
+### Reproduction
+
+```bash
+python manage.py leakage --config configs/sparse_retrieval.yaml --split test --unseal-test
+```
+
+Sections 5, 7 and 10 of `notebooks/test_generation_colab.ipynb` behind `SEAL_OPEN` and `SPEND_OK`,
+with the derived configs under `configs/test/` at the digests the manifest records. Rerunning
+generation does not reproduce these files: greedy decoding is not byte-stable across sessions, and
+a rerun would rewrite the usage sidecars with zeros and break every digest in the manifest.
+
+### Limitations and risks
+
+The authorization order is the defect this entry records and cannot repair. A dated line written
+after the fact fixes the record, not the control, and the control only works before the next paid
+line - steps 6 and 7.
+
+The two commercial rows have no measured wall clock. Their costs are provider-reported and
+unaffected; only the timing is inferred.
+
+The restored counts in the two zeroed sidecars come from the earlier commit, not from a fresh
+measurement. Nothing recomputes prompt and completion tokens from the outputs, so those two rows
+are provider-reported at one remove.
+
+The 21 flagged segments stay in the primary table. The trigger did not fire, and holding the
+retrieval pool identical across the two splits was declared as worth that exposure.
+
+Steps 6 to 9 have not run. Until they do, the fourteen files are generations with no score bound to
+them, and any regeneration after scoring begins is money spent twice.
+
 ## 2026-08-26: Test-split generation declared before the seal is opened
 
 ### Summary

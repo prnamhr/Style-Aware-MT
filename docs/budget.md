@@ -4,13 +4,15 @@ This document tracks paid API use for the project. It records the spending limit
 
 GPU time is handled separately. AFSP sweeps, LoRA training, RLSF training, and full-split inference run on Colab from the runbooks under `notebooks/`. The 8 GB development GPU cannot hold `Qwen2.5-7B-Instruct` in bf16, and quantizing the model would change the frozen base used in the experiments. Local work such as data preparation, retrieval-index construction, most evaluation code, inferential analysis, and the test suite does not incur API cost.
 
-The test split is still sealed. No paid call listed here was made on the test split.
+The test split was unsealed for generation on 2026-08-26. The two commercial generation rows are recorded in the table below and priced in the section that follows it. The paid rater passes over the test split have not run and are not authorized here.
 
 ## Current status
 
 The three RLSF training arms have run. `w3_0.0` used `--skip_judge` and therefore incurred no judge cost. The two judge-conditioned arms, `w3_2.0` and `w3_6.0`, each ran for 300 rollouts.
 
 The original planning rate came from an 80-call smoke test. The two completed paid arms later provided a larger measurement over 19,200 calls. That measured rate is now used for future RLSF pricing in this document.
+
+The test-split generation pass ran on 2026-08-26. Its authorization is the section *Test-split generation, 2026-08-26* below, which was written after the spend rather than before it.
 
 The declared RLSF judge-spend cap remains **$25 across the paid RLSF work covered by the authorization dated 2026-08-08**. The runtime config uses an **$8 per-run cap**, because the cap enforced inside one process is not the same thing as the total project-level authorization.
 
@@ -45,9 +47,11 @@ The figures in this table come from provider-reported token counts stored by the
 | 2026-08-08 | Same smoke rerun after timing the judge block | `gpt-4o-mini` | 80 | $0.0059 | `outputs/rlsf/smoke_usage.json` |
 | 2026-08-14 | RLSF arm `w3_2.0`, 300 rollouts x 32 calls | `gpt-4o-mini` | 9,600 | $0.7423 | `outputs/rlsf/steps_w3_2.0_usage.json` |
 | 2026-08-14 | RLSF arm `w3_6.0`, 300 rollouts x 32 calls | `gpt-4o-mini` | 9,600 | $0.7431 | `outputs/rlsf/steps_w3_6.0_usage.json` |
-| **Recorded total** |  |  | **29,944** | **$8.2461** |  |
+| 2026-08-26 | `commercial_haiku` generation on test, 20-call pilot then 1,302 | `claude-haiku-4-5` | 1,322 | $0.6222 | `outputs/commercial_haiku_test_usage.json`, `_pilot_usage.json` |
+| 2026-08-26 | `gpt56_sparse_knn` generation on test, 20-call pilot then 1,302 | `gpt-5.6-sol` | 1,322 | $9.9240 | `outputs/gpt56_sparse_knn_test_usage.json`, `_pilot_usage.json` |
+| **Recorded total** |  |  | **32,588** | **$18.7923** |  |
 | 2026-08-14 | First `w3_6.0` attempt, killed at rollout 208 | `gpt-4o-mini` | 6,656 | ~$0.5149 | reconstructed, see below |
-| **Including reconstructed row** |  |  | **36,600** | **$8.7610** |  |
+| **Including reconstructed row** |  |  | **39,244** | **$19.3072** |  |
 
 `w3_0.0` ran 300 rollouts with `--skip_judge` on 2026-08-13. It made no paid judge calls, so there is no usage row for that arm.
 
@@ -60,6 +64,36 @@ A few paid calls are not included in that number because no usage artifact exist
 - **Phi_A validation pass:** `claude-haiku-4-5`, stored in `results/judge_val.json`. This pass happened before judge usage files were added on 2026-08-05, so its cost is unrecorded rather than estimated.
 - **Early exemplar-count probe:** `outputs/gpt-4o-mini__n{2,4,8,10}_val.jsonl`, committed at `50c7477` on 2026-07-17. These 85 generations also predate usage recording. They are not used in a reported result.
 - **The 2026-08-05 Phi_B amount is cumulative:** the full pass cost $6.0996 over 9,236 calls. The remaining 25 calls and $0.0177 came from the diagnostic pilot that preceded it. The batch pass used 3,796,497 prompt tokens and 386,804 completion tokens at `pricing: [2.00, 12.00]` with the 50% Batch API discount.
+
+## Test-split generation, 2026-08-26
+
+This section was written after the money was spent. Step 2 of the order of operations in
+`docs/preregistration_test.md` requires the authorization for the paid lines to be a dated entry in
+this file before step 5 runs; it was not written until the run had finished, on the same day. The
+last commit to this file before the run was `5f597f8` on 2026-08-20, and it stated that the test
+split was sealed.
+
+The ceiling the run enforced was `AUTHORIZED_USD = 15` in section 10 of
+`notebooks/test_generation_colab.ipynb`, asserted against the $10.91 projection before the pilots
+and again against the pilot-derived revised total before the full passes. The cell that names this
+file prints its git log and a reminder; it asserts nothing about the contents, so an absent
+authorization passed it. The control was real; it was not in the place the pre-registration
+required, which is this file.
+
+| Row | Model | Calls | Projected rate | Projected | Realized | Realized rate |
+|---|---|---:|---:|---:|---:|---:|
+| `commercial_haiku` | `claude-haiku-4-5` | 1,322 | $4.774e-4 | $0.63 | $0.6222 | $4.707e-4 |
+| `gpt56_sparse_knn` | `gpt-5.6-sol` | 1,322 | $7.774e-3 | $10.28 | $9.9240 | $7.507e-3 |
+| **Total** |  | **2,644** |  | **$10.91** | **$10.5462** |  |
+
+Realized spend is 0.967 times the projection and 0.70 times the $15. Each row ran a 20-segment
+pilot and the full pass then resumed over it for 1,302 further calls. The pilot rates were $4.650e-4
+and $8.165e-3 per call; the second is 1.05 times its projection, inside the 1.25x guard the runbook
+enforces before a full pass runs.
+
+This covers generation only. The two rater passes of steps 6 and 7 are projected at $18.70 to
+$18.88 for Phi_A and $12.20 to $12.25 for Phi_B, about three times the generation spend, and
+neither is authorized by this section. Each needs its own dated line here before it runs.
 
 ## Realized RLSF judge rate
 
