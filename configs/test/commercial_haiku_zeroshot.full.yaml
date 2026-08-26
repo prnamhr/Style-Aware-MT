@@ -1,0 +1,14 @@
+generator:
+  provider: anthropic
+  model: claude-haiku-4-5
+  max_tokens: 1024
+  thinking: false
+  temperature: 0.0
+prompt:
+  style_instruction_file: prompts/style_instruction.txt
+data:
+  eval_file: data/splits/test.jsonl
+  limit: null
+output:
+  dir: outputs
+  name: commercial_haiku
