@@ -1,0 +1,44 @@
+generator:
+  provider: local
+  model: Qwen/Qwen2.5-7B-Instruct
+  adapter_path: models/peft_lora_r32_lr2e-4/checkpoint-1358
+  max_tokens: 1024
+  temperature: 0.0
+  top_p: 1.0
+  seed: 42
+  dtype: bfloat16
+  device_map: auto
+  load_in_4bit: false
+prompt:
+  style_instruction_file: prompts/style_instruction.txt
+peft:
+  output_dir: outputs/peft/adapter
+  load_in_4bit: false
+  lora:
+    r: 32
+    alpha: 64
+    dropout: 0.05
+    target_modules: all-linear
+  train:
+    seed: 42
+    max_seq_len: 1024
+    per_device_train_batch_size: 1
+    per_device_eval_batch_size: 1
+    gradient_accumulation_steps: 16
+    learning_rate: 0.0002
+    num_train_epochs: 3
+    max_steps: -1
+    weight_decay: 0.0
+    warmup_ratio: 0.03
+    lr_scheduler_type: cosine
+    gradient_checkpointing: true
+    logging_steps: 10
+    eval_strategy: epoch
+    save_strategy: epoch
+    save_total_limit: 1
+data:
+  train_file: data/splits/train.jsonl
+  eval_file: data/splits/test.jsonl
+  limit: null
+output:
+  dir: outputs

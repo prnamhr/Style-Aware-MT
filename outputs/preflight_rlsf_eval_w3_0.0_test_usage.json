@@ -1,0 +1,12 @@
+{
+  "condition": "peft",
+  "output_name": "preflight_rlsf_eval_w3_0.0",
+  "model": "Qwen/Qwen2.5-7B-Instruct",
+  "provenance": {
+    "adapter_path": "models/rlsf_grpo_w3_0.0/checkpoint-200"
+  },
+  "calls": 2,
+  "prompt_tokens": 457,
+  "completion_tokens": 19,
+  "cost_usd": 0.0
+}

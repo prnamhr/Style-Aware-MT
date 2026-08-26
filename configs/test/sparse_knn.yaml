@@ -1,0 +1,33 @@
+generator:
+  provider: local
+  model: Qwen/Qwen2.5-7B-Instruct
+  max_tokens: 1024
+  temperature: 0.0
+  top_p: 1.0
+  seed: 42
+  dtype: bfloat16
+  device_map: auto
+  load_in_4bit: false
+prompt:
+  style_instruction_file: prompts/style_instruction.txt
+  ordering: most_similar_last
+  ordering_seed: 42
+  word_pairs: true
+  glossary_file: prompts/register_glossary.tsv
+retrieval:
+  embed_model: intfloat/multilingual-e5-large-instruct
+  index_dir: data/knn_index
+  train_file: data/splits/train.jsonl
+  k: 8
+rarity:
+  min_df: 40
+  freeze_n: 500
+  zwnj: keep
+  out: results/rarity_train.json
+sparse:
+  m: 4
+data:
+  eval_file: data/splits/test.jsonl
+  limit: null
+output:
+  dir: outputs

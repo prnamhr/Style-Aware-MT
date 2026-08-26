@@ -1,0 +1,168 @@
+{
+  "split": "test",
+  "eval_file": {
+    "path": "data/splits/test.jsonl",
+    "sha256": "3e24e90f55e5e53006497e2cd8d61dc28c426f7908d99ca88f8f411a9e2e2913",
+    "n": 1322
+  },
+  "commit": "88de192411389fba9b79470f0d450debfd7d054e",
+  "preregistration": "docs/preregistration_test.md",
+  "rows": {
+    "zeroshot": {
+      "condition": "zeroshot",
+      "config": "configs/test/base_qwen.yaml",
+      "seconds": 587.3,
+      "finished": "2026-08-26T11:59:32.917963+00:00",
+      "output_sha256": "6b752e8286467689f599db6710b5f060584ccb39c16ce768a7a10e0b4a0193e7"
+    },
+    "random_fewshot": {
+      "condition": "random_fewshot",
+      "config": "configs/test/base_qwen.yaml",
+      "seconds": 658.3,
+      "finished": "2026-08-26T12:10:31.169616+00:00",
+      "output_sha256": "b6abc645ba3b4a8e6cf8f7a62b3792e96c45df95afbc50f6d1f8642461ad486f"
+    },
+    "knn_fewshot": {
+      "condition": "knn_fewshot",
+      "config": "configs/test/base_qwen.yaml",
+      "seconds": 791.4,
+      "finished": "2026-08-26T12:23:42.611508+00:00",
+      "output_sha256": "f1d4797ed73e6ac2b1fb1bc20df5db3b2dc66466452d44426b805a53fd46d622"
+    },
+    "sparse_knn": {
+      "condition": "sparse_knn",
+      "config": "configs/test/sparse_knn.yaml",
+      "seconds": 792.5,
+      "finished": "2026-08-26T12:36:55.122040+00:00",
+      "output_sha256": "8d1b339eda7eb80283b1c4824f169d3aa035cffc6ba1129df8578fe3b6aefcb9"
+    },
+    "afsp_margin": {
+      "condition": "afsp_margin",
+      "config": "configs/test/base_qwen.yaml",
+      "seconds": 771.0,
+      "finished": "2026-08-26T12:49:46.080366+00:00",
+      "output_sha256": "c2d37f34ca30065f39e6b14a88f7ad06c5f7589abe69206dc0d717122fb1a6cc"
+    },
+    "afsp_full": {
+      "condition": "afsp_full",
+      "config": "configs/test/base_qwen.yaml",
+      "seconds": 709.7,
+      "finished": "2026-08-26T13:01:35.789395+00:00",
+      "output_sha256": "2f91facd848da0ea00f574d2863182f50a6cb468c228ff8ee03e7017a375b047"
+    },
+    "peft": {
+      "condition": "peft",
+      "config": "configs/test/peft_qwen.yaml",
+      "seconds": 1188.4,
+      "finished": "2026-08-26T13:21:24.228116+00:00",
+      "output_sha256": "e20cf8ea2ee8950a4b900d23d6e5be1829ac1c51b2f424c303aa3ddf99643597"
+    },
+    "peft_knn": {
+      "condition": "peft_knn",
+      "config": "configs/test/peft_afsp.yaml",
+      "seconds": 1478.0,
+      "finished": "2026-08-26T13:46:02.259072+00:00",
+      "output_sha256": "bd089395acc2fe78d63f0ff44e130b2dc52366aa87e8d390bd872dabfcf1c167"
+    },
+    "peft_afsp": {
+      "condition": "peft_afsp",
+      "config": "configs/test/peft_afsp.yaml",
+      "seconds": 1385.7,
+      "finished": "2026-08-26T14:09:07.937732+00:00",
+      "output_sha256": "b4ddb9b4a49de74eedfb0a6a980bfd7a5a1dc2933653d936f03e480f133d8ff8"
+    },
+    "rlsf_w3_0.0": {
+      "condition": "peft",
+      "config": "configs/test/rlsf_eval_w3_0.0.yaml",
+      "seconds": 1202.4,
+      "finished": "2026-08-26T14:29:10.314805+00:00",
+      "output_sha256": "359f50ba05c7f86b16b2981957ccf64437e841617492bfe8faf30f75b0ea8509"
+    },
+    "rlsf_w3_2.0": {
+      "condition": "peft",
+      "config": "configs/test/rlsf_eval_w3_2.0.yaml",
+      "seconds": 1194.2,
+      "finished": "2026-08-26T14:49:04.550967+00:00",
+      "output_sha256": "cb11099d7a5298c9c52480e37d49ad27010e9fd40b6f93997adfc5aa9ec1b55c"
+    },
+    "rlsf_w3_6.0": {
+      "condition": "peft",
+      "config": "configs/test/rlsf_eval_w3_6.0.yaml",
+      "seconds": 1216.3,
+      "finished": "2026-08-26T15:09:20.816624+00:00",
+      "output_sha256": "e833f78cae0c38d4b1510492f5ad18dfc4df1bf25be8a43eac5b82a84e48654d"
+    }
+  },
+  "derived_configs": {
+    "configs/base_qwen.yaml": {
+      "path": "configs/test/base_qwen.yaml",
+      "sha256": "5fd13fc4acee948d6d8b67ef2e3533a0e90a46106b9d857b6ee52f3ae733aee4"
+    },
+    "configs/peft_afsp.yaml": {
+      "path": "configs/test/peft_afsp.yaml",
+      "sha256": "d2449f6d7916c2dca393bcf6d25907df0d2a03cd6c32c1defcb78d7deea925c6"
+    },
+    "configs/peft_qwen.yaml": {
+      "path": "configs/test/peft_qwen.yaml",
+      "sha256": "5ad66601866c9bae0cb5a92aa3106c0b937e1749ef17c4b7cb4ea8a37d3002ee"
+    },
+    "configs/rlsf_eval_w3_0.0.yaml": {
+      "path": "configs/test/rlsf_eval_w3_0.0.yaml",
+      "sha256": "48a6302f30e6a3f5f22c9bf247c8a53553a57605601cba28c7fe9808d16422aa"
+    },
+    "configs/rlsf_eval_w3_2.0.yaml": {
+      "path": "configs/test/rlsf_eval_w3_2.0.yaml",
+      "sha256": "4ee18a7d6fb1421b3916144aade5692b3fc74e3a0eb3fcf6a5c701b639f40788"
+    },
+    "configs/rlsf_eval_w3_6.0.yaml": {
+      "path": "configs/test/rlsf_eval_w3_6.0.yaml",
+      "sha256": "7328a33e97e41d35d4866b4eefd12030c9e6947036dddd461dc61c124aa0e17b"
+    },
+    "configs/sparse_knn.yaml": {
+      "path": "configs/test/sparse_knn.yaml",
+      "sha256": "3dedce070242f0651165ac0b19bcc296e37c010b86b63a83db7970f2018f46a2"
+    }
+  },
+  "adapters": {
+    "models/peft_lora_r32_lr2e-4/checkpoint-1358": "ad97c46af8528d22d7d26716be16d8ca01343dd86054efe4b1eee2b678243391",
+    "models/rlsf_grpo_w3_0.0/checkpoint-200": "ef232d93a6646d8973017df8c9b3deefc6a3a1348f83bd0df0d4015b3aba431f",
+    "models/rlsf_grpo_w3_2.0/checkpoint-200": "c322802ef93038b4561e2fbbf5ae3908609c8058bba47f5596a35b55309e69f3",
+    "models/rlsf_grpo_w3_6.0/checkpoint-100": "afbd5a74ca412bc3812439c87381c4bb58a63c11555f9aa9732553b7c57e8129"
+  },
+  "index": {
+    "dir": "data/knn_index",
+    "rebuilt_here": false,
+    "sha256": {
+      "embeddings.npy": "9c282c8042ab740ef5aec39606820648536b9e73da5b154c51680e906c9b6a16",
+      "pairs.jsonl": "c48f429809435593f11f0b363fab26b9ad5de6b9eb48beabb8d7e732a4b0c2a1",
+      "meta.json": "b028a2a81f9f0eed107cc00f01a1e2d107c0fd1f42a82420adfd5b1e229ab512"
+    },
+    "meta": {
+      "embed_model": "intfloat/multilingual-e5-large-instruct",
+      "indexed_side": "source",
+      "n_passages": 10860,
+      "dim": 1024,
+      "source_file": "data/splits/train.jsonl"
+    }
+  },
+  "quarantine": {
+    "path": "data/splits/pool_quarantine.json",
+    "sha256": "07ffc842ea2291cf0e1a5c824225e8d7f4b90a7d0164ffc63d1380f85a88714d",
+    "applied": false
+  },
+  "leakage": {
+    "flagged": 21,
+    "n": 1322,
+    "rate": 0.01589,
+    "trigger": 0.0256,
+    "fired": false
+  },
+  "versions": {
+    "device": "NVIDIA GeForce RTX 5090",
+    "torch": "2.12.0+cu130",
+    "cuda": "13.0",
+    "transformers": "5.12.1",
+    "peft": "0.18.0",
+    "python": "3.12.13"
+  }
+}

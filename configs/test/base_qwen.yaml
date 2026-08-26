@@ -1,0 +1,35 @@
+generator:
+  provider: local
+  model: Qwen/Qwen2.5-7B-Instruct
+  max_tokens: 1024
+  temperature: 0.0
+  top_p: 1.0
+  seed: 42
+  dtype: bfloat16
+  device_map: auto
+  load_in_4bit: false
+prompt:
+  style_instruction_file: prompts/style_instruction.txt
+  ordering: most_similar_last
+  ordering_seed: 42
+  word_pairs: true
+  glossary_file: prompts/register_glossary.tsv
+retrieval:
+  embed_model: intfloat/multilingual-e5-large-instruct
+  index_dir: data/knn_index
+  train_file: data/splits/train.jsonl
+  k: 8
+afsp:
+  beta: 0.3
+  knn_hubness: 5
+  pool_mult: 4
+  lambda_style: 0.75
+  style_objective: bandpass
+  style_target_sigma: 1.0
+  style_register_direction_file: results/register_direction.json
+  centroid_file: results/stylometrics_centroid.json
+data:
+  eval_file: data/splits/test.jsonl
+  limit: null
+output:
+  dir: outputs

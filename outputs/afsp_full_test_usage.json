@@ -1,0 +1,22 @@
+{
+  "condition": "afsp_full",
+  "output_name": "afsp_full",
+  "model": "Qwen/Qwen2.5-7B-Instruct",
+  "provenance": {
+    "k": 8,
+    "ordering": "most_similar_last",
+    "index_dir": "data/knn_index",
+    "beta": 0.3,
+    "lambda_style": 0.75,
+    "style_objective": "bandpass",
+    "style_target_sigma": 1.0,
+    "centroid": {
+      "path": "results/stylometrics_centroid.json",
+      "fingerprint": "fd5aec8d69454b02"
+    }
+  },
+  "calls": 1322,
+  "prompt_tokens": 1931230,
+  "completion_tokens": 41240,
+  "cost_usd": 0.0
+}

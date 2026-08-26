@@ -1,0 +1,15 @@
+{
+  "condition": "peft_knn",
+  "output_name": "peft_knn",
+  "model": "Qwen/Qwen2.5-7B-Instruct",
+  "provenance": {
+    "adapter_path": "models/peft_lora_r32_lr2e-4/checkpoint-1358",
+    "k": 8,
+    "ordering": "most_similar_last",
+    "index_dir": "data/knn_index"
+  },
+  "calls": 1322,
+  "prompt_tokens": 2718190,
+  "completion_tokens": 40224,
+  "cost_usd": 0.0
+}

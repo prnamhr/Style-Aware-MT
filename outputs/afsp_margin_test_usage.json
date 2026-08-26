@@ -1,0 +1,18 @@
+{
+  "condition": "afsp_margin",
+  "output_name": "afsp_margin",
+  "model": "Qwen/Qwen2.5-7B-Instruct",
+  "provenance": {
+    "k": 8,
+    "ordering": "most_similar_last",
+    "index_dir": "data/knn_index",
+    "beta": 0.3,
+    "lambda_style": 0.0,
+    "style_objective": "bandpass",
+    "style_target_sigma": 1.0
+  },
+  "calls": 1322,
+  "prompt_tokens": 2642983,
+  "completion_tokens": 41020,
+  "cost_usd": 0.0
+}

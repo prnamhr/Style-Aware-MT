@@ -1,0 +1,12 @@
+{
+  "condition": "peft",
+  "output_name": "preflight_peft_qwen",
+  "model": "Qwen/Qwen2.5-7B-Instruct",
+  "provenance": {
+    "adapter_path": "models/peft_lora_r32_lr2e-4/checkpoint-1358"
+  },
+  "calls": 2,
+  "prompt_tokens": 457,
+  "completion_tokens": 19,
+  "cost_usd": 0.0
+}

@@ -1,0 +1,14 @@
+{
+  "condition": "random_fewshot",
+  "output_name": "random_fewshot",
+  "model": "Qwen/Qwen2.5-7B-Instruct",
+  "provenance": {
+    "k": 8,
+    "ordering": "most_similar_last",
+    "index_dir": "data/knn_index"
+  },
+  "calls": 1322,
+  "prompt_tokens": 1340061,
+  "completion_tokens": 40860,
+  "cost_usd": 0.0
+}

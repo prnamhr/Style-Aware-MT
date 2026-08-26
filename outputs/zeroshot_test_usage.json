@@ -1,0 +1,10 @@
+{
+  "condition": "zeroshot",
+  "output_name": "zeroshot",
+  "model": "Qwen/Qwen2.5-7B-Instruct",
+  "provenance": {},
+  "calls": 1322,
+  "prompt_tokens": 345020,
+  "completion_tokens": 41340,
+  "cost_usd": 0.0
+}
