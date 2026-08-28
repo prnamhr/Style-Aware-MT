@@ -6,7 +6,7 @@ This project studies that question using Persian and mixed Persian/Arabic Bahá'
 
 This is an undergraduate Computer Engineering thesis project at BIHE, supervised by Dr. Fares Hedayati.
 
-> **Status:** Test generation and scoring are complete. Validation results below document model development and selection; final thesis claims are based on the frozen held-out test evaluation in `results/confirmatory_test.json` and the associated test artifacts.
+> **Status:** Test generation and scoring are complete. The main performance table below reports the frozen 1,322-segment held-out test evaluation. Validation remains development evidence for model and checkpoint selection.
 
 ## Overview
 
@@ -25,7 +25,7 @@ Two hybrid conditions test whether retrieval still helps after PEFT:
 
 A later `sparse_knn` follow-up tests a different retrieval idea: use rare source-side terms to select part of the few-shot context, then fill the remaining prompt slots with ordinary cosine kNN.
 
-The validation/development result is mixed rather than a single winner. RLSF `w3=2` gives the lowest held-out style distance, while `w3=6` gives the lowest full stylometric distance. PEFT+AFSP has the highest COMET score among the main study systems, and PEFT+KNN has the highest chrF and BLEU. Final thesis claims are separated from these development results and are reported from the frozen held-out test evaluation.
+The held-out test result is mixed rather than a single winner. RLSF `w3=2` has the lowest full stylometric distance among the main study systems and the lowest held-out distance among the PEFT/RLSF decomposition conditions. PEFT+KNN has the highest chrF and BLEU. The LLM judges do not rank the systems identically, so `Phi_A` and `Phi_B` are reported separately rather than combined into a single style score.
 
 The interpretation of the RLSF results changed after a case-sensitivity bug was found in one stylometric feature. The corrected analysis shows the judge-conditioned RLSF arms moving closer to the measured target register through most of training, with possible over-stylization appearing only later in the strongest trajectory.
 
@@ -225,52 +225,42 @@ AFSP is different because `afsp_full` uses the target-register centroid during e
 
 The AFSP register direction is no longer hard-coded in the configs. `python manage.py register_direction` derives it from the corrected training-target centroid and writes `results/register_direction.json`, which all seven AFSP/PEFT selection configs now read. The corrected coefficients are `marker_rate = 0.414116`, `lex_density = 0.321723`, `root_ttr = -0.273426`, and `ttr = 0.047505`. Against the former hard-coded vector, the direction has cosine similarity 0.9962, a 4.996 degree angle, no sign flips, and a maximum absolute normalized-weight-share shift of 0.0326. Under the comparison thresholds fixed in the derivation script, this is **near-identical**, not materially or very different. An offline re-score of the 19 already-generated AFSP sweep outputs changed `register_fit` by at most 0.00939 and kept the frozen recommendation at `k = 8`, `lambda_style = 0.75`. The direction correction therefore does not trigger a new `afsp_full` generation run. This conclusion is limited to the direction component; the marker-rate/centroid correction itself still changed retrieval choices in the earlier case-fix sensitivity runs.
 
-## Final held-out test evidence
+## Final held-out test results
 
-The final thesis claims use the 1,322-segment test split after model, retrieval, checkpoint, and decoding choices were frozen on development data. The pre-registered confirmatory family contains five contrasts evaluated on COMET and full stylometric distance.
+All main rows below use the same 1,322-segment test split. Model, retrieval, checkpoint, and decoding choices were frozen using development data before this final evaluation.
 
-Three predictions replicate under the pre-registered decision rule:
-
-- **PEFT improves COMET over kNN few-shot:** +0.02909, 95% CI [0.02439, 0.03389].
-- **RLSF `w3=2` improves full stylometric distance over PEFT:** -0.02836, 95% CI [-0.04140, -0.01563]. Lower distance is better.
-- **PEFT+AFSP increases full stylometric distance relative to PEFT:** +0.08924, 95% CI [0.05730, 0.12284], reproducing the validation-side trade-off in which retrieval on top of PEFT moves the output farther from the target centroid.
-
-The other seven pre-registered tests do not meet the corrected confirmatory criterion. They are reported as not replicated or not detected rather than as evidence of no effect. Full test statistics, correction thresholds, output hashes, and verdicts are in [`results/confirmatory_test.json`](results/confirmatory_test.json). Validation results remain useful for explaining model selection and development behaviour, but they are not substituted for this held-out test evidence in the thesis.
-
-## Validation results
-
-All main rows below use the same 1,323-segment validation split and locked greedy decoding. As a table, these are development results; the specific RLSF predictions fixed before GRPO are classified separately in `results/evidence_class.json`.
-
-Higher is better for COMET, chrF, BLEU, `Phi_A`, and `Phi_B`. Lower is better for the two stylometric distances.
+Higher is better for COMET, chrF, BLEU, `Phi_A`, and `Phi_B`. Lower is better for the stylometric distances. Held-out distance is shown only for PEFT and the three RLSF arms because the test decomposition artifact was run for that comparison family.
 
 | Condition | COMET | chrF | BLEU | Phi_A | Phi_B | Full style dist. | Held-out dist. |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| Zero-shot | 0.6480 | 36.42 | 10.27 | 2.546 | 3.648 | 0.4481 | 0.3417 |
-| Random few-shot | 0.6644 | 37.52 | 11.64 | 2.633 | 3.633 | 0.3162 | 0.2282 |
-| kNN few-shot | 0.6839 | 39.82 | 13.99 | 2.748 | 3.679 | 0.3659 | 0.2337 |
-| Sparse-KNN | 0.6846 | 40.08 | 14.31 | — | — | 0.3750 | 0.2404 |
-| AFSP-margin | 0.6824 | 39.68 | 13.69 | 2.763 | 3.667 | 0.3394 | 0.2203 |
-| AFSP-full | 0.6853 | 39.99 | 14.52 | 2.791 | **3.707** | 0.3032 | 0.2111 |
-| PEFT | 0.6986 | 41.58 | 16.90 | 2.744 | 3.613 | 0.2890 | 0.1713 |
-| RLSF `w3=0`, step 200 | 0.7007 | 41.85 | 17.01 | 2.769 | 3.598 | 0.2857 | 0.1626 |
-| RLSF `w3=2`, step 200 | 0.7007 | 42.04 | 17.00 | 2.791 | 3.653 | 0.2793 | **0.1264** |
-| RLSF `w3=6`, step 100 | 0.6993 | 42.08 | 17.13 | 2.742 | 3.636 | **0.2704** | 0.1423 |
-| PEFT+KNN | 0.7015 | **42.40** | **17.98** | 2.802 | 3.662 | 0.3589 | 0.2874 |
-| PEFT+AFSP | **0.7033** | 42.12 | 17.77 | 2.795 | 3.637 | 0.3244 | 0.2620 |
+| Zero-shot | 0.6635 | 35.21 | 11.36 | 2.626 | 3.576 | 0.3268 | — |
+| Random few-shot | 0.6703 | 35.84 | 11.88 | 2.591 | **3.580** | 0.3569 | — |
+| kNN few-shot | 0.6905 | 38.41 | 13.90 | 2.711 | 3.554 | 0.3423 | — |
+| Sparse-KNN | 0.6904 | 38.35 | 14.09 | 2.692 | 3.512 | 0.3536 | — |
+| AFSP-margin | 0.6927 | 38.32 | 13.90 | 2.682 | 3.541 | 0.3499 | — |
+| AFSP-full | 0.6935 | 38.55 | 13.84 | **2.738** | 3.542 | 0.3357 | — |
+| PEFT | 0.7196 | 39.69 | 15.69 | 2.610 | 3.376 | 0.3515 | 0.3488 |
+| RLSF `w3=0`, step 200 | 0.7198 | 39.99 | 16.12 | 2.623 | 3.362 | 0.3631 | 0.3551 |
+| RLSF `w3=2`, step 200 | **0.7198** | 40.06 | 15.93 | 2.662 | 3.417 | **0.3228** | **0.3192** |
+| RLSF `w3=6`, step 100 | 0.7198 | 40.01 | 16.03 | 2.662 | 3.441 | 0.3318 | 0.3299 |
+| PEFT+KNN | 0.7180 | **40.26** | **16.33** | 2.622 | 3.361 | 0.4152 | — |
+| PEFT+AFSP | 0.7181 | 40.09 | 16.00 | 2.594 | 3.330 | 0.4415 | — |
 
-There is no single metric winner.
+There is no single metric winner. RLSF `w3=2` has the highest COMET point estimate by a very small margin, but its pre-registered COMET contrast against PEFT is not statistically resolved. Its improvement over PEFT in full stylometric distance is resolved and is one of the three confirmatory findings that replicate on test. PEFT+KNN has the strongest chrF and BLEU point estimates. AFSP-full is highest on `Phi_A`, while random few-shot is highest on `Phi_B`, which is another reason not to collapse the two judges into one score.
 
-RLSF `w3=2` has the lowest corrected held-out distance, at 0.1264, compared with 0.1713 for PEFT. It also has higher means than PEFT under both evaluation judges.
+The pre-registered confirmatory family contains five contrasts evaluated on COMET and full stylometric distance, giving ten tests with Holm-Bonferroni correction across the family. Three predictions replicate under that decision rule:
 
-RLSF `w3=6` has the lowest corrected full stylometric distance, at 0.2704. Because this is the high-pressure diagnostic arm, I treat it mainly as evidence about how strong style optimization changes the model rather than as a replacement for the selected moderate arm.
+- **PEFT improves COMET over kNN few-shot:** +0.02909, 95% CI [0.02439, 0.03389].
+- **RLSF `w3=2` improves full stylometric distance over PEFT:** -0.02836, 95% CI [-0.04140, -0.01563]. Lower distance is better.
+- **PEFT+AFSP increases full stylometric distance relative to PEFT:** +0.08924, 95% CI [0.05730, 0.12284].
 
-PEFT+AFSP has the highest COMET score among the main study conditions. PEFT+KNN has the highest chrF and BLEU. AFSP-full remains highest on `Phi_B` at 3.707. For the current Sparse-KNN run, COMET is 0.6846, chrF is 40.08, and BLEU is 14.31; none of its paired adequacy differences from ordinary kNN is statistically resolved. It has no rater score. Its full stylometric distance is 0.3750, compared with 0.3659 for ordinary kNN. The two PEFT retrieval hybrids are also close under both LLM judges.
+The other seven pre-registered tests do not meet the corrected confirmatory criterion. They are reported as not replicated or not detected, not as evidence of no effect. Full test statistics, correction thresholds, output hashes, and verdicts are in [`results/confirmatory_test.json`](results/confirmatory_test.json).
 
-The main result is therefore a trade-off, the method that looks best under semantic and reference-overlap metrics is not necessarily the one closest to the measured register.
+Validation is still used for development decisions, ablations, sensitivity checks, and trajectory analysis. Those artifacts remain under `results/*_val.json`, but validation values are not repeated as the headline performance table because the thesis final performance claims come from test.
 
 ## RLSF trajectory
 
-The selected checkpoints do not show what happens later in training, so the three RLSF arms were also evaluated at matched checkpoints:
+The selected checkpoints do not show what happens later in training, so the three RLSF arms were also evaluated at matched checkpoints on validation data. This trajectory is exploratory and is not repeated on test:
 
 ```text
 steps = 100, 200, 400, 800, 1200
@@ -303,21 +293,21 @@ Artifacts:
 
 ## PEFT+AFSP follow-up
 
-Compared with PEFT, PEFT+AFSP improves COMET, chrF, and BLEU, but its corrected full and held-out stylometric distances are higher than PEFT's. Its judge means are slightly higher, although the differences are not resolved consistently across raters.
+On test, PEFT+AFSP does not improve COMET over PEFT: 0.7181 versus 0.7196. Its chrF and BLEU point estimates are slightly higher, but both LLM-judge means are slightly lower. Its full stylometric distance is also substantially higher, 0.4415 versus 0.3515. In the pre-registered family, the COMET contrast is not replicated, while the predicted increase in stylometric distance is replicated.
 
-Compared with PEFT+KNN, the two hybrid systems are close on adequacy and perceived register. PEFT+AFSP has the lower full stylometric distance, 0.3244 versus 0.3589.
+PEFT+KNN is also stronger than PEFT+AFSP on the test chrF and BLEU point estimates and has a lower full stylometric distance, 0.4152 versus 0.4415. These hybrid comparisons are therefore reported as metric trade-offs rather than as evidence that AFSP improves the PEFT system overall.
 
-The `afsp_full_casefix` and `peft_afsp_casefix` runs are sensitivity-only robustness checks, not main study conditions. Correcting the centroid changed many retrieved examples and many individual translations, but the aggregate validation profile stayed close to the original. That suggests AFSP is sensitive at the example-selection level without producing an equally large shift in corpus-level performance.
+The `afsp_full_casefix` and `peft_afsp_casefix` runs are sensitivity-only robustness checks, not main study conditions. Correcting the centroid changed many retrieved examples and many individual translations, but the aggregate validation profile stayed close to the original. That sensitivity analysis remains development evidence and is not substituted for the held-out test comparison above.
 
 
 ## External reference
 
-For context, `claude-haiku-4-5` is also evaluated zero-shot on the same validation corpus. `gpt56_sparse_knn` is retained as a generator-family diagnostic using the frozen Sparse-KNN retrieval configuration. Neither is part of the controlled study because each changes the model family and compute budget.
+For context, `claude-haiku-4-5` is also evaluated zero-shot on the same test corpus. `gpt56_sparse_knn` is retained as a generator-family diagnostic using the frozen Sparse-KNN retrieval configuration. Neither is part of the controlled study because each changes the model family and compute budget.
 
 | Condition | COMET | chrF | BLEU | Phi_A | Phi_B | Full style dist. |
 |---|---:|---:|---:|---:|---:|---:|
-| Commercial zero-shot | 0.7185 | 45.24 | 18.06 | 3.333 | 3.981 | 0.4873 |
-| GPT-5.6 + Sparse-KNN | 0.7480 | 50.29 | 24.16 | 3.625 | — | 0.2455 |
+| Commercial zero-shot | 0.7355 | 43.84 | 17.86 | 3.356 | 3.862 | 0.4719 |
+| GPT-5.6 + Sparse-KNN | 0.7610 | 48.37 | 22.86 | 3.536 | 4.150 | 0.3832 |
 
 The GPT-5.6 Sparse-KNN row is descriptive only. Its matched `gpt56_knn_fewshot` generation has not been fully scored, so this row cannot isolate the effect of sparse retrieval from the change in generator.
 
@@ -336,6 +326,8 @@ seed = 42
 Full stylometric rank and distance uncertainty are also bootstrapped by recomputing the condition-level feature vector inside each resample.
 
 A few reporting rules are kept throughout the project:
+
+Evidence class is assigned to a claim or analysis scope, not to a model row. `confirmatory` means the contrast and analysis rule were fixed before the relevant outcomes were inspected; analyses outside that scope are `exploratory`. Condition roles such as external reference or sensitivity diagnostic are tracked separately. This follows the confirmatory/exploratory distinction in [Wagenmakers et al. (2012)](https://doi.org/10.1177/1745691612463078) and [Nosek et al. (2018)](https://doi.org/10.1073/pnas.1708274114). The machine-readable mapping is `results/evidence_class.json`; `python manage.py evidence_class --check` verifies that it still matches the current pre-registration and confirmatory test artifact.
 
 - a better point estimate is not treated as evidence of separation when its confidence interval crosses zero
 - `Phi_A` and `Phi_B` are reported separately
