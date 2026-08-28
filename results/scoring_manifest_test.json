@@ -1,0 +1,110 @@
+{
+  "split": "test",
+  "commit": "50ad447052a7c2f1fadf460e4533cb81850b0bac",
+  "generation_manifest": {
+    "path": "outputs/test_manifest.json",
+    "commit": "88de192411389fba9b79470f0d450debfd7d054e",
+    "sha256": "7db5ca6f0f8652c144d1dd7249cf2223f3f10f1575057b45e399b58dd27c2a47"
+  },
+  "preregistration": "docs/preregistration_test.md",
+  "conditions": [
+    "zeroshot",
+    "random_fewshot",
+    "knn_fewshot",
+    "sparse_knn",
+    "afsp_margin",
+    "afsp_full",
+    "peft",
+    "peft_knn",
+    "peft_afsp",
+    "rlsf_w3_0.0",
+    "rlsf_w3_2.0",
+    "rlsf_w3_6.0",
+    "commercial_haiku",
+    "gpt56_sparse_knn"
+  ],
+  "estimators": {
+    "n_resamples": 10000,
+    "alpha": 0.05,
+    "seed": 42,
+    "paired": true
+  },
+  "centroid": {
+    "path": "results/stylometrics_centroid.json",
+    "features": [
+      "lex_density",
+      "ttr",
+      "root_ttr",
+      "marker_rate"
+    ],
+    "n_segments": 10860,
+    "fingerprint": "fd5aec8d69454b02"
+  },
+  "raters": {
+    "phi_a": {
+      "model": "claude-haiku-4-5",
+      "config": "configs/judge_eval.yaml",
+      "tag": null
+    },
+    "phi_b": {
+      "model": "gpt-5.6-terra",
+      "config": "configs/judge_eval_gpt.yaml",
+      "tag": "gpt"
+    },
+    "rubric_sha256": "ffd6dad41acb05125d8d61828348fff59c3808c82de12b95305f29190b354f00"
+  },
+  "artifacts": {
+    "results/comet_test.json": "fff751b9982063a37425156e70de5f272f8b15daed1eb276b4b464c4e5715bc5",
+    "results/stylometrics_ci_ladder_test.json": "66f1b2d7552e596b3d1e52e31d49a5038b6742adc8830984aab9b648c3afab90",
+    "results/bootstrap_comet_confirmatory_test.json": "eb00004968f7213badd246e795ce45cb8fa610f197eaac10253dd59546ba649a",
+    "results/heldout_decomp_test.json": "85a2c7bf6195050a4e572d33abe4724be4c346d6fb61e9449b8b1b647b626598",
+    "results/bootstrap_chrf_test.json": "d335fe709d8edfa4be15558c22d0faabfc9e52b0e87a4650fa4910320e62c9ee",
+    "results/bootstrap_bleu_test.json": "3f373217e0ff0da7b0da3778f28e7d1ef05d346b565bda73f5e20678cd812d8d",
+    "results/bootstrap_comet_test.json": "c09e82c01e87f64cdad1d4e2b7a097ddc1ccbd15331f84a993c2e50090f5fba6",
+    "results/judge_test.json": "fa9b04d4f183463adf21adc50917417e22e5bb68c5be568f3305d9e7d26fe795",
+    "results/judge_gpt_test.json": "45e91a5cc6fd00e58584b37864c88f2b9d04c312e2de56f1d8b13459c99cb3da",
+    "results/judge_test_usage.json": "6bdb4e28cf9aa85e4832900a018a4869698f55c660bf9287d98f7722b1ec8a88",
+    "results/judge_gpt_test_usage.json": "e73e70415862594445391b12949b8223e3aaf3c36442b1fe4cc7399ac4c24244",
+    "results/confirmatory_test.json": "e69a02e4be7baefca4ca365a80949589b44cc44a8beb6b4790f57c41a2ebea2d",
+    "results/bootstrap_judge_test.json": "49ee09f68a541e20710c4ca73c839127cb6025e2c186bd383182c8642dedf84d",
+    "results/bootstrap_judge_gpt_test.json": "6efcff666086f5212295b49e6aca3046a4193d94a59aab7d17945629551049f1",
+    "results/judge_ci_test.json": "7a7e2789b085560d57b69af0917764156da952b68698bf1f19ba3e7b3eaf3305",
+    "results/judge_ci_gpt_test.json": "491026f06f07a8ae08442d32b9aa819246f1046f7c031cd2db894dfd63c10389",
+    "results/judge_agreement_gpt_test.json": "eaa71b18bd7a26e73c30f0299bc83f6c8684f1722b0eb3781cdb71db8ff7b822",
+    "results/metric_agreement_test.json": "ed68f2c98587f16e00c82d5f51987e7b7a6663fe6c7bd19e7c6ded617f15b487"
+  },
+  "spend": {
+    "authorized_usd": 35,
+    "projected_usd": 31.1286,
+    "actual_usd": 14.3554,
+    "per_rater": {
+      "phi_a": {
+        "model": "claude-haiku-4-5",
+        "usd": 1.5479,
+        "calls": 1562,
+        "cumulative_usd": 18.6207
+      },
+      "gpt": {
+        "model": "gpt-5.6-terra",
+        "usd": 12.8075,
+        "calls": 17258,
+        "cumulative_usd": 12.8075
+      }
+    }
+  },
+  "confirmatory": {
+    "replicated": [
+      1,
+      4,
+      8
+    ],
+    "reversed": [],
+    "discrepancy": []
+  },
+  "versions": {
+    "python": "3.11.15",
+    "numpy": "2.4.1",
+    "sacrebleu": "2.6.0",
+    "comet_model": "Unbabel/wmt22-comet-da"
+  }
+}
