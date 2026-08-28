@@ -74,18 +74,20 @@ def append_results(
     sources: list[str],
     start: int,
     collected: dict[str, dict],
-    *,
-    complete: bool,
 ) -> tuple[int, int]:
-    """Append returned scores in segment order."""
+    """Append returned scores in segment order, stopping at the first absent segment.
+
+    A request the judge failed on comes back with ``text=None`` and is written as a
+    null score. An id absent from the batch entirely means the batch did not cover
+    this range, so the tail is left unwritten rather than cached as nulls that a
+    later run would mistake for finished work.
+    """
     written = failed = 0
     with cache_path.open("a", encoding="utf-8") as f:
         for i in range(start, len(sources)):
             got = collected.get(_CUSTOM_ID.format(i=i))
             if got is None:
-                if not complete:
-                    break  # leave the rest for a resubmit
-                got = {"text": None, "error": "missing from batch output"}
+                break
             score = parse_score(got["text"]) if got["text"] is not None else None
             rec = {"input": sources[i], "score": score}
             if got["error"] is not None:
@@ -123,7 +125,8 @@ def run_condition(
         print(f"  resuming: {start}/{len(sources)} already scored")
 
     entry = state.get(condition)
-    if entry and entry.get("start") == start:
+    # `n` guards against resuming a --limit pilot batch as if it covered the full split.
+    if entry and entry.get("start") == start and entry.get("n") == len(sources) - start:
         batch_id = entry["batch_id"]
         print(f"  resuming in-flight batch {batch_id} (submitted for segments {start}+)")
     else:
@@ -145,17 +148,25 @@ def run_condition(
 
     batch = client.poll(batch_id, interval=poll_interval, timeout=timeout)
     collected = client.collect(batch)
-    complete = batch.status == "completed"
-    written, failed = append_results(cache_path, sources, start, collected, complete=complete)
+    written, failed = append_results(cache_path, sources, start, collected)
+    complete = batch.status == "completed" and start + written == len(sources)
     print(
         f"  batch {batch.status}: wrote {written} segment(s)"
         f"{f', {failed} unscored' if failed else ''}"
     )
+    if batch.status == "completed" and not complete:
+        print(
+            f"  WARNING: batch {batch_id} completed but covered only {written} of the "
+            f"{len(sources) - start} segments requested; it was submitted for a different "
+            f"range -- the remainder is left unwritten for a fresh submission"
+        )
     if complete:
         state.pop(condition, None)
     else:
+        reason = client.failure_reason(batch)
         print(
-            f"  batch did not complete ({batch.status}); {len(sources) - start - written} "
+            f"  batch did not complete ({batch.status}"
+            f"{f': {reason}' if reason else ''}); {len(sources) - start - written} "
             f"segment(s) left unwritten -- re-run to submit them"
         )
         state.pop(condition, None)  # the job is terminal; a re-run must submit afresh

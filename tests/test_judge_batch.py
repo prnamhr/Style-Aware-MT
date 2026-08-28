@@ -4,6 +4,7 @@ import json
 import sys
 import tempfile
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -75,7 +76,7 @@ def test_state_path_is_tag_scoped() -> None:
 def test_append_writes_every_segment_when_the_batch_completed() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         p = _cache(Path(tmp), [])
-        written, failed = append_results(p, SOURCES, 0, _returned(range(6)), complete=True)
+        written, failed = append_results(p, SOURCES, 0, _returned(range(6)))
         assert (written, failed) == (6, 0)
         rows = [json.loads(x) for x in p.read_text().splitlines()]
         assert [r["input"] for r in rows] == SOURCES
@@ -85,7 +86,7 @@ def test_append_writes_every_segment_when_the_batch_completed() -> None:
 def test_append_resumes_from_the_existing_prefix() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         p = _cache(Path(tmp), [{"input": s, "score": 2} for s in SOURCES[:2]])
-        written, _ = append_results(p, SOURCES, 2, _returned(range(2, 6)), complete=True)
+        written, _ = append_results(p, SOURCES, 2, _returned(range(2, 6)))
         assert written == 4
         rows = [json.loads(x) for x in p.read_text().splitlines()]
         assert [r["input"] for r in rows] == SOURCES  # contiguous and in order
@@ -101,19 +102,22 @@ def test_incomplete_batch_stops_at_the_first_gap_so_the_tail_is_resubmitted() ->
     with tempfile.TemporaryDirectory() as tmp:
         p = _cache(Path(tmp), [])
         returned = _returned([0, 1, 4, 5])  # 2 and 3 never came back
-        written, _ = append_results(p, SOURCES, 0, returned, complete=False)
+        written, _ = append_results(p, SOURCES, 0, returned)
         assert written == 2  # stops at the gap, does not skip ahead to 4
         assert resume_point(p, SOURCES) == 2  # next run picks up exactly there
 
 
-def test_completed_batch_records_a_null_for_a_missing_segment() -> None:
+def test_a_gap_stops_the_write_even_when_the_batch_says_completed() -> None:
+    """A completed batch returns every id it was given, so a gap means wrong range.
+
+    Caching the tail as nulls would let a later run count it as scored; peft_afsp
+    lost 1302 of 1322 segments that way when a 20-request pilot batch was resumed.
+    """
     with tempfile.TemporaryDirectory() as tmp:
         p = _cache(Path(tmp), [])
-        written, failed = append_results(p, SOURCES, 0, _returned([0, 1, 2, 3, 5]), complete=True)
-        assert (written, failed) == (6, 1)
-        rows = [json.loads(x) for x in p.read_text().splitlines()]
-        assert rows[4]["score"] is None
-        assert "missing from batch output" in rows[4]["error"]
+        written, failed = append_results(p, SOURCES, 0, _returned([0, 1, 2, 3, 5]))
+        assert (written, failed) == (4, 0)
+        assert resume_point(p, SOURCES) == 4
 
 
 def test_unparseable_and_errored_responses_become_nulls_not_lost_segments() -> None:
@@ -124,7 +128,7 @@ def test_unparseable_and_errored_responses_become_nulls_not_lost_segments() -> N
             _CUSTOM_ID.format(i=1): {"text": None, "error": "status 429"},
             _CUSTOM_ID.format(i=2): {"text": "Score: 5", "error": None},
         }
-        written, failed = append_results(p, SOURCES[:3], 0, collected, complete=True)
+        written, failed = append_results(p, SOURCES[:3], 0, collected)
         assert (written, failed) == (3, 2)
         rows = [json.loads(x) for x in p.read_text().splitlines()]
         assert [r["score"] for r in rows] == [None, None, 5]
@@ -173,6 +177,16 @@ def test_submit_refuses_an_empty_or_duplicated_batch() -> None:
         dupe = [c.build_request("seg_0", "s", "u"), c.build_request("seg_0", "s", "u")]
         with pytest.raises(ValueError, match="unique"):
             c.submit(dupe, Path(tmp), "label")
+
+
+def test_failure_reason_reports_why_a_batch_was_rejected() -> None:
+    batch = SimpleNamespace(
+        errors=SimpleNamespace(
+            data=[SimpleNamespace(code="invalid_request", message="Cannot find file file-x")]
+        )
+    )
+    assert "Cannot find file" in BatchChatClient.failure_reason(batch)
+    assert BatchChatClient.failure_reason(SimpleNamespace(errors=None)) is None
 
 
 # the money-critical path: never submit twice for the same segments 
@@ -263,6 +277,22 @@ def test_run_condition_ignores_stale_state_from_a_different_resume_point() -> No
         state = {"zeroshot": {"batch_id": "stale", "start": 0, "n": 6}}
         _run(c, Path(tmp), state, [{"input": s, "score": 1} for s in SOURCES[:2]])
         assert c.submissions == 1  # stale entry discarded, fresh batch for 2..5
+
+
+def test_run_condition_does_not_resume_a_pilot_batch_for_the_full_split() -> None:
+    """A --limit pilot leaves state whose `start` matches but whose `n` does not.
+
+    Resuming it collects only the pilot's segments; the rest were cached as nulls
+    and never re-judged, which is how peft_afsp ended up with 20 real scores.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        c = _RecordingClient()
+        c.status, c.start, c.n_return = "completed", 0, 6
+        state = {"zeroshot": {"batch_id": "batch_pilot", "start": 0, "n": 2}}
+        scores, cache, _ = _run(c, Path(tmp), state, [])
+        assert c.submissions == 1  # submitted afresh rather than resuming the pilot
+        assert c.last_n == 6
+        assert len(scores) == 6
 
 
 def test_run_condition_skips_a_complete_condition_without_submitting() -> None:

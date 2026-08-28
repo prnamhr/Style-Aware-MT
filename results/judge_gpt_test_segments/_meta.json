@@ -1,0 +1,63 @@
+{
+  "model": "gpt-5.6-terra",
+  "tag": "gpt",
+  "template_sha256": "ffd6dad41acb0512",
+  "outputs": {
+    "zeroshot": {
+      "file": "outputs/zeroshot_test.jsonl",
+      "sha256": "6b752e8286467689f599db6710b5f060584ccb39c16ce768a7a10e0b4a0193e7"
+    },
+    "random_fewshot": {
+      "file": "outputs/random_fewshot_test.jsonl",
+      "sha256": "b6abc645ba3b4a8e6cf8f7a62b3792e96c45df95afbc50f6d1f8642461ad486f"
+    },
+    "knn_fewshot": {
+      "file": "outputs/knn_fewshot_test.jsonl",
+      "sha256": "f1d4797ed73e6ac2b1fb1bc20df5db3b2dc66466452d44426b805a53fd46d622"
+    },
+    "sparse_knn": {
+      "file": "outputs/sparse_knn_test.jsonl",
+      "sha256": "8d1b339eda7eb80283b1c4824f169d3aa035cffc6ba1129df8578fe3b6aefcb9"
+    },
+    "afsp_margin": {
+      "file": "outputs/afsp_margin_test.jsonl",
+      "sha256": "c2d37f34ca30065f39e6b14a88f7ad06c5f7589abe69206dc0d717122fb1a6cc"
+    },
+    "afsp_full": {
+      "file": "outputs/afsp_full_test.jsonl",
+      "sha256": "2f91facd848da0ea00f574d2863182f50a6cb468c228ff8ee03e7017a375b047"
+    },
+    "peft": {
+      "file": "outputs/peft_test.jsonl",
+      "sha256": "e20cf8ea2ee8950a4b900d23d6e5be1829ac1c51b2f424c303aa3ddf99643597"
+    },
+    "peft_knn": {
+      "file": "outputs/peft_knn_test.jsonl",
+      "sha256": "bd089395acc2fe78d63f0ff44e130b2dc52366aa87e8d390bd872dabfcf1c167"
+    },
+    "peft_afsp": {
+      "file": "outputs/peft_afsp_test.jsonl",
+      "sha256": "b4ddb9b4a49de74eedfb0a6a980bfd7a5a1dc2933653d936f03e480f133d8ff8"
+    },
+    "rlsf_w3_0.0": {
+      "file": "outputs/rlsf_w3_0.0_test.jsonl",
+      "sha256": "359f50ba05c7f86b16b2981957ccf64437e841617492bfe8faf30f75b0ea8509"
+    },
+    "rlsf_w3_2.0": {
+      "file": "outputs/rlsf_w3_2.0_test.jsonl",
+      "sha256": "cb11099d7a5298c9c52480e37d49ad27010e9fd40b6f93997adfc5aa9ec1b55c"
+    },
+    "rlsf_w3_6.0": {
+      "file": "outputs/rlsf_w3_6.0_test.jsonl",
+      "sha256": "e833f78cae0c38d4b1510492f5ad18dfc4df1bf25be8a43eac5b82a84e48654d"
+    },
+    "commercial_haiku": {
+      "file": "outputs/commercial_haiku_test.jsonl",
+      "sha256": "9758395607ad31ef9cd1ba0e387984bed5c17926b6eb8b7b801f122af699f0a4"
+    },
+    "gpt56_sparse_knn": {
+      "file": "outputs/gpt56_sparse_knn_test.jsonl",
+      "sha256": "4ea9f9f51580a91138d7baa11bfcfceafe532c1c9642c2be70dffba97113848a"
+    }
+  }
+}

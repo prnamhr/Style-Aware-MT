@@ -103,6 +103,14 @@ class BatchChatClient:
         )
         return batch.id
 
+    @staticmethod
+    def failure_reason(batch) -> str | None:
+        """Server-side explanation for a non-completed batch, if it gave one."""
+        errors = getattr(batch, "errors", None)
+        data = getattr(errors, "data", None) or []
+        msgs = [f"{getattr(e, 'code', '?')}: {getattr(e, 'message', '')}" for e in data]
+        return "; ".join(m for m in msgs if m.strip()) or None
+
     def poll(self, batch_id: str, *, interval: float = 30.0, timeout: float | None = None):
         """Block until the batch reaches a terminal state; returns the batch object."""
         waited = 0.0
