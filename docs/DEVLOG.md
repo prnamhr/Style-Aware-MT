@@ -67,6 +67,213 @@ A second audit on 2026-08-10 checked `README.md` and `docs/budget.md` against th
 
 This log was audited for internal consistency against the committed artifacts, configs, and git history on 2026-08-01. Corrections made in that pass are marked inline as *Correction (2026-08-01)*; they amend the claims of earlier entries but do not restate their history.
 
+## 2026-08-27 to 2026-08-28: Phi_B ranks the systems against COMET, and the rater passes ran unauthorized
+
+### Summary
+
+Steps 7, 8 and 9 of `docs/preregistration_test.md` ran. Both raters scored the fourteen rows, and
+the result that matters is a disagreement between Phi_B and COMET at the system level: over the
+twelve study conditions the two orderings are inverted, Spearman ρ = −0.720, p = 0.008, n = 12.
+Phi_A over the same twelve points is flat, ρ = −0.102, p = 0.753. The raters agree segment by
+segment - quadratic weighted κ = 0.490 [0.480, 0.500] and ρ = 0.647 [0.637, 0.657] over the 15,531
+segments both scored - and do not agree on the ranking those segments aggregate into, ρ = 0.357,
+p = 0.255.
+
+On val the same coefficient was −0.145 for Phi_B and +0.793 for Phi_A over eleven of these systems,
+so neither number is a stable property of its rater.
+
+The confirmatory family is untouched by this: it reads COMET and `stylo_dist` only. Tests 1, 4 and 8
+replicated under Holm and none reversed.
+
+The two passes cost $31.4282 over 35,766 calls. As on 2026-08-26, no dated authorization existed
+before they ran.
+
+### Phi_B ranks prompting above tuning; COMET ranks tuning above prompting
+
+| Condition | COMET | Phi_A | Phi_B | `stylo_dist` |
+|---|---:|---:|---:|---:|
+| `zeroshot` | 0.6635 | 2.626 | 3.576 | 0.3268 |
+| `random_fewshot` | 0.6703 | 2.591 | 3.580 | 0.3569 |
+| `knn_fewshot` | 0.6905 | 2.711 | 3.554 | 0.3423 |
+| `sparse_knn` | 0.6904 | 2.692 | 3.512 | 0.3536 |
+| `afsp_margin` | 0.6927 | 2.682 | 3.541 | 0.3499 |
+| `afsp_full` | 0.6935 | 2.738 | 3.542 | 0.3357 |
+| `peft` | 0.7196 | 2.610 | 3.376 | 0.3515 |
+| `peft_knn` | 0.7180 | 2.622 | 3.361 | 0.4152 |
+| `peft_afsp` | 0.7181 | 2.594 | 3.330 | 0.4415 |
+| `rlsf_w3_0.0` | 0.7198 | 2.623 | 3.362 | 0.3631 |
+| `rlsf_w3_2.0` | 0.7198 | 2.662 | 3.417 | 0.3228 |
+| `rlsf_w3_6.0` | 0.7198 | 2.662 | 3.441 | 0.3318 |
+
+The twelve rows fall into two blocks and the two rankings are opposed block for block. Phi_B's top
+six are exactly the six prompting rows, 3.512 to 3.580; its bottom six are exactly the six tuned
+rows, PEFT and RLSF, 3.330 to 3.441. COMET has the same block structure the other way up, 0.6635 to
+0.6935 for prompting against 0.7180 to 0.7198 for tuned. A rank correlation of −0.720 over twelve
+points is what two exactly opposed block orderings produce. Phi_A does not share the pattern: it
+puts `afsp_full` first and `random_fewshot` last, mixing the blocks, and its ordering carries no
+information about COMET at all.
+
+| Pair, twelve systems | Phi_A | Phi_B |
+|---|---:|---:|
+| Φ ~ COMET | −0.102, p = 0.753 | **−0.720, p = 0.008** |
+| Φ ~ `stylo_dist` | −0.560, p = 0.058 | −0.503, p = 0.095 |
+| `stylo_dist` ~ COMET | −0.056, p = 0.863 | −0.056, p = 0.863 |
+
+The sign is an artifact of aggregation, not of the raters' segment judgments. Pooled within
+conditions over 15,531 segments, both raters correlate positively with COMET: ρ_A = 0.329,
+ρ_B = 0.210, and the difference between them separates under Holm. Segment by segment, higher COMET
+goes with a higher Φ for both. The inversion exists only between systems.
+
+Adding `commercial_haiku` as a thirteenth point weakens Phi_B ~ COMET to −0.352, p = 0.239. The
+artifact reports both scopes because that row is a diagnostic external reference rather than a
+condition of the study, and because it shares a model family with Phi_A.
+
+Neither coefficient is stable across splits. `results/metric_agreement_val.json`, over eleven study
+conditions - the test twelve without `sparse_knn` - reports Phi_A ~ COMET at +0.793, p = 0.004, and
+Phi_B ~ COMET at −0.145, p = 0.670. Between val and test, over nearly the same systems, Phi_A moved
+from a strong positive to nothing and Phi_B from nothing to a strong negative. Twelve points is a
+thin basis for a rank correlation, and the val comparison says so directly: −0.720 describes this
+split's ordering rather than a property of the rater.
+
+### What the raters agree on
+
+Pooled over the twelve study conditions and the segments both scored:
+
+| Statistic | Value |
+|---|---|
+| Quadratic weighted κ | 0.490 [0.480, 0.500], n = 15,531 |
+| Spearman ρ, segment level | 0.647 [0.637, 0.657] |
+| Exact agreement | 33.0% |
+| Adjacent agreement | 81.1% |
+| Severity offset, A − B | −0.810 [−0.823, −0.797] |
+| Condition ordering ρ | 0.357, p = 0.255, rankings not identical |
+
+Phi_B rates 0.81 points higher than Phi_A on the same segment, on the same 1-5 rubric, from the same
+`ffd6dad41acb0512` template bytes. A constant severity difference cancels in a ranking. The ordering
+does not cancel, and it is where the two raters part.
+
+`results/judge_agreement_gpt_val.json`, over a differently composed set of ten conditions, gives
+κ = 0.440 [0.429, 0.451], segment ρ = 0.628 and an offset of −0.893, with an ordering ρ of 0.636
+that separated at p = 0.048. Segment-level agreement is a little higher on test than on val.
+Ordering agreement is the quantity that fell.
+
+Across the ten declared contrasts, both raters separate from zero in the same direction on one,
+`peft` − `afsp_full`; four have the same sign; on six neither rater separates. Of the four RQ4
+correlation deltas, three are rater-dependent under Holm - `centroid_dist`, `marker_rate` and COMET
+- and `band_dist` is not. Marker rate is the widest: ρ_A = 0.214 against ρ_B = 0.428.
+
+### The confirmatory family
+
+Holm over the declared family of ten, from `results/bootstrap_comet_confirmatory_test.json` and
+`results/stylometrics_ci_ladder_test.json` at HEAD `50ad447`.
+
+| Test | Contrast | Metric | Predicted | Val | Test | Verdict |
+|---|---|---|---|---:|---|---|
+| 1 | `peft` − `knn_fewshot` | COMET | + | +0.0147 | +0.0291 [+0.0244, +0.0339] | replicated |
+| 4 | `rlsf_w3_2.0` − `peft` | `stylo_dist` | − | −0.0098 | −0.0284 [−0.0414, −0.0156] | replicated |
+| 8 | `peft_afsp` − `peft` | `stylo_dist` | + | +0.0342 | +0.0892 [+0.0573, +0.1228] | replicated |
+
+The other seven did not replicate. Test 2 is the one that changed sign: val put `peft` 0.0753 closer
+to the centroid than `knn_fewshot`, test puts it 0.0092 further away with an interval spanning zero,
+so it is recorded as not replicated rather than reversed. Tests 9 and 10 were declared predicted
+nulls and were not detected, which the pre-registration says cannot be reported as equivalence. Test
+4 replicated a contrast whose val interval spanned zero, and test 8 replicated a predicted sign that
+val had at p = .069; both are now separating on test. No Φ enters this family, so nothing above
+about rater disagreement bears on these three verdicts.
+
+### The rater passes ran without authorization
+
+Second occurrence, same mechanism. Step 2 of the order of operations puts a dated authorization in
+`docs/budget.md` before the paid lines. The 2026-08-26 entry recorded that failure for generation
+and said the control "only works before the next paid line - steps 6 and 7". It did not work. Phi_A
+ran on 2026-08-27 and Phi_B finished on 2026-08-28 against a budget file whose last commit,
+`8c141f7`, stated that the rater passes were not authorized and needed a dated line before running.
+
+The ceiling the run enforced was `AUTHORIZED_USD = 35`, a constant in
+`notebooks/test_scoring_colab.ipynb` with no counterpart in any document, asserted against the
+$31.13 projection before the passes and against realized spend after them. The cell that names
+`docs/budget.md` prints its git log and asserts nothing about the contents, so it printed `8c141f7`
+and passed - the same cell behaviour, on the same file, that the generation entry describes.
+
+| Rater | Calls | Projected | Realized |
+|---|---:|---:|---:|
+| Phi_A | 18,508 | $18.70 to $18.88 | $18.6207 |
+| Phi_B | 17,258 | $12.20 to $12.25 | $12.8075 |
+| **Total** | **35,766** | **$30.90 to $31.13** | **$31.4282** |
+
+Phi_B overran its ceiling by 4.6%, and the cause is transport rather than prompt length: 2,696 of
+its calls were billed without the 50% batch discount, $1.73 more than the same calls batched, which
+is the entire overrun. `docs/budget.md` carries the reconciliation of the three Phi_B usage
+artifacts and the corrected statements, under 2026-08-28.
+
+### Verification
+
+Recomputed from the artifacts rather than read out of them:
+
+- Phi_B ~ COMET ρ = −0.7203 and Phi_A ~ COMET ρ = −0.1016 reproduce from the twelve `system_metrics`
+  entries of `results/metric_agreement_test.json`, as do the two Φ ~ `stylo_dist` figures.
+- κ = 0.4898, segment ρ = 0.6469 and the −0.8100 offset reproduce from the raw `segments` arrays of
+  `results/judge_test.json` and `results/judge_gpt_test.json` over the 15,531 segments both raters
+  scored.
+- All eighteen digests in `results/scoring_manifest_test.json` match a fresh SHA-256 of the file
+  each names.
+- The fourteen generations are unchanged: every `output_sha256` in `outputs/test_manifest.json`
+  still matches its file, and `data/splits/test.jsonl` is still `3e24e90f`.
+- Both raters record `template_sha256: ffd6dad41acb0512` on every condition, and
+  `results/judge_agreement_gpt_test.json` reports `template_verified: true`.
+
+### Reproduction
+
+With `CONDS` the fourteen rows and `STUDY` the twelve study conditions:
+
+```bash
+python manage.py judge --conditions $CONDS --split test --config configs/judge_eval.yaml --limit 20
+python manage.py judge --conditions $CONDS --split test --config configs/judge_eval.yaml
+python manage.py judge_batch --conditions $CONDS --split test --config configs/judge_eval_gpt.yaml
+
+for tag in "" "--tag gpt"; do
+    python manage.py judge_ci --split test --conditions $CONDS $tag \
+        --n_resamples 10000 --alpha 0.05 --seed 42
+done
+python manage.py bootstrap --metric judge --conditions $CONDS --split test \
+    --baseline zeroshot --adjacent --n_resamples 10000 --out
+python manage.py bootstrap --metric judge --judge_tag gpt --conditions $CONDS --split test \
+    --baseline zeroshot --adjacent --n_resamples 10000 --out
+python manage.py judge_agreement --split test --conditions $STUDY --tag_b gpt \
+    --n_resamples 10000 --alpha 0.05 --seed 42
+```
+
+`results/metric_agreement_test.json` has no command line. `manage.py metric_agreement` maps
+`--raters` onto the val segment directories, so section 9 of the runbook calls
+`src.eval.metric_agreement.build()` directly with this split's directories instead. Reproducing that
+file means running the cell.
+
+Rerunning either rater does not reproduce the scores. Neither pass is byte-stable, a rerun spends
+the $31 again, and the batch inputs on disk were submitted under batch ids that
+`results/judge_gpt_test_batch_state.json` no longer holds.
+
+### Limitations and risks
+
+Phi_B coverage is 1,280 to 1,303 of 1,322 per condition, 97 to 99%, against Phi_A's 1,321 to 1,322.
+Every rater comparison runs on the intersection, 15,531 of the 15,864 study-condition segments.
+Nothing checks whether the segments Phi_B dropped differ systematically from the ones it scored, so
+the agreement figures assume they do not.
+
+Neither rater is ground truth. The −0.720 bounds how far an RQ4 answer depends on rater identity; it
+does not show that COMET or Phi_B is the correct ordering. The rater-dependence is the finding, and
+it is exploratory: no Φ quantity is in the confirmatory family.
+
+`commercial_haiku` shares a model family with Phi_A, which is why every correlation is reported both
+with and without it and why the two scopes differ as much as they do.
+
+A dated line written after the fact records spend and does not restore the control. Steps 6 to 9 are
+now complete, so no paid line remains on the test split for the control to protect; the next
+occasion is the next paid run of any kind.
+
+The Phi_B ledger under-records. 1,250 of the segment-condition pairs submitted to the batch carry no
+billing line, about $0.93 at the realized rate, because the batch state file was cleared before the
+sidecar was written.
+
 ## 2026-08-26: The fourteen rows generated on test, and an authorization written after the spend
 
 ### Summary

@@ -4,7 +4,7 @@ This document tracks paid API use for the project. It records the spending limit
 
 GPU time is handled separately. AFSP sweeps, LoRA training, RLSF training, and full-split inference run on Colab from the runbooks under `notebooks/`. The 8 GB development GPU cannot hold `Qwen2.5-7B-Instruct` in bf16, and quantizing the model would change the frozen base used in the experiments. Local work such as data preparation, retrieval-index construction, most evaluation code, inferential analysis, and the test suite does not incur API cost.
 
-The test split was unsealed for generation on 2026-08-26. The two commercial generation rows are recorded in the table below and priced in the section that follows it. The paid rater passes over the test split have not run and are not authorized here.
+The test split was unsealed for generation on 2026-08-26. The two commercial generation rows are recorded in the table below and priced in the section that follows it. ~~The paid rater passes over the test split have not run and are not authorized here.~~ Struck on 2026-08-28: both passes ran, on 2026-08-27 and 2026-08-28, and are recorded in *Test-split rater passes, 2026-08-28* below.
 
 ## Current status
 
@@ -49,9 +49,11 @@ The figures in this table come from provider-reported token counts stored by the
 | 2026-08-14 | RLSF arm `w3_6.0`, 300 rollouts x 32 calls | `gpt-4o-mini` | 9,600 | $0.7431 | `outputs/rlsf/steps_w3_6.0_usage.json` |
 | 2026-08-26 | `commercial_haiku` generation on test, 20-call pilot then 1,302 | `claude-haiku-4-5` | 1,322 | $0.6222 | `outputs/commercial_haiku_test_usage.json`, `_pilot_usage.json` |
 | 2026-08-26 | `gpt56_sparse_knn` generation on test, 20-call pilot then 1,302 | `gpt-5.6-sol` | 1,322 | $9.9240 | `outputs/gpt56_sparse_knn_test_usage.json`, `_pilot_usage.json` |
-| **Recorded total** |  |  | **32,588** | **$18.7923** |  |
+| 2026-08-27 | Phi_A rater pass on test, 14 conditions | `claude-haiku-4-5` | 18,508 | $18.6207 | `results/judge_test_usage.json` |
+| 2026-08-28 | Phi_B rater pass on test, 14 conditions, Batch API in part | `gpt-5.6-terra` | 17,258 | $12.8075 | `results/judge_gpt_test_usage.json` |
+| **Recorded total** |  |  | **68,354** | **$50.2205** |  |
 | 2026-08-14 | First `w3_6.0` attempt, killed at rollout 208 | `gpt-4o-mini` | 6,656 | ~$0.5149 | reconstructed, see below |
-| **Including reconstructed row** |  |  | **39,244** | **$19.3072** |  |
+| **Including reconstructed row** |  |  | **75,010** | **$50.7354** |  |
 
 `w3_0.0` ran 300 rollouts with `--skip_judge` on 2026-08-13. It made no paid judge calls, so there is no usage row for that arm.
 
@@ -93,7 +95,92 @@ enforces before a full pass runs.
 
 This covers generation only. The two rater passes of steps 6 and 7 are projected at $18.70 to
 $18.88 for Phi_A and $12.20 to $12.25 for Phi_B, about three times the generation spend, and
-neither is authorized by this section. Each needs its own dated line here before it runs.
+~~neither is authorized by this section. Each needs its own dated line here before it runs.~~
+Struck on 2026-08-28: neither pass had such a line when it ran. The spend is recorded in
+*Test-split rater passes, 2026-08-28* below, again after the fact.
+
+## Test-split rater passes, 2026-08-28
+
+Both rater passes ran without a dated authorization in this file. Phi_A ran on 2026-08-27, Phi_B
+finished on 2026-08-28, and the two sentences struck above still said the passes had not run and
+were not authorized. This section is again written after the money was spent, which is the second
+time the order of operations in `docs/preregistration_test.md` was inverted on the test split.
+
+| Rater | Model | Transport | Calls | Projected | Realized | Realized rate |
+|---|---|---|---:|---:|---:|---:|
+| Phi_A | `claude-haiku-4-5` | synchronous | 18,508 | $18.70 to $18.88 | $18.6207 | $1.006e-3 |
+| Phi_B | `gpt-5.6-terra` | Batch, 50% discount, in part | 17,258 | $12.20 to $12.25 | $12.8075 | $7.421e-4 |
+| **Total** |  |  | **35,766** | **$30.90 to $31.13** | **$31.4282** |  |
+
+The figures are the `cumulative` blocks of `results/judge_test_usage.json` and
+`results/judge_gpt_test_usage.json`. Both ledgers cover the test split only.
+
+Phi_A landed just under its band, $0.08 below the $18.70 floor and 1.4% below the $18.88 ceiling
+the notebook asserted against. Its realized per-call rate is 0.986 times the projected $1.020e-3,
+and its call count was exactly the projection, 14 conditions x 1,322 segments.
+
+Phi_B overran its $12.25 ceiling by 4.6%. Per call the overrun is larger, $7.421e-4 against a
+projected $6.619e-4, or 1.12 times; the dollar figure is smaller than that only because 1,250 fewer
+calls were billed than projected. Prompt length is not the cause. The pass averaged 406.0 prompt and
+39.3 completion tokens per call, slightly below the 409.8 and 41.8 measured on validation. Transport
+is the cause, and the usage artifacts show it.
+
+### Reconciling the Phi_B artifacts
+
+| Artifact | Calls | Cost |
+|---|---|---:|
+| `results/judge_gpt_test_usage.json` | 17,258 | $12.8075 |
+| `results/judge_gpt_test_batch_usage.json` | 14,562 | $9.3503 |
+| `results/judge_gpt_test_batch/*_input.jsonl` | 18,580 lines submitted | not priced |
+| `results/judge_gpt_test_batch_state.json` | empty, `{}` | |
+
+`judge_gpt_test_usage.json` is the primary record. It is the higher figure, it is the file the
+scoring manifest hashes, and the batch sidecar is a subset of it. The sidecar is partial because the
+state file was cleared: it accrues only the batches its state file still tracked, and it was written
+at 10:55 on 2026-08-28 against a main ledger written at 12:16.
+
+The two ledgers reconcile exactly, and the residual is the overrun. Pricing the sidecar's own token
+counts at `[2.00, 12.00]` with the 50% discount gives $9.3503, the figure it records. The 2,696
+calls that appear only in the main ledger carry 1,095,416 prompt and 105,531 completion tokens,
+which price at $3.4572 undiscounted and $1.7286 batched. The difference between the ledgers is
+$3.4572. Those calls were billed without the discount. `src/eval/judge_batch.py` has no automatic
+synchronous fallback, so they came from a separate invocation on the synchronous path writing to the
+same ledger. Batched, the pass would have cost $11.08 and stayed inside its ceiling.
+
+The submitted-line count does not reconcile. The 16 input files hold 18,580 lines: 18,508 distinct
+segment-condition pairs plus 72 resubmitted, `commercial_haiku` having been resumed at offset 1,250
+and `peft_afsp` at offset 20 with no overlap. The ledger bills 17,258 calls, leaving 1,250 pairs with
+no billing line. With the state file empty, the submission they belong to cannot be recovered. The
+direction is what matters: those pairs have scores, so the ledger under-records rather than
+over-records, by about $0.93 at the realized rate. That is an inference and not a recorded figure,
+and it is why the higher of the two ledgers is the conservative record as well as the
+manifest-consistent one.
+
+Phi_A has its own artifact mismatch, in the opposite direction. `results/judge_test_pilot_usage.json`
+is a copy of the ledger taken after the `--limit 20` pilot, but it records a 16,666-call session; the
+pilot itself could make at most 280 calls, so the ledger already held earlier calls when the copy was
+taken. The reprice check in the notebook therefore measured the rate over 16,666 calls rather than
+over the pilot, which is a firmer basis than the check was designed to have; the file name and the
+cell's label are wrong about what was sampled.
+
+### The $35 ceiling
+
+`results/scoring_manifest_test.json` records `spend.authorized_usd: 35`. No dated authorization for
+$35 exists, in this file or anywhere else in the repository. The figure is a notebook constant:
+`AUTHORIZED_USD = 35`, set beside `SPEND_OK = True` in `notebooks/test_scoring_colab.ipynb` and
+asserted against the $31.13 projection before the passes and against realized spend after them. It
+is a runtime ceiling, the scoring counterpart of `caps.max_judge_spend_usd`, and the manifest field
+should be read that way rather than as a record of a document authorization.
+
+The cell after it prints `git log -1` for this file and the reminder that the authorization must
+already be a dated line here. It asserts nothing about the contents. It printed `8c141f7`, the commit
+that recorded the generation spend and stated that the rater passes were not authorized, and passed.
+That is the control described for generation on 2026-08-26, failing the same way a second time.
+
+One further manifest figure is not a pass total. `spend.actual_usd: 14.3554` is a session delta: the
+notebook read the Phi_A ledger at $17.0728 over 16,946 calls before resuming it, so the manifest
+counts only the 1,562 calls that finished that pass, together with all of Phi_B. The pass totals are
+the cumulative figures in the table above.
 
 ## Realized RLSF judge rate
 
@@ -302,7 +389,15 @@ The reward judge was chosen separately from both evaluation raters. `gpt-4o-mini
 - `docs/DEVLOG.md`: dated records for the runs and decisions summarized here
 - `docs/preregistration_rlsf.md`: RLSF design and addenda
 - `results/judge_gpt_val_usage.json`: measured Phi_B validation usage
+- `results/judge_test_usage.json`, `results/judge_gpt_test_usage.json`: test-split rater usage
 - `outputs/*_val_usage.json`: generation usage artifacts
 - `outputs/rlsf/*_usage.json`: RLSF judge usage artifacts
 
 Where a usage artifact and this summary disagree, the usage artifact is the primary record.
+
+Where two usage artifacts describe the same pass and disagree, the one hashed in the run's manifest
+is primary. A transport sidecar such as `judge_gpt_test_batch_usage.json` records only the work its
+state file was still tracking when it was written, so a cleared or truncated state file makes it a
+partial view of the main ledger rather than a competing figure. If no manifest hashes either file,
+the higher figure governs, because an under-recorded ledger is the failure mode these sidecars
+have.

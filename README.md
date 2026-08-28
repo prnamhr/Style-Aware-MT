@@ -6,7 +6,7 @@ This project studies that question using Persian and mixed Persian/Arabic Bahá'
 
 This is an undergraduate Computer Engineering thesis project at BIHE, supervised by Dr. Fares Hedayati.
 
-> **Status:** All results reported here are validation results. Final test generation and scoring have not been run.
+> **Status:** Test generation and scoring are complete. Validation results below document model development and selection; final thesis claims are based on the frozen held-out test evaluation in `results/confirmatory_test.json` and the associated test artifacts.
 
 ## Overview
 
@@ -25,7 +25,7 @@ Two hybrid conditions test whether retrieval still helps after PEFT:
 
 A later `sparse_knn` follow-up tests a different retrieval idea: use rare source-side terms to select part of the few-shot context, then fill the remaining prompt slots with ordinary cosine kNN.
 
-The main validation result is mixed rather than a single winner. RLSF `w3=2` gives the lowest held-out style distance, while `w3=6` gives the lowest full stylometric distance. PEFT+AFSP has the highest COMET score among the main study systems, and PEFT+KNN has the highest chrF and BLEU.
+The validation/development result is mixed rather than a single winner. RLSF `w3=2` gives the lowest held-out style distance, while `w3=6` gives the lowest full stylometric distance. PEFT+AFSP has the highest COMET score among the main study systems, and PEFT+KNN has the highest chrF and BLEU. Final thesis claims are separated from these development results and are reported from the frozen held-out test evaluation.
 
 The interpretation of the RLSF results changed after a case-sensitivity bug was found in one stylometric feature. The corrected analysis shows the judge-conditioned RLSF arms moving closer to the measured target register through most of training, with possible over-stylization appearing only later in the strongest trajectory.
 
@@ -77,7 +77,7 @@ The main data choices are:
 - document-aware splitting rather than random row splitting
 - fixed split artifacts under `data/splits/`
 
-The results below use the validation split.
+Validation is used for model development, hyperparameter and checkpoint selection, and diagnostic analysis. The held-out test split is reserved for the final evaluation after those choices are frozen; the thesis headline results should therefore be reported from test rather than validation.
 
 ### Prompting ladder
 
@@ -207,6 +207,12 @@ They use the same frozen rubric, but their absolute scores are not treated as in
 
 Lower stylometric distance is better.
 
+### Reporting convention
+
+Validation and test results serve different purposes in this project. Validation is used to choose configurations and checkpoints and to inspect development behaviour. Once those choices are frozen, the held-out test split is used for the final performance claims in the thesis. This separation reduces selection bias from choosing a system on the same finite sample used to report its final performance, a problem discussed by [Cawley and Talbot (2010)](https://www.jmlr.org/papers/v11/cawley10a.html).
+
+The validation table is retained in this README because it documents how the final systems were selected and interpreted during development. It should not be presented as the final generalization result.
+
 ### Marker-rate correction
 
 One stylometric feature originally counted archaic forms such as `thou`, `thee`, `thy`, and `thine` case-sensitively. That undercounted capitalized reverential forms such as `Thou`, `Thee`, and `Thy` in the authorized references.
@@ -219,9 +225,21 @@ AFSP is different because `afsp_full` uses the target-register centroid during e
 
 The AFSP register direction is no longer hard-coded in the configs. `python manage.py register_direction` derives it from the corrected training-target centroid and writes `results/register_direction.json`, which all seven AFSP/PEFT selection configs now read. The corrected coefficients are `marker_rate = 0.414116`, `lex_density = 0.321723`, `root_ttr = -0.273426`, and `ttr = 0.047505`. Against the former hard-coded vector, the direction has cosine similarity 0.9962, a 4.996 degree angle, no sign flips, and a maximum absolute normalized-weight-share shift of 0.0326. Under the comparison thresholds fixed in the derivation script, this is **near-identical**, not materially or very different. An offline re-score of the 19 already-generated AFSP sweep outputs changed `register_fit` by at most 0.00939 and kept the frozen recommendation at `k = 8`, `lambda_style = 0.75`. The direction correction therefore does not trigger a new `afsp_full` generation run. This conclusion is limited to the direction component; the marker-rate/centroid correction itself still changed retrieval choices in the earlier case-fix sensitivity runs.
 
+## Final held-out test evidence
+
+The final thesis claims use the 1,322-segment test split after model, retrieval, checkpoint, and decoding choices were frozen on development data. The pre-registered confirmatory family contains five contrasts evaluated on COMET and full stylometric distance.
+
+Three predictions replicate under the pre-registered decision rule:
+
+- **PEFT improves COMET over kNN few-shot:** +0.02909, 95% CI [0.02439, 0.03389].
+- **RLSF `w3=2` improves full stylometric distance over PEFT:** -0.02836, 95% CI [-0.04140, -0.01563]. Lower distance is better.
+- **PEFT+AFSP increases full stylometric distance relative to PEFT:** +0.08924, 95% CI [0.05730, 0.12284], reproducing the validation-side trade-off in which retrieval on top of PEFT moves the output farther from the target centroid.
+
+The other seven pre-registered tests do not meet the corrected confirmatory criterion. They are reported as not replicated or not detected rather than as evidence of no effect. Full test statistics, correction thresholds, output hashes, and verdicts are in [`results/confirmatory_test.json`](results/confirmatory_test.json). Validation results remain useful for explaining model selection and development behaviour, but they are not substituted for this held-out test evidence in the thesis.
+
 ## Validation results
 
-All main rows below use the same 1,323-segment validation split and locked greedy decoding.
+All main rows below use the same 1,323-segment validation split and locked greedy decoding. As a table, these are development results; the specific RLSF predictions fixed before GRPO are classified separately in `results/evidence_class.json`.
 
 Higher is better for COMET, chrF, BLEU, `Phi_A`, and `Phi_B`. Lower is better for the two stylometric distances.
 
