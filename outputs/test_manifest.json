@@ -107,6 +107,16 @@
       "finished": "2026-08-26T17:10:26.457338+00:00",
       "timing_source": "output mtime; the kernel was lost before section 11",
       "output_sha256": "4ea9f9f51580a91138d7baa11bfcfceafe532c1c9642c2be70dffba97113848a"
+    },
+    "fable5_sparse_knn": {
+      "condition": "sparse_knn",
+      "config": "configs/test/commercial_fable5_sparse_knn.full.yaml",
+      "seconds": 5719.9,
+      "finished": "2026-09-04T19:37:02.288539+00:00",
+      "output_sha256": "19e34d284b64292a6d422bc924f7040b18370c271f169c7b667fd9cfa0ed2c4b",
+      "model": "claude-fable-5-1",
+      "effort": "low",
+      "thinking": "always on in this tier; effort low is the floor, not off"
     }
   },
   "derived_configs": {
@@ -141,7 +151,15 @@
     "configs/commercial_haiku_zeroshot.yaml::pilot": "configs/test/commercial_haiku_zeroshot.pilot.yaml",
     "configs/commercial_haiku_zeroshot.yaml::full": "configs/test/commercial_haiku_zeroshot.full.yaml",
     "configs/commercial_gpt56_sparse_knn.yaml::pilot": "configs/test/commercial_gpt56_sparse_knn.pilot.yaml",
-    "configs/commercial_gpt56_sparse_knn.yaml::full": "configs/test/commercial_gpt56_sparse_knn.full.yaml"
+    "configs/commercial_gpt56_sparse_knn.yaml::full": "configs/test/commercial_gpt56_sparse_knn.full.yaml",
+    "configs/commercial_fable5_sparse_knn.yaml::stage": {
+      "path": "configs/test/commercial_fable5_sparse_knn.stage.yaml",
+      "sha256": "915083efe6c2b15dc5327426fc2d2cc8b39314c0f3ab1ca88fe6ace5f1c60d2c"
+    },
+    "configs/commercial_fable5_sparse_knn.yaml::full": {
+      "path": "configs/test/commercial_fable5_sparse_knn.full.yaml",
+      "sha256": "601193ce37a17af8afbe634d870ee0cf8f5caa83d958dc1d231d6fe8dc07d17b"
+    }
   },
   "adapters": {
     "models/peft_lora_r32_lr2e-4/checkpoint-1358": "ad97c46af8528d22d7d26716be16d8ca01343dd86054efe4b1eee2b678243391",
@@ -183,7 +201,8 @@
     "cuda": "13.0",
     "transformers": "5.12.1",
     "peft": "0.18.0",
-    "python": "3.12.13"
+    "python": "3.11.15",
+    "anthropic": "0.109.1"
   },
   "spend": {
     "authorized_usd": 15,
@@ -215,7 +234,36 @@
         },
         "total_calls": 1322,
         "total_usd": 9.924
+      },
+      "fable5_sparse_knn": {
+        "stage": {
+          "calls": 20,
+          "cost_usd": 0.5804,
+          "rate": 0.02902
+        },
+        "full": {
+          "calls": 1282,
+          "cost_usd": 37.31
+        },
+        "unrecorded": {
+          "calls": 20,
+          "imputed_usd": 0.5804,
+          "why": "usage sidecar overwritten by a zero-call resumed re-run"
+        },
+        "total_calls": 1322,
+        "measured_usd": 37.8904,
+        "total_usd": 38.4708
       }
+    },
+    "fable5_sparse_knn_authorization": {
+      "authorized_usd": 50,
+      "projected_usd": 38.6029,
+      "actual_usd": 38.4708,
+      "measured_usd": 37.8904,
+      "imputed_usd": 0.5804,
+      "imputed_note": "20 of 1322 calls have no token record; their cost is the stage rate times 20, not a measurement",
+      "runbook": "notebooks/test_fable5_colab.ipynb",
+      "separate_from": "the 2026-08-26 generation authorization of $15"
     }
   }
 }

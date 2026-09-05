@@ -2,33 +2,20 @@
   "model": "claude-haiku-4-5",
   "tag": null,
   "conditions": [
-    "afsp_full",
-    "afsp_margin",
-    "commercial_haiku",
-    "gpt56_sparse_knn",
-    "knn_fewshot",
-    "peft",
-    "peft_afsp",
-    "peft_knn",
-    "random_fewshot",
-    "rlsf_w3_0.0",
-    "rlsf_w3_2.0",
-    "rlsf_w3_6.0",
-    "sparse_knn",
-    "zeroshot"
+    "fable5_sparse_knn"
   ],
   "limit": null,
   "priced": true,
   "session": {
-    "calls": 1562,
-    "prompt_tokens": 732055,
-    "completion_tokens": 163176,
-    "cost_usd": 1.5479
+    "calls": 1302,
+    "prompt_tokens": 616169,
+    "completion_tokens": 134568,
+    "cost_usd": 1.289
   },
   "cumulative": {
-    "calls": 18508,
-    "prompt_tokens": 8727208,
-    "completion_tokens": 1978703,
-    "cost_usd": 18.6207
+    "calls": 19830,
+    "prompt_tokens": 9352800,
+    "completion_tokens": 2115135,
+    "cost_usd": 19.9284
   }
 }

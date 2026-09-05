@@ -97,6 +97,8 @@ def make_client(gen: dict):
             max_tokens=gen.get("max_tokens", 1024),
             thinking=gen.get("thinking", False),
             temperature=gen.get("temperature"),
+            effort=gen.get("effort"),
+            pricing=gen.get("pricing"),
         )
     if provider == "gemini":
         return GeminiChatClient(
@@ -404,19 +406,24 @@ def run(condition: str, cfg: dict, out_name: str | None = None) -> None:
         )
 
     usage = client.usage.summary()
-    (out_dir / f"{name}_{split}_usage.json").write_text(
-        json.dumps(
-            {
-                "condition": condition,
-                "output_name": name,
-                "model": gen["model"],
-                "provenance": _provenance(condition, cfg),
-                **usage,
-            },
-            indent=2,
-        ),
-        encoding="utf-8",
-    )
+    sidecar = out_dir / f"{name}_{split}_usage.json"
+    # A fully resumed pass calls nothing; writing its zeros would erase the real record.
+    if usage["calls"] == 0 and sidecar.exists():
+        print(f"Nothing generated; kept {sidecar}")
+    else:
+        sidecar.write_text(
+            json.dumps(
+                {
+                    "condition": condition,
+                    "output_name": name,
+                    "model": gen["model"],
+                    "provenance": _provenance(condition, cfg),
+                    **usage,
+                },
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
     print(f"Wrote {out_path}")
     print(f"Usage: {usage}")
 

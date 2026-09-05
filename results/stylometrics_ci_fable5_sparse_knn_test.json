@@ -1,0 +1,423 @@
+{
+  "split": "test",
+  "out_dir": "outputs",
+  "centroid": {
+    "path": "results/stylometrics_centroid.json",
+    "features": [
+      "lex_density",
+      "ttr",
+      "root_ttr",
+      "marker_rate"
+    ],
+    "n_segments": 10860,
+    "fingerprint": "fd5aec8d69454b02"
+  },
+  "bootstrap": {
+    "n_resamples": 10000,
+    "seed": 42,
+    "alpha": 0.05,
+    "paired": true,
+    "n_segments": 1322
+  },
+  "conditions": [
+    "fable5_sparse_knn",
+    "gpt56_sparse_knn",
+    "sparse_knn",
+    "knn_fewshot",
+    "commercial_haiku"
+  ],
+  "ranking": [
+    "knn_fewshot",
+    "sparse_knn",
+    "gpt56_sparse_knn",
+    "fable5_sparse_knn",
+    "commercial_haiku"
+  ],
+  "cells": {
+    "fable5_sparse_knn": {
+      "n": 1322,
+      "stylo_dist": 0.39942906374089127,
+      "z": {
+        "lex_density": 0.09688464223505326,
+        "ttr": -0.22665874110570197,
+        "root_ttr": -0.21558256052081753,
+        "marker_rate": -0.22870705660205834
+      },
+      "mean": {
+        "lex_density": 0.44508232394424885,
+        "ttr": 0.8293824384538409,
+        "root_ttr": 3.818925756182019,
+        "sent_len_mean": 24.48354765506808,
+        "sent_len_var": 5.98181942343251,
+        "marker_rate": 0.03946767751700942
+      },
+      "stylo_dist_ci": [
+        0.355101254571738,
+        0.45036828845772814
+      ],
+      "z_lex_density_ci": [
+        0.04601254525911165,
+        0.14965773094925497
+      ],
+      "z_ttr_ci": [
+        -0.28736998597626734,
+        -0.16400533104067525
+      ],
+      "z_root_ttr_ci": [
+        -0.2653267183146026,
+        -0.16687171369997078
+      ],
+      "z_marker_rate_ci": [
+        -0.2799466690253615,
+        -0.1747663977476457
+      ],
+      "rank": 4,
+      "rank_distribution": {
+        "rank_probs": [
+          0.0084,
+          0.0167,
+          0.1955,
+          0.7794,
+          0.0
+        ],
+        "modal_rank": 4,
+        "modal_prob": 0.7794,
+        "mean_rank": 3.7459
+      }
+    },
+    "gpt56_sparse_knn": {
+      "n": 1322,
+      "stylo_dist": 0.3832489760326531,
+      "z": {
+        "lex_density": 0.20646395988666882,
+        "ttr": -0.07904862892896193,
+        "root_ttr": -0.2109210649253978,
+        "marker_rate": -0.23133531838692623
+      },
+      "mean": {
+        "lex_density": 0.45714529553792727,
+        "ttr": 0.8454009465196102,
+        "root_ttr": 3.823785887347635,
+        "sent_len_mean": 22.960035300050432,
+        "sent_len_var": 6.716738107244915,
+        "marker_rate": 0.03926219696770468
+      },
+      "stylo_dist_ci": [
+        0.3392748487059421,
+        0.43386720173941995
+      ],
+      "z_lex_density_ci": [
+        0.1536860712775005,
+        0.26092123620051333
+      ],
+      "z_ttr_ci": [
+        -0.1358383185046113,
+        -0.020785494501779588
+      ],
+      "z_root_ttr_ci": [
+        -0.2622052770056433,
+        -0.1609320440889459
+      ],
+      "z_marker_rate_ci": [
+        -0.2801601546379169,
+        -0.17916349861010214
+      ],
+      "rank": 3,
+      "rank_distribution": {
+        "rank_probs": [
+          0.0202,
+          0.0624,
+          0.7134,
+          0.2037,
+          0.0003
+        ],
+        "modal_rank": 3,
+        "modal_prob": 0.7134,
+        "mean_rank": 3.1015
+      }
+    },
+    "sparse_knn": {
+      "n": 1322,
+      "stylo_dist": 0.35355253873683146,
+      "z": {
+        "lex_density": 0.16382136508685394,
+        "ttr": -0.12199715330930237,
+        "root_ttr": -0.26202897593899155,
+        "marker_rate": -0.12091099346679926
+      },
+      "mean": {
+        "lex_density": 0.4524510117919167,
+        "ttr": 0.8407402137686206,
+        "root_ttr": 3.7705001669083065,
+        "sent_len_mean": 22.747165910237012,
+        "sent_len_var": 6.968930694234325,
+        "marker_rate": 0.04789529853765868
+      },
+      "stylo_dist_ci": [
+        0.3098736891243828,
+        0.40628557050046155
+      ],
+      "z_lex_density_ci": [
+        0.11004097479569297,
+        0.21953227380186446
+      ],
+      "z_ttr_ci": [
+        -0.183440835739808,
+        -0.059569259141106175
+      ],
+      "z_root_ttr_ci": [
+        -0.31284215973238755,
+        -0.21283766374590696
+      ],
+      "z_marker_rate_ci": [
+        -0.17492836353709662,
+        -0.06360046652026874
+      ],
+      "rank": 2,
+      "rank_distribution": {
+        "rank_probs": [
+          0.1493,
+          0.7552,
+          0.0806,
+          0.0149,
+          0.0
+        ],
+        "modal_rank": 2,
+        "modal_prob": 0.7552,
+        "mean_rank": 1.9611
+      }
+    },
+    "knn_fewshot": {
+      "n": 1322,
+      "stylo_dist": 0.3423482480548216,
+      "z": {
+        "lex_density": 0.15914070936583347,
+        "ttr": -0.12635476513992186,
+        "root_ttr": -0.2516741103111124,
+        "marker_rate": -0.11212124283243662
+      },
+      "mean": {
+        "lex_density": 0.4519357446939597,
+        "ttr": 0.8402673299043181,
+        "root_ttr": 3.781296273892355,
+        "sent_len_mean": 22.892624810892585,
+        "sent_len_var": 7.75494852075979,
+        "marker_rate": 0.048582491418900274
+      },
+      "stylo_dist_ci": [
+        0.29774514866235174,
+        0.39380211493837325
+      ],
+      "z_lex_density_ci": [
+        0.10598287352681883,
+        0.21318392600754152
+      ],
+      "z_ttr_ci": [
+        -0.18699629061391396,
+        -0.06401120258873437
+      ],
+      "z_root_ttr_ci": [
+        -0.30220927001531755,
+        -0.20168527994756022
+      ],
+      "z_marker_rate_ci": [
+        -0.16485333235907096,
+        -0.05492264167940133
+      ],
+      "rank": 1,
+      "rank_distribution": {
+        "rank_probs": [
+          0.8221,
+          0.1657,
+          0.0105,
+          0.0017,
+          0.0
+        ],
+        "modal_rank": 1,
+        "modal_prob": 0.8221,
+        "mean_rank": 1.1918
+      }
+    },
+    "commercial_haiku": {
+      "n": 1322,
+      "stylo_dist": 0.47194069142803907,
+      "z": {
+        "lex_density": 0.04258294450793037,
+        "ttr": -0.33844607750083333,
+        "root_ttr": -0.2509109568175141,
+        "marker_rate": -0.20835703356457547
+      },
+      "mean": {
+        "lex_density": 0.4391045550439774,
+        "ttr": 0.8172513837226295,
+        "root_ttr": 3.7820919468695062,
+        "sent_len_mean": 24.69804130564342,
+        "sent_len_var": 4.320379084824313,
+        "marker_rate": 0.04105866587904442
+      },
+      "stylo_dist_ci": [
+        0.42269862748089265,
+        0.5265657408582752
+      ],
+      "z_lex_density_ci": [
+        -0.005870050236433402,
+        0.09445130495155139
+      ],
+      "z_ttr_ci": [
+        -0.40092080039634626,
+        -0.2738614953045416
+      ],
+      "z_root_ttr_ci": [
+        -0.30142630195093484,
+        -0.20204362763184214
+      ],
+      "z_marker_rate_ci": [
+        -0.25838580786737764,
+        -0.1536928010606366
+      ],
+      "rank": 5,
+      "rank_distribution": {
+        "rank_probs": [
+          0.0,
+          0.0,
+          0.0,
+          0.0003,
+          0.9997
+        ],
+        "modal_rank": 5,
+        "modal_prob": 0.9997,
+        "mean_rank": 4.9997
+      }
+    }
+  },
+  "paired_adjacent": [
+    {
+      "a": "knn_fewshot",
+      "b": "sparse_knn",
+      "diff": -0.011418652094435829,
+      "ci_low": -0.03286064380494353,
+      "ci_high": 0.01070314639866973,
+      "p_value": 0.312,
+      "significant": false
+    },
+    {
+      "a": "sparse_knn",
+      "b": "gpt56_sparse_knn",
+      "diff": -0.02910959802838702,
+      "ci_low": -0.06982713208212891,
+      "ci_high": 0.011705697767807497,
+      "p_value": 0.1698,
+      "significant": false
+    },
+    {
+      "a": "gpt56_sparse_knn",
+      "b": "fable5_sparse_knn",
+      "diff": -0.015960435017619123,
+      "ci_low": -0.05569591536570173,
+      "ci_high": 0.02389216341761722,
+      "p_value": 0.4228,
+      "significant": false
+    },
+    {
+      "a": "fable5_sparse_knn",
+      "b": "commercial_haiku",
+      "diff": -0.07197587964480408,
+      "ci_low": -0.10791542431413674,
+      "ci_high": -0.03668447908379458,
+      "p_value": 0.0,
+      "significant": true
+    }
+  ],
+  "paired_all": [
+    {
+      "a": "knn_fewshot",
+      "b": "sparse_knn",
+      "diff": -0.011418652094435829,
+      "ci_low": -0.03286064380494353,
+      "ci_high": 0.01070314639866973,
+      "p_value": 0.312,
+      "significant": false
+    },
+    {
+      "a": "knn_fewshot",
+      "b": "gpt56_sparse_knn",
+      "diff": -0.040528250122822844,
+      "ci_low": -0.0826396615923223,
+      "ci_high": 0.0001579878475556145,
+      "p_value": 0.0506,
+      "significant": false
+    },
+    {
+      "a": "knn_fewshot",
+      "b": "fable5_sparse_knn",
+      "diff": -0.05648868514044197,
+      "ci_low": -0.10215623671288322,
+      "ci_high": -0.009423197657750737,
+      "p_value": 0.021,
+      "significant": true
+    },
+    {
+      "a": "knn_fewshot",
+      "b": "commercial_haiku",
+      "diff": -0.12846456478524607,
+      "ci_low": -0.1801653293370462,
+      "ci_high": -0.07401142633019965,
+      "p_value": 0.0,
+      "significant": true
+    },
+    {
+      "a": "sparse_knn",
+      "b": "gpt56_sparse_knn",
+      "diff": -0.02910959802838702,
+      "ci_low": -0.06982713208212891,
+      "ci_high": 0.011705697767807497,
+      "p_value": 0.1698,
+      "significant": false
+    },
+    {
+      "a": "sparse_knn",
+      "b": "fable5_sparse_knn",
+      "diff": -0.045070033046006146,
+      "ci_low": -0.09149150488619605,
+      "ci_high": 0.0019430355955019213,
+      "p_value": 0.0644,
+      "significant": false
+    },
+    {
+      "a": "sparse_knn",
+      "b": "commercial_haiku",
+      "diff": -0.11704591269081022,
+      "ci_low": -0.1697085650301263,
+      "ci_high": -0.061794084564146555,
+      "p_value": 0.0,
+      "significant": true
+    },
+    {
+      "a": "gpt56_sparse_knn",
+      "b": "fable5_sparse_knn",
+      "diff": -0.015960435017619123,
+      "ci_low": -0.05569591536570173,
+      "ci_high": 0.02389216341761722,
+      "p_value": 0.4228,
+      "significant": false
+    },
+    {
+      "a": "gpt56_sparse_knn",
+      "b": "commercial_haiku",
+      "diff": -0.0879363146624232,
+      "ci_low": -0.14081768970342495,
+      "ci_high": -0.033192749702152115,
+      "p_value": 0.0006,
+      "significant": true
+    },
+    {
+      "a": "fable5_sparse_knn",
+      "b": "commercial_haiku",
+      "diff": -0.07197587964480408,
+      "ci_low": -0.10791542431413674,
+      "ci_high": -0.03668447908379458,
+      "p_value": 0.0,
+      "significant": true
+    }
+  ]
+}

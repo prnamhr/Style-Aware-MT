@@ -1,0 +1,243 @@
+{
+  "split": "test",
+  "judge": {
+    "tag": null,
+    "model": "claude-haiku-4-5",
+    "template_sha256": "ffd6dad41acb0512",
+    "results_path": "results/judge_test.json"
+  },
+  "bootstrap": {
+    "n_resamples": 10000,
+    "seed": 42,
+    "alpha": 0.05,
+    "paired": true,
+    "unit": "segment",
+    "n_segments": 1322
+  },
+  "evidence_class": {
+    "study_conditions": [
+      "fable5_sparse_knn",
+      "gpt56_sparse_knn",
+      "sparse_knn",
+      "knn_fewshot"
+    ],
+    "external_reference": [
+      "commercial_haiku"
+    ],
+    "note": "commercial_haiku is a diagnostic external reference baseline, not a condition of the study, and is excluded from study tables. Phi is not seed-reproducible, so differences of order 0.05 are within measurement noise."
+  },
+  "conditions": [
+    "fable5_sparse_knn",
+    "gpt56_sparse_knn",
+    "sparse_knn",
+    "knn_fewshot",
+    "commercial_haiku"
+  ],
+  "ranking": [
+    "fable5_sparse_knn",
+    "gpt56_sparse_knn",
+    "commercial_haiku",
+    "knn_fewshot",
+    "sparse_knn"
+  ],
+  "cells": {
+    "fable5_sparse_knn": {
+      "n": 1322,
+      "n_scored": 1322,
+      "coverage": 1.0,
+      "phi": 3.590015128593041,
+      "sd": 0.8253130985244841,
+      "phi_ci": [
+        3.5453857791225416,
+        3.6339069591527986
+      ],
+      "score_histogram": {
+        "1": 0.01588502269288956,
+        "2": 0.10060514372163389,
+        "3": 0.23222390317700453,
+        "4": 0.5801815431164902,
+        "5": 0.07110438729198185
+      },
+      "is_reference": false,
+      "rank": 1,
+      "rank_distribution": {
+        "rank_probs": [
+          0.9916,
+          0.0084,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "modal_rank": 1,
+        "modal_prob": 0.9916,
+        "mean_rank": 1.0084
+      }
+    },
+    "gpt56_sparse_knn": {
+      "n": 1322,
+      "n_scored": 1322,
+      "coverage": 1.0,
+      "phi": 3.536308623298033,
+      "sd": 0.8146822576841756,
+      "phi_ci": [
+        3.4909228441754916,
+        3.58018154311649
+      ],
+      "score_histogram": {
+        "1": 0.01664145234493192,
+        "2": 0.11270801815431165,
+        "3": 0.2329803328290469,
+        "4": 0.5930408472012103,
+        "5": 0.04462934947049924
+      },
+      "is_reference": false,
+      "rank": 2,
+      "rank_distribution": {
+        "rank_probs": [
+          0.0084,
+          0.9916,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "modal_rank": 2,
+        "modal_prob": 0.9916,
+        "mean_rank": 1.9916
+      }
+    },
+    "sparse_knn": {
+      "n": 1322,
+      "n_scored": 1322,
+      "coverage": 1.0,
+      "phi": 2.6921331316187596,
+      "sd": 0.9577360166003159,
+      "phi_ci": [
+        2.6399205748865358,
+        2.74357034795764
+      ],
+      "score_histogram": {
+        "1": 0.10363086232980333,
+        "2": 0.3411497730711044,
+        "3": 0.32223903177004537,
+        "4": 0.2254160363086233,
+        "5": 0.007564296520423601
+      },
+      "is_reference": false,
+      "rank": 5,
+      "rank_distribution": {
+        "rank_probs": [
+          0.0,
+          0.0,
+          0.0,
+          0.1609,
+          0.8391
+        ],
+        "modal_rank": 5,
+        "modal_prob": 0.8391,
+        "mean_rank": 4.8391
+      }
+    },
+    "knn_fewshot": {
+      "n": 1322,
+      "n_scored": 1322,
+      "coverage": 1.0,
+      "phi": 2.7110438729198183,
+      "sd": 0.9441716344436225,
+      "phi_ci": [
+        2.6596066565809378,
+        2.7617246596066565
+      ],
+      "score_histogram": {
+        "1": 0.09152798789712557,
+        "2": 0.348714069591528,
+        "3": 0.32526475037821484,
+        "4": 0.22617246596066565,
+        "5": 0.00832072617246596
+      },
+      "is_reference": false,
+      "rank": 4,
+      "rank_distribution": {
+        "rank_probs": [
+          0.0,
+          0.0,
+          0.0,
+          0.8391,
+          0.1609
+        ],
+        "modal_rank": 4,
+        "modal_prob": 0.8391,
+        "mean_rank": 4.1609
+      }
+    },
+    "commercial_haiku": {
+      "n": 1322,
+      "n_scored": 1322,
+      "coverage": 1.0,
+      "phi": 3.355521936459909,
+      "sd": 0.8739239906630056,
+      "phi_ci": [
+        3.307110438729198,
+        3.401664145234493
+      ],
+      "score_histogram": {
+        "1": 0.03479576399394856,
+        "2": 0.14069591527987896,
+        "3": 0.2806354009077156,
+        "4": 0.5219364599092284,
+        "5": 0.02193645990922844
+      },
+      "is_reference": true,
+      "rank": 3,
+      "rank_distribution": {
+        "rank_probs": [
+          0.0,
+          0.0,
+          1.0,
+          0.0,
+          0.0
+        ],
+        "modal_rank": 3,
+        "modal_prob": 1.0,
+        "mean_rank": 3.0
+      }
+    }
+  },
+  "paired_adjacent": [
+    {
+      "a": "fable5_sparse_knn",
+      "b": "gpt56_sparse_knn",
+      "diff": 0.053802571860816946,
+      "ci_low": 0.009833585476550777,
+      "ci_high": 0.09909228441754925,
+      "p_value": 0.0182,
+      "significant": true
+    },
+    {
+      "a": "gpt56_sparse_knn",
+      "b": "commercial_haiku",
+      "diff": 0.18088577912254158,
+      "ci_low": 0.1316187594553706,
+      "ci_high": 0.22995461422087748,
+      "p_value": 0.0,
+      "significant": true
+    },
+    {
+      "a": "commercial_haiku",
+      "b": "knn_fewshot",
+      "diff": 0.6441478819969744,
+      "ci_low": 0.5869894099848714,
+      "ci_high": 0.701210287443268,
+      "p_value": 0.0,
+      "significant": true
+    },
+    {
+      "a": "knn_fewshot",
+      "b": "sparse_knn",
+      "diff": 0.01905680786686838,
+      "ci_low": -0.018910741301059186,
+      "ci_high": 0.056732223903177115,
+      "p_value": 0.3218,
+      "significant": false
+    }
+  ]
+}

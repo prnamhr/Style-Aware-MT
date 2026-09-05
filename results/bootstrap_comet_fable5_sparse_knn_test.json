@@ -1,0 +1,82 @@
+{
+  "metric": "comet",
+  "judge_tag": null,
+  "split": "test",
+  "conditions": [
+    "fable5_sparse_knn",
+    "gpt56_sparse_knn",
+    "sparse_knn",
+    "knn_fewshot"
+  ],
+  "baseline": "knn_fewshot",
+  "adjacent": false,
+  "n_resamples": 10000,
+  "alpha": 0.05,
+  "seed": 42,
+  "sources": {
+    "comparators": "results/comet_test.json",
+    "fable5_sparse_knn": "results/comet_fable5_sparse_knn_test.json"
+  },
+  "comparisons": [
+    {
+      "a": "fable5_sparse_knn",
+      "b": "knn_fewshot",
+      "n": 1322,
+      "mean_a": 0.767854866728119,
+      "mean_b": 0.690464983706936,
+      "diff": 0.07738988302118299,
+      "ci_low": 0.07277479128751477,
+      "ci_high": 0.08217177768202669,
+      "p_value": 0.0,
+      "significant": true
+    },
+    {
+      "a": "gpt56_sparse_knn",
+      "b": "knn_fewshot",
+      "n": 1322,
+      "mean_a": 0.7610248151642471,
+      "mean_b": 0.690464983706936,
+      "diff": 0.07055983145731115,
+      "ci_low": 0.06613012860429084,
+      "ci_high": 0.07505278676556654,
+      "p_value": 0.0,
+      "significant": true
+    },
+    {
+      "a": "sparse_knn",
+      "b": "knn_fewshot",
+      "n": 1322,
+      "mean_a": 0.6903631465112208,
+      "mean_b": 0.690464983706936,
+      "diff": -0.00010183719571521532,
+      "ci_low": -0.0025333119046264813,
+      "ci_high": 0.002340143748788725,
+      "p_value": 0.9404,
+      "significant": false
+    },
+    {
+      "a": "fable5_sparse_knn",
+      "b": "sparse_knn",
+      "n": 1322,
+      "mean_a": 0.767854866728119,
+      "mean_b": 0.6903631465112208,
+      "diff": 0.07749172021689821,
+      "ci_low": 0.07257637574412092,
+      "ci_high": 0.08243602353814598,
+      "p_value": 0.0,
+      "significant": true
+    },
+    {
+      "a": "fable5_sparse_knn",
+      "b": "gpt56_sparse_knn",
+      "n": 1322,
+      "mean_a": 0.767854866728119,
+      "mean_b": 0.7610248151642471,
+      "diff": 0.006830051563871842,
+      "ci_low": 0.004039915722658169,
+      "ci_high": 0.009747857555363752,
+      "p_value": 0.0,
+      "significant": true
+    }
+  ]
+}

@@ -58,6 +58,10 @@
     "gpt56_sparse_knn": {
       "file": "outputs/gpt56_sparse_knn_test.jsonl",
       "sha256": "4ea9f9f51580a91138d7baa11bfcfceafe532c1c9642c2be70dffba97113848a"
+    },
+    "fable5_sparse_knn": {
+      "file": "outputs/fable5_sparse_knn_test.jsonl",
+      "sha256": "19e34d284b64292a6d422bc924f7040b18370c271f169c7b667fd9cfa0ed2c4b"
     }
   }
 }

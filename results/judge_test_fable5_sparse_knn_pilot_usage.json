@@ -1,0 +1,21 @@
+{
+  "model": "claude-haiku-4-5",
+  "tag": null,
+  "conditions": [
+    "fable5_sparse_knn"
+  ],
+  "limit": 20,
+  "priced": true,
+  "session": {
+    "calls": 20,
+    "prompt_tokens": 9423,
+    "completion_tokens": 1864,
+    "cost_usd": 0.0187
+  },
+  "cumulative": {
+    "calls": 18528,
+    "prompt_tokens": 8736631,
+    "completion_tokens": 1980567,
+    "cost_usd": 18.6394
+  }
+}

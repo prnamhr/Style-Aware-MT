@@ -1,0 +1,188 @@
+{
+  "split": "test",
+  "commit": "c6502205834ffe5246455b5ddcca6c68754401d5",
+  "row": "fable5_sparse_knn",
+  "generation": {
+    "manifest": "outputs/test_manifest.json",
+    "output_sha256": "19e34d284b64292a6d422bc924f7040b18370c271f169c7b667fd9cfa0ed2c4b",
+    "model": "claude-fable-5-1",
+    "runbook": "notebooks/test_fable5_colab.ipynb"
+  },
+  "raters": {
+    "phi_a": {
+      "model": "claude-haiku-4-5",
+      "config": "configs/judge_eval.yaml",
+      "tag": null,
+      "transport": "sync"
+    },
+    "phi_b": {
+      "model": "gpt-5.6-terra",
+      "config": "configs/judge_eval_gpt.yaml",
+      "tag": "gpt",
+      "transport": "batch"
+    },
+    "rubric": {
+      "file": "prompts/judge_eval.txt",
+      "sha256": "ffd6dad41acb05125d8d61828348fff59c3808c82de12b95305f29190b354f00",
+      "digest": "ffd6dad41acb0512"
+    }
+  },
+  "phi": {
+    "phi_a": {
+      "n": 1322,
+      "mean": 3.590015128593041,
+      "coverage": 1.0
+    },
+    "phi_b": {
+      "n": 1322,
+      "mean": 4.1928079571537875,
+      "coverage": 0.9887
+    }
+  },
+  "estimators": {
+    "n_resamples": 10000,
+    "alpha": 0.05,
+    "seed": 42,
+    "paired": true
+  },
+  "evidence_class": "exploratory; this row is not in the pre-registered confirmatory family",
+  "comparators": [
+    "gpt56_sparse_knn",
+    "sparse_knn",
+    "knn_fewshot"
+  ],
+  "contrasts": {
+    "family_size": 3,
+    "contrasts": {
+      "fable5_sparse_knn - gpt56_sparse_knn": {
+        "high": "fable5_sparse_knn",
+        "low": "gpt56_sparse_knn",
+        "n": 1284,
+        "judge_a": {
+          "n": 1284,
+          "mean_a": 3.587227414330218,
+          "mean_b": 3.542056074766355,
+          "diff": 0.0451713395638631,
+          "ci_low": 0.0007593457943925141,
+          "ci_high": 0.09034267912772576,
+          "p_value": 0.05,
+          "significant": true,
+          "holm_significant": true
+        },
+        "judge_b": {
+          "n": 1284,
+          "mean_a": 4.186915887850467,
+          "mean_b": 4.149532710280374,
+          "diff": 0.03738317757009302,
+          "ci_low": -0.003894080996884597,
+          "ci_high": 0.07866043613707155,
+          "p_value": 0.0756,
+          "significant": false,
+          "holm_significant": false
+        },
+        "same_sign": true,
+        "both_separate": false,
+        "neither_separates": false,
+        "both_separate_holm": false
+      },
+      "fable5_sparse_knn - sparse_knn": {
+        "high": "fable5_sparse_knn",
+        "low": "sparse_knn",
+        "n": 1275,
+        "judge_a": {
+          "n": 1275,
+          "mean_a": 3.5937254901960785,
+          "mean_b": 2.700392156862745,
+          "diff": 0.8933333333333335,
+          "ci_low": 0.8321568627450984,
+          "ci_high": 0.9545098039215687,
+          "p_value": 0.0,
+          "significant": true,
+          "holm_significant": true
+        },
+        "judge_b": {
+          "n": 1275,
+          "mean_a": 4.198431372549019,
+          "mean_b": 3.5129411764705885,
+          "diff": 0.685490196078431,
+          "ci_low": 0.6298039215686275,
+          "ci_high": 0.7419607843137253,
+          "p_value": 0.0,
+          "significant": true,
+          "holm_significant": true
+        },
+        "same_sign": true,
+        "both_separate": true,
+        "neither_separates": false,
+        "both_separate_holm": true
+      },
+      "fable5_sparse_knn - knn_fewshot": {
+        "high": "fable5_sparse_knn",
+        "low": "knn_fewshot",
+        "n": 1286,
+        "judge_a": {
+          "n": 1286,
+          "mean_a": 3.595645412130638,
+          "mean_b": 2.7192846034214617,
+          "diff": 0.8763608087091761,
+          "ci_low": 0.8157076205287717,
+          "ci_high": 0.9370139968895801,
+          "p_value": 0.0,
+          "significant": true,
+          "holm_significant": true
+        },
+        "judge_b": {
+          "n": 1286,
+          "mean_a": 4.201399688958009,
+          "mean_b": 3.5552099533437014,
+          "diff": 0.6461897356143078,
+          "ci_low": 0.5925349922239502,
+          "ci_high": 0.6998444790046658,
+          "p_value": 0.0,
+          "significant": true,
+          "holm_significant": true
+        },
+        "same_sign": true,
+        "both_separate": true,
+        "neither_separates": false,
+        "both_separate_holm": true
+      }
+    }
+  },
+  "spend": {
+    "projected_usd": 2.3111,
+    "actual_usd": 2.1583,
+    "per_rater": {
+      "phi_a": {
+        "model": "claude-haiku-4-5",
+        "usd": 1.3077,
+        "calls": 1322,
+        "cumulative_usd": 19.9284
+      },
+      "phi_b": {
+        "model": "gpt-5.6-terra",
+        "usd": 0.8506,
+        "calls": 1322,
+        "cumulative_usd": 13.6581
+      }
+    },
+    "separate_from": "the 2026-08-26 two-rater authorization of $35"
+  },
+  "artifacts": {
+    "results/judge_test.json": "c9884c7016c68edab743df2ed2b7706cb166fecc2946f552cdc8df3df969ae93",
+    "results/judge_gpt_test.json": "09a67daf52b503fbcb9dde55fb6747cf11d0233d608ccff2ec1b63aee47ec476",
+    "results/judge_test_usage.json": "21744deaebf15c45a7353afa244f4d5b2239bb14c688703303b5aaa4fbb4d8dc",
+    "results/judge_gpt_test_usage.json": "4cb47bea1fc7992b088d25143a27376a55b3f204bd5f687c5b39f59e8a19393c",
+    "results/judge_test_fable5_sparse_knn_pilot_usage.json": "897e57e925c0c46417974e38c8e1a06f2096d21e3f686e7173febd19378cade3",
+    "results/judge_ci_fable5_sparse_knn_test.json": "30637ba02e88cb87b919bb2a0741bd6d11f4ba93a40486cc442047fd153b2e08",
+    "results/judge_ci_gpt_fable5_sparse_knn_test.json": "b8d2cb6db8bd33294620838fbe9eb3f9fe769478baef6272bac654bcf498fac1",
+    "results/bootstrap_judge_fable5_sparse_knn_test.json": "bf4359209e7bc3cd9bf923e17fb02eb99162cf23ac5089e1a84622b1774bfba5",
+    "results/bootstrap_judge_gpt_fable5_sparse_knn_test.json": "2384b02e1166327861a91a766d171ffa780b3fa4a28480e7e500c04a56b9130e",
+    "results/judge_agreement_gpt_fable5_sparse_knn_test.json": "37ab7422f3681f34b5c669e23cbe94ab3da2bd2fc5d56f527d4440e96f1c1bb5",
+    "results/judge_test_segments/fable5_sparse_knn.jsonl": "a948b87edc28f7ce6109883c16d24f3bf4b75a970982d84caabd9cf364a2e81d",
+    "results/judge_gpt_test_segments/fable5_sparse_knn.jsonl": "1497a592dd0d15b01b2c3a16d3919fa7fe4fd4d5939d61e3e7cce7afdb0270d9"
+  },
+  "versions": {
+    "python": "3.11.15"
+  }
+}
