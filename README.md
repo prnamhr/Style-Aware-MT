@@ -302,14 +302,19 @@ The `afsp_full_casefix` and `peft_afsp_casefix` runs are sensitivity-only robust
 
 ## External reference
 
-For context, `claude-haiku-4-5` is also evaluated zero-shot on the same test corpus. `gpt56_sparse_knn` is retained as a generator-family diagnostic using the frozen Sparse-KNN retrieval configuration. Neither is part of the controlled study because each changes the model family and compute budget.
+For context, `claude-haiku-4-5` is also evaluated zero-shot on the same test corpus. `gpt56_sparse_knn` and `fable5_sparse_knn` are retained as generator-family diagnostics using the frozen Sparse-KNN retrieval configuration.
 
 | Condition | COMET | chrF | BLEU | Phi_A | Phi_B | Full style dist. |
 |---|---:|---:|---:|---:|---:|---:|
 | Commercial zero-shot | 0.7355 | 43.84 | 17.86 | 3.356 | 3.862 | 0.4719 |
 | GPT-5.6 + Sparse-KNN | 0.7610 | 48.37 | 22.86 | 3.536 | 4.150 | 0.3832 |
+| Fable 5.1 + Sparse-KNN | 0.7679 | 51.09 | 25.63 | 3.590 | 4.193 | 0.3994 |
 
-The GPT-5.6 Sparse-KNN row is descriptive only. Its matched `gpt56_knn_fewshot` generation has not been fully scored, so this row cannot isolate the effect of sparse retrieval from the change in generator.
+Fable 5.1 has the highest COMET, chrF and BLEU in this README. It ranks first on both judges, with modal rank probability 0.9916 for `Phi_A` and 0.9762 for `Phi_B` over the five conditions in that comparison set.
+
+Full stylometric distance does not follow the adequacy scores. At 0.3994 [0.3551, 0.4504] the row sits above every prompting rung of the controlled study; the paired contrast against kNN few-shot is +0.0565 [0.0094, 0.1022], p = 0.021, uncorrected. Against GPT-5.6 the difference is 0.0160 [-0.0239, 0.0557], p = 0.4228, so the ordering between the two commercial generators on this measure is not resolved.
+
+Both Sparse-KNN rows are descriptive only. Neither has a matched `knn_fewshot` generation from its own model scored against it, so neither isolates the effect of sparse retrieval from the change in generator.
 
 The commercial zero-shot model's `Phi_A` score has an additional caveat because the generator and the primary judge use the same model family. `Phi_B` gives a cross-family comparison for that row, but the size of the `Phi_A` advantage should not be read as an independent style effect.
 
